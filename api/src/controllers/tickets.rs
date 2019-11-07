@@ -47,24 +47,14 @@ impl From<SearchParameters> for Paging {
 }
 
 pub fn index(
-    (connection, path, query, auth_user): (
-        Connection,
-        Path<OptionalPathParameters>,
-        Query<SearchParameters>,
-        User,
-    ),
+    (connection, path, query, auth_user): (Connection, Path<OptionalPathParameters>, Query<SearchParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     //todo convert to use pagingparams
 
     let connection = connection.get();
 
-    let tickets = TicketInstance::find_for_user_for_display(
-        auth_user.id(),
-        path.id,
-        query.start_utc,
-        query.end_utc,
-        connection,
-    )?;
+    let tickets =
+        TicketInstance::find_for_user_for_display(auth_user.id(), path.id, query.start_utc, query.end_utc, connection)?;
     let query: Paging = query.into_inner().into();
 
     let payload = Payload::new(tickets, query.clone());
@@ -96,11 +86,7 @@ pub fn show(
         auth_user.requires_scope_for_organization(Scopes::TicketRead, &organization, connection)?;
     }
 
-    let ticket_response = ShowTicketResponse {
-        event,
-        user,
-        ticket,
-    };
+    let ticket_response = ShowTicketResponse { event, user, ticket };
 
     Ok(HttpResponse::Ok().json(&ticket_response))
 }
@@ -125,11 +111,7 @@ pub fn update(
     ticket.update(ticket_parameters.into(), user.id(), connection)?;
 
     let (event, user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
-    let ticket_response = ShowTicketResponse {
-        event,
-        user,
-        ticket,
-    };
+    let ticket_response = ShowTicketResponse { event, user, ticket };
     Ok(HttpResponse::Ok().json(&ticket_response))
 }
 
@@ -151,12 +133,7 @@ pub fn show_redeemable_ticket(
 }
 
 pub fn send_via_email_or_phone(
-    (connection, send_tickets_request, auth_user, state): (
-        Connection,
-        Json<SendTicketsRequest>,
-        User,
-        State<AppState>,
-    ),
+    (connection, send_tickets_request, auth_user, state): (Connection, Json<SendTicketsRequest>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
@@ -164,11 +141,8 @@ pub fn send_via_email_or_phone(
     let re = Regex::new(r"[^0-9\+]+").unwrap();
     let numbers_only = re.replace_all(&send_tickets_request.email_or_phone, "");
 
-    if let Some(user) =
-        DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()?
-    {
-        let ticket_instances =
-            TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
+    if let Some(user) = DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()? {
+        let ticket_instances = TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
 
         TicketInstance::direct_transfer(
             auth_user.id(),
@@ -244,13 +218,7 @@ pub fn send_via_email_or_phone(
         };
 
         for event in transfer.events(connection)? {
-            mailers::tickets::transfer_sent_receipt(
-                &auth_user.user,
-                &transfer,
-                &event,
-                &state.config,
-                connection,
-            )?;
+            mailers::tickets::transfer_sent_receipt(&auth_user.user, &transfer, &event, &state.config, connection)?;
         }
     }
 
@@ -264,11 +232,7 @@ pub struct SendTicketsRequest {
 }
 
 pub fn transfer_authorization(
-    (connection, transfer_tickets_request, auth_user): (
-        Connection,
-        Json<TransferTicketRequest>,
-        User,
-    ),
+    (connection, transfer_tickets_request, auth_user): (Connection, Json<TransferTicketRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
@@ -297,8 +261,7 @@ pub fn receive_transfer(
     auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
 
-    let sender_wallet =
-        Wallet::find_default_for_user(transfer_authorization.sender_user_id, connection)?;
+    let sender_wallet = Wallet::find_default_for_user(transfer_authorization.sender_user_id, connection)?;
     let receiver_wallet = Wallet::find_default_for_user(auth_user.id(), connection)?;
 
     let tickets = TicketInstance::receive_ticket_transfer(
@@ -340,16 +303,20 @@ fn transfer_tickets_on_blockchain(
     for (asset_id, token_ids) in &tokens_per_asset {
         let asset = Asset::find(*asset_id, connection)?;
         match asset.blockchain_asset_id {
-            Some(a) => {
-                tari_client.transfer_tokens(&sender_wallet.secret_key, &sender_wallet.public_key,
-                                                         &a,
-                                                         token_ids.clone(),
-                                                         receiver_wallet.public_key.clone(),
-                )?
-            },
-            None => return Err(ApplicationError::new(
-                "Could not complete ticket transfer because the asset has not been assigned on the blockchain".to_string()
-            ).into()),
+            Some(a) => tari_client.transfer_tokens(
+                &sender_wallet.secret_key,
+                &sender_wallet.public_key,
+                &a,
+                token_ids.clone(),
+                receiver_wallet.public_key.clone(),
+            )?,
+            None => {
+                return Err(ApplicationError::new(
+                    "Could not complete ticket transfer because the asset has not been assigned on the blockchain"
+                        .to_string(),
+                )
+                .into());
+            }
         }
     }
     Ok(())

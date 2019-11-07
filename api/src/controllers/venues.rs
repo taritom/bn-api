@@ -22,9 +22,7 @@ pub fn index(
     )))
 }
 
-pub fn show(
-    (connection, parameters): (Connection, Path<PathParameters>),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let venue = Venue::find(parameters.id, connection)?;
 
@@ -41,9 +39,7 @@ pub fn show_from_organizations(
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
     let venues = match user.into_inner() {
-        Some(u) => {
-            Venue::find_for_organization(Some(&u.user), organization_id.id, connection.get())?
-        }
+        Some(u) => Venue::find_for_organization(Some(&u.user), organization_id.id, connection.get())?,
         None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
     };
 
@@ -54,16 +50,14 @@ pub fn show_from_organizations(
     )))
 }
 
-pub fn create(
-    (connection, new_venue, user): (Connection, Json<NewVenue>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn create((connection, new_venue, user): (Connection, Json<NewVenue>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
     if let Some(organization_id) = new_venue.organization_id {
         let organization = Organization::find(organization_id, connection)?;
         user.requires_scope_for_organization(Scopes::VenueWrite, &organization, connection)?;
     } else {
-        user.requires_scope(Scopes::ArtistWrite)?;
+        user.requires_scope(Scopes::VenueWrite)?;
     }
 
     let mut venue = new_venue.commit(connection)?;

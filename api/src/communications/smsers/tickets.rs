@@ -12,10 +12,7 @@ pub fn transfer_cancelled(
 ) -> Result<(), BigNeonError> {
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
-    let body = format!(
-        "{} has cancelled their transferred tickets.",
-        from_user.full_name()
-    );
+    let body = format!("{} has cancelled their transferred tickets.", from_user.full_name());
     Communication::new(
         CommunicationType::Sms,
         body,
@@ -46,13 +43,7 @@ pub fn transfer_drip_reminder(
     let destinations = CommAddress::from(phone);
     let body = format!(
         "{} Follow this link to receive them: {}",
-        transfer.drip_header(
-            event,
-            SourceOrDestination::Destination,
-            false,
-            config.environment,
-            conn
-        )?,
+        transfer.drip_header(event, SourceOrDestination::Destination, false, config.environment, conn)?,
         shortened_link
     );
     Communication::new(

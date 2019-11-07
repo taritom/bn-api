@@ -6,9 +6,7 @@ use uuid::Uuid;
 fn create() {
     let project = TestProject::new();
     let name = "Name";
-    let region = Region::create(name.into())
-        .commit(project.get_connection())
-        .unwrap();
+    let region = Region::create(name.into()).commit(project.get_connection()).unwrap();
 
     assert_eq!(region.name, name);
     assert_eq!(region.id.to_string().is_empty(), false);

@@ -65,19 +65,9 @@ mod test {
             id: "test".to_string(),
             x: "test".to_string(),
         };
-        assert_eq!(
-            Ok(e.clone()).for_display(),
-            Ok(DisplayR {
-                x: "test".to_string()
-            })
-        );
+        assert_eq!(Ok(e.clone()).for_display(), Ok(DisplayR { x: "test".to_string() }));
 
-        assert_eq!(
-            e.for_display(),
-            Ok(DisplayR {
-                x: "test".to_string()
-            })
-        );
+        assert_eq!(e.for_display(), Ok(DisplayR { x: "test".to_string() }));
     }
 
     #[test]
@@ -96,23 +86,15 @@ mod test {
         assert_eq!(
             e.clone().for_display(),
             Ok(vec![
-                DisplayR {
-                    x: "test".to_string()
-                },
-                DisplayR {
-                    x: "test2".to_string()
-                }
+                DisplayR { x: "test".to_string() },
+                DisplayR { x: "test2".to_string() }
             ])
         );
         assert_eq!(
             Ok(e.clone()).for_display(),
             Ok(vec![
-                DisplayR {
-                    x: "test".to_string()
-                },
-                DisplayR {
-                    x: "test2".to_string()
-                }
+                DisplayR { x: "test".to_string() },
+                DisplayR { x: "test2".to_string() }
             ])
         )
     }

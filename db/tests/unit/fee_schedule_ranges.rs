@@ -24,9 +24,7 @@ fn from() {
     .commit(None, project.get_connection())
     .unwrap();
 
-    let fee_schedule_range = fee_schedule
-        .get_range(30, project.get_connection())
-        .unwrap();
+    let fee_schedule_range = fee_schedule.get_range(30, project.get_connection()).unwrap();
     let display_fee_schedule_range: DisplayFeeScheduleRange = fee_schedule_range.clone().into();
     assert_eq!(display_fee_schedule_range.id, fee_schedule_range.id);
     assert_eq!(
@@ -37,18 +35,9 @@ fn from() {
         display_fee_schedule_range.min_price_in_cents,
         fee_schedule_range.min_price_in_cents
     );
-    assert_eq!(
-        display_fee_schedule_range.fee_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
-    assert_eq!(
-        display_fee_schedule_range.created_at,
-        fee_schedule_range.created_at
-    );
-    assert_eq!(
-        display_fee_schedule_range.updated_at,
-        fee_schedule_range.updated_at
-    );
+    assert_eq!(display_fee_schedule_range.fee_in_cents, fee_schedule_range.fee_in_cents);
+    assert_eq!(display_fee_schedule_range.created_at, fee_schedule_range.created_at);
+    assert_eq!(display_fee_schedule_range.updated_at, fee_schedule_range.updated_at);
 }
 
 #[test]
@@ -73,11 +62,8 @@ fn find() {
     .commit(None, project.get_connection())
     .unwrap();
 
-    let fee_schedule_range = fee_schedule
-        .get_range(30, project.get_connection())
-        .unwrap();
+    let fee_schedule_range = fee_schedule.get_range(30, project.get_connection()).unwrap();
 
-    let found_fee_schedule_range =
-        FeeScheduleRange::find(fee_schedule_range.id, project.get_connection()).unwrap();
+    let found_fee_schedule_range = FeeScheduleRange::find(fee_schedule_range.id, project.get_connection()).unwrap();
     assert_eq!(found_fee_schedule_range, fee_schedule_range);
 }

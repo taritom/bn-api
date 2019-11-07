@@ -32,10 +32,7 @@ fn find_fee_item() {
     .unwrap();
 
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket.id)).unwrap();
 
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
 
@@ -71,10 +68,7 @@ fn order() {
     .unwrap();
 
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket.id)).unwrap();
     assert_eq!(order_item.order(connection).unwrap().id, cart.id);
 }
 
@@ -242,10 +236,7 @@ fn update_with_validation_errors() {
                 assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
                 assert_eq!(
                     &errors["quantity"][0].message.clone().unwrap().into_owned(),
-                    &format!(
-                        "Max of {} uses for code {} exceeded",
-                        5, code.redemption_code
-                    )
+                    &format!("Max of {} uses for code {} exceeded", 5, code.redemption_code)
                 );
             }
             _ => panic!("Expected validation error"),
@@ -312,10 +303,7 @@ fn update_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("code_id"));
                 assert_eq!(errors["code_id"].len(), 1);
-                assert_eq!(
-                    errors["code_id"][0].code,
-                    "ticket_type_requires_access_code"
-                );
+                assert_eq!(errors["code_id"][0].code, "ticket_type_requires_access_code");
                 assert_eq!(
                     &errors["code_id"][0].message.clone().unwrap().into_owned(),
                     "Ticket type requires access code for purchase"
@@ -409,10 +397,7 @@ fn calculate_quantity() {
     .unwrap();
 
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket.id)).unwrap();
 
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
 

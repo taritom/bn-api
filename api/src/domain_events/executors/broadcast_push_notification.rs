@@ -1,19 +1,16 @@
 use bigneon_db::prelude::*;
-use config::EmailTemplate;
 use db::Connection;
-use diesel::prelude::*;
 use domain_events::executor_future::ExecutorFuture;
 use domain_events::routing::DomainActionExecutor;
 use errors::*;
 use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
-use uuid::Uuid;
 use validator::HasLen;
+use config::Config;
+use controllers::broadcasts::BroadcastPushNotificationAction;
 
-pub struct BroadcastPushNotificationExecutor {
-    pub custom_broadcast: EmailTemplate,
-}
+pub struct BroadcastPushNotificationExecutor {}
 
 impl DomainActionExecutor for BroadcastPushNotificationExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
@@ -28,24 +25,23 @@ impl DomainActionExecutor for BroadcastPushNotificationExecutor {
 }
 
 impl BroadcastPushNotificationExecutor {
-    pub fn new(custom_broadcast: EmailTemplate) -> BroadcastPushNotificationExecutor {
-        BroadcastPushNotificationExecutor { custom_broadcast }
+    pub fn new(config: &Config) -> BroadcastPushNotificationExecutor {
+        BroadcastPushNotificationExecutor {}
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
-        let conn = conn.get();
-        //        let action_data: BroadcastData =
-        //            serde_json::from_value(action.payload.clone())?;
+        let action_data: BroadcastPushNotificationAction = serde_json::from_value(action.payload.clone())?;
         let broadcast_id = action.main_table_id.ok_or(ApplicationError::new(
             "No broadcast id attached to domain action".to_string(),
         ))?;
-        let broadcast = Broadcast::find(broadcast_id, conn)?;
+        let broadcast = Broadcast::find(broadcast_id, conn.get())?;
         if broadcast.status == BroadcastStatus::Cancelled {
             return Ok(());
         }
 
-        let broadcast = broadcast.set_in_progress(conn)?;
-        let message = broadcast.message.clone().unwrap_or("".to_string());
+        let broadcast = broadcast.set_in_progress(conn.get())?;
+        let message = broadcast.message;
+        let message = message.unwrap_or("".to_string());
         let (audience_type, message) = match broadcast.notification_type {
             BroadcastType::LastCall => (
                 BroadcastAudience::PeopleAtTheEvent,
@@ -55,128 +51,49 @@ impl BroadcastPushNotificationExecutor {
         };
 
         let audience = match audience_type {
-            BroadcastAudience::PeopleAtTheEvent => {
-                Event::checked_in_users(broadcast.event_id, conn)?
-                    .into_iter()
-                    .map(|u| (u, Vec::new(), None))
-                    .collect_vec()
-            }
-            BroadcastAudience::TicketHolders => {
-                Event::find_all_ticket_holders(broadcast.event_id, conn)?
-            }
+            BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
         };
 
-        let event = Event::find(broadcast.event_id, conn)?;
+        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
 
-        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
+        for user in audience {
+            let tokens = user
+                .push_notification_tokens(conn.get())?
+                .into_iter()
+                .map(|pt| pt.token)
+                .collect_vec();
 
-        for (user, tickets, order_no) in audience {
-            match broadcast.channel {
-                BroadcastChannel::PushNotification => {
-                    queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
-                }
-                BroadcastChannel::Email => queue_email_notification(
-                    &broadcast,
-                    conn,
-                    &self.custom_broadcast,
-                    message.to_string(),
-                    &user,
-                    &tickets,
-                    order_no,
-                    &event,
-                )?,
+            if tokens.len() > 0 {
+                DomainAction::create(
+                    None,
+                    DomainActionTypes::Communication,
+                    Some(CommunicationChannelType::Push),
+                    serde_json::to_value(Communication::new(
+                        CommunicationType::Push,
+                        message.to_string(),
+                        None,
+                        None,
+                        CommAddress::from_vec(tokens),
+                        None,
+                        None,
+                        Some(vec!["broadcast"]),
+                        Some(
+                            [
+                                ("broadcast_id".to_string(), broadcast.id.to_string()),
+                                ("event_id".to_string(), broadcast.event_id.to_string()),
+                            ]
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        ),
+                    ))?,
+                    Some(Tables::Events),
+                    Some(action_data.event_id),
+                )
+                    .commit(conn.get())?;
             }
         }
 
         Ok(())
     }
-}
-
-fn queue_push_notification(
-    broadcast: &Broadcast,
-    message: String,
-    user: &User,
-    conn: &PgConnection,
-) -> Result<(), BigNeonError> {
-    let tokens = user
-        .push_notification_tokens(conn)?
-        .into_iter()
-        .map(|pt| pt.token)
-        .collect_vec();
-
-    if tokens.len() > 0 {
-        DomainAction::create(
-            None,
-            DomainActionTypes::Communication,
-            Some(CommunicationChannelType::Push),
-            serde_json::to_value(Communication::new(
-                CommunicationType::Push,
-                message,
-                None,
-                None,
-                CommAddress::from_vec(tokens),
-                None,
-                None,
-                Some(vec!["broadcast"]),
-                Some(
-                    [("broadcast_id".to_string(), broadcast.id.to_string())]
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-            ))?,
-            Some(Tables::Events),
-            Some(broadcast.event_id),
-        )
-        .commit(conn)?;
-    }
-
-    Ok(())
-}
-
-fn queue_email_notification(
-    broadcast: &Broadcast,
-    conn: &PgConnection,
-    custom_email: &EmailTemplate,
-    message: String,
-    user: &User,
-    tickets: &[TicketInstance],
-    order_no: Option<Uuid>,
-    event: &Event,
-) -> Result<(), BigNeonError> {
-    if user.email.is_none() {
-        return Ok(());
-    }
-
-    let data = TemplateData::new();
-    //    data.insert()
-    DomainAction::create(
-        None,
-        DomainActionTypes::Communication,
-        Some(CommunicationChannelType::Email),
-        serde_json::to_value(Communication::new(
-            CommunicationType::EmailTemplate,
-            broadcast.subject.as_ref().unwrap_or(&message).to_string(),
-            Some(message),
-            None,
-            CommAddress::from(user.email.clone().unwrap()),
-            Some(serde_json::to_string(custom_email)?),
-            //            Some(json!({
-            //            "num_tickets": ticket.length(),
-            //            "order_number": order_no.map(|o| Order::parse_order_number(o))
-            //            })),
-            None,
-            Some(vec!["broadcast"]),
-            Some(
-                [("broadcast_id".to_string(), broadcast.id.to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
-            ),
-        ))?,
-        Some(Tables::Events),
-        Some(broadcast.event_id),
-    )
-    .commit(conn)?;
-    Ok(())
 }

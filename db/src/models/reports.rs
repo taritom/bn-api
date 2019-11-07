@@ -102,11 +102,9 @@ impl From<TicketSalesPerEventFees> for TicketSalesRow {
         TicketSalesRow {
             organization_id: ticket_sales_per_event_fees.organization_id,
             event_id: ticket_sales_per_event_fees.event_id,
-            per_order_company_online_fees: ticket_sales_per_event_fees
-                .per_order_company_online_fees,
+            per_order_company_online_fees: ticket_sales_per_event_fees.per_order_company_online_fees,
             per_order_client_online_fees: ticket_sales_per_event_fees.per_order_client_online_fees,
-            per_order_total_fees_in_cents: ticket_sales_per_event_fees
-                .per_order_total_fees_in_cents,
+            per_order_total_fees_in_cents: ticket_sales_per_event_fees.per_order_total_fees_in_cents,
             ..Default::default()
         }
     }
@@ -507,12 +505,7 @@ impl TicketSalesRow {
         organization_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketSalesRow>, DatabaseError> {
-        let group_by = group_by_string(
-            group_by_ticket_type,
-            group_by_ticket_pricing,
-            group_by_hold,
-            false,
-        );
+        let group_by = group_by_string(group_by_ticket_type, group_by_ticket_pricing, group_by_hold, false);
         let query_ticket_sales = include_str!("../queries/reports/reports_tickets_sales.sql");
         let q = diesel::sql_query(query_ticket_sales)
             .bind::<Nullable<Timestamp>, _>(start)
@@ -526,14 +519,7 @@ impl TicketSalesRow {
             .to_db_error(ErrorCode::QueryError, "Could not fetch ticket sales")?;
 
         if include_event_fees {
-            let event_fees = TicketSalesRow::fetch_per_event_fees(
-                start,
-                end,
-                true,
-                event_id,
-                organization_id,
-                conn,
-            )?;
+            let event_fees = TicketSalesRow::fetch_per_event_fees(start, end, true, event_id, organization_id, conn)?;
             rows.extend(event_fees);
         }
         Ok(rows)
@@ -595,35 +581,30 @@ impl Report {
         conn: &PgConnection,
     ) -> Result<BoxOfficeSalesSummaryReport, DatabaseError> {
         let query = include_str!("../queries/reports/reports_box_office_sales_summary_report.sql");
-        let payment_box_office_summary_rows: Vec<BoxOfficeSalesSummaryReportRow> =
-            diesel::sql_query(query)
-                .bind::<dUuid, _>(organization_id)
-                .bind::<Nullable<Timestamp>, _>(start)
-                .bind::<Nullable<Timestamp>, _>(end)
-                .bind::<Bool, _>(true)
-                .get_results(conn)
-                .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+        let payment_box_office_summary_rows: Vec<BoxOfficeSalesSummaryReportRow> = diesel::sql_query(query)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end)
+            .bind::<Bool, _>(true)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
 
-        let entries_box_office_summary_rows: Vec<BoxOfficeSalesSummaryReportRow> =
-            diesel::sql_query(query)
-                .bind::<dUuid, _>(organization_id)
-                .bind::<Nullable<Timestamp>, _>(start)
-                .bind::<Nullable<Timestamp>, _>(end)
-                .bind::<Bool, _>(false)
-                .get_results(conn)
-                .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+        let entries_box_office_summary_rows: Vec<BoxOfficeSalesSummaryReportRow> = diesel::sql_query(query)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end)
+            .bind::<Bool, _>(false)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
 
-        let mut payment_totals: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
-            HashMap::new();
+        let mut payment_totals: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> = HashMap::new();
         let mut operator_data: Vec<BoxOfficeSalesSummaryOperatorRow> = Vec::new();
-        let mut operator_payments: HashMap<Uuid, Vec<BoxOfficeSalesSummaryPaymentRow>> =
-            HashMap::new();
+        let mut operator_payments: HashMap<Uuid, Vec<BoxOfficeSalesSummaryPaymentRow>> = HashMap::new();
         for (operator_id, group) in &payment_box_office_summary_rows
             .into_iter()
             .group_by(|row| row.operator_id)
         {
-            let mut payments: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
-                HashMap::new();
+            let mut payments: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> = HashMap::new();
             for group_item in group {
                 if let Some(external_payment_type) = group_item.external_payment_type {
                     payment_totals
@@ -735,14 +716,11 @@ impl Report {
         end: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<EventSummarySalesResult, DatabaseError> {
-        let mut results =
-            Report::summary_event_report_core(Some(event_id), None, start, end, conn)?;
+        let mut results = Report::summary_event_report_core(Some(event_id), None, start, end, conn)?;
 
         let result = match results.is_empty() {
             true => {
-                let mut event_summary = EventSummarySalesResult {
-                    ..Default::default()
-                };
+                let mut event_summary = EventSummarySalesResult { ..Default::default() };
                 event_summary.event_id = event_id;
                 event_summary
             }
@@ -776,10 +754,9 @@ impl Report {
             .bind::<Nullable<Timestamp>, _>(start)
             .bind::<Nullable<Timestamp>, _>(end);
 
-        let sales_rows: Vec<EventSummarySalesRow> = q.get_results(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not fetch report sales results",
-        )?;
+        let sales_rows: Vec<EventSummarySalesRow> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report sales results")?;
 
         //If there were no sales, return immediately
         if sales_rows.is_empty() {
@@ -810,8 +787,7 @@ impl Report {
         }
 
         //Now get the other fees results
-        let query_other_fees =
-            include_str!("../queries/reports/reports_event_summary_other_fees.sql");
+        let query_other_fees = include_str!("../queries/reports/reports_event_summary_other_fees.sql");
         let q = diesel::sql_query(query_other_fees)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
@@ -850,17 +826,7 @@ impl Report {
         organization_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketSalesAndCounts, DatabaseError> {
-        Report::ticket_sales_and_counts(
-            event_id,
-            organization_id,
-            None,
-            None,
-            true,
-            true,
-            true,
-            false,
-            conn,
-        )
+        Report::ticket_sales_and_counts(event_id, organization_id, None, None, true, true, true, false, conn)
     }
 
     pub fn promo_code_report(
@@ -868,17 +834,7 @@ impl Report {
         organization_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketSalesRow>, DatabaseError> {
-        TicketSalesRow::fetch(
-            None,
-            None,
-            true,
-            true,
-            true,
-            false,
-            event_id,
-            organization_id,
-            conn,
-        )
+        TicketSalesRow::fetch(None, None, true, true, true, false, event_id, organization_id, conn)
     }
 
     /// Fetches the generic ticket sales and counts data
@@ -905,13 +861,7 @@ impl Report {
             conn,
         )?;
 
-        let counts = TicketCountRow::fetch(
-            event_id,
-            organization_id,
-            group_by_event,
-            group_by_ticket_type,
-            conn,
-        )?;
+        let counts = TicketCountRow::fetch(event_id, organization_id, group_by_event, group_by_ticket_type, conn)?;
 
         Ok(TicketSalesAndCounts { counts, sales })
     }
@@ -957,11 +907,9 @@ impl Report {
                         let event_fee = row.event_fee_client_in_cents * row.actual_quantity;
                         let refund_ticket_face = row.unit_price_in_cents * row.refunded_quantity;
                         let refund_client_fee = row.client_fee_in_cents * row.refunded_quantity;
-                        let refund_event_fee =
-                            row.event_fee_client_in_cents * row.refunded_quantity;
+                        let refund_event_fee = row.event_fee_client_in_cents * row.refunded_quantity;
                         let sales_total = ticket_face + client_fee + event_fee;
-                        let refund_total =
-                            refund_ticket_face + refund_client_fee + refund_event_fee;
+                        let refund_total = refund_ticket_face + refund_client_fee + refund_event_fee;
                         entry.quantity += row.actual_quantity;
                         entry.unit_price_in_cents += ticket_face;
                         entry.client_fee_in_cents += client_fee;
@@ -1029,10 +977,7 @@ impl Report {
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
 
         //Get the fee schedule ranges for this org and construct an easy to use list of them
-        let fee_schedules = FeeSchedule::find_for_organization(
-            Organization::find(organization_id, conn)?.id,
-            conn,
-        )?;
+        let fee_schedules = FeeSchedule::find_for_organization(Organization::find(organization_id, conn)?.id, conn)?;
 
         struct FeeScheduleWithRange {
             fee_schedule_id: Uuid,
@@ -1049,9 +994,7 @@ impl Report {
                 ranges: fs.ranges(conn)?,
             });
             if fee_schedule_with_ranges.last().unwrap().ranges.len() < 1 {
-                return DatabaseError::no_results(
-                    "Could not find fee schedule range for this organization",
-                );
+                return DatabaseError::no_results("Could not find fee schedule range for this organization");
             }
         }
 
@@ -1124,26 +1067,20 @@ impl Report {
                                 let ticket_face = row.unit_price_in_cents * row.actual_quantity;
                                 let client_fee = row.client_fee_in_cents * row.actual_quantity;
                                 let event_fee = row.event_fee_client_in_cents * row.actual_quantity;
-                                let refund_ticket_face =
-                                    row.unit_price_in_cents * row.refunded_quantity;
-                                let refund_client_fee =
-                                    row.client_fee_in_cents * row.refunded_quantity;
-                                let refund_event_fee =
-                                    row.event_fee_client_in_cents * row.refunded_quantity;
+                                let refund_ticket_face = row.unit_price_in_cents * row.refunded_quantity;
+                                let refund_client_fee = row.client_fee_in_cents * row.refunded_quantity;
+                                let refund_event_fee = row.event_fee_client_in_cents * row.refunded_quantity;
                                 let sales_total = ticket_face + client_fee + event_fee;
-                                let refund_total =
-                                    refund_ticket_face + refund_client_fee + refund_event_fee;
+                                let refund_total = refund_ticket_face + refund_client_fee + refund_event_fee;
 
                                 entry.quantity += row.actual_quantity;
                                 entry.unit_price_in_cents += ticket_face;
-                                entry.client_fee_in_cents[column_idx].client_fee_in_cents +=
-                                    client_fee;
+                                entry.client_fee_in_cents[column_idx].client_fee_in_cents += client_fee;
                                 entry.event_fee_in_cents += event_fee;
                                 entry.sales_total += sales_total;
                                 entry.refund_quantity += row.refunded_quantity;
                                 entry.refund_unit_price_in_cents += refund_ticket_face;
-                                entry.refund_client_fee_in_cents[column_idx].client_fee_in_cents +=
-                                    refund_client_fee;
+                                entry.refund_client_fee_in_cents[column_idx].client_fee_in_cents += refund_client_fee;
                                 entry.refund_event_fee_in_cents += refund_event_fee;
                                 entry.refund_total += refund_total;
                                 entry.total += sales_total - refund_total;
@@ -1152,21 +1089,17 @@ impl Report {
                             let ticket_face = row.unit_price_in_cents * row.actual_quantity;
                             let client_fee = row.client_fee_in_cents * row.actual_quantity;
                             let event_fee = row.event_fee_client_in_cents * row.actual_quantity;
-                            let refund_ticket_face =
-                                row.unit_price_in_cents * row.refunded_quantity;
+                            let refund_ticket_face = row.unit_price_in_cents * row.refunded_quantity;
                             let refund_client_fee = row.client_fee_in_cents * row.refunded_quantity;
-                            let refund_event_fee =
-                                row.event_fee_client_in_cents * row.refunded_quantity;
+                            let refund_event_fee = row.event_fee_client_in_cents * row.refunded_quantity;
                             let sales_total = ticket_face + client_fee + event_fee;
-                            let refund_total =
-                                refund_ticket_face + refund_client_fee + refund_event_fee;
+                            let refund_total = refund_ticket_face + refund_client_fee + refund_event_fee;
 
                             let mut client_fee_in_cents = fee_schedule_range_columns.clone();
                             let mut refund_client_fee_in_cents = fee_schedule_range_columns.clone();
 
                             client_fee_in_cents[column_idx].client_fee_in_cents = client_fee;
-                            refund_client_fee_in_cents[column_idx].client_fee_in_cents =
-                                refund_client_fee;
+                            refund_client_fee_in_cents[column_idx].client_fee_in_cents = refund_client_fee;
 
                             event_entry.entries.push(ReconciliationDetailResult {
                                 payment_method: row.payment_method.unwrap(),

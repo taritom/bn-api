@@ -22,13 +22,7 @@ pub fn encrypt(plaintext: &str, encryption_key: &str) -> Result<String, Database
     for _ in 0..CHACHA20_POLY1305.tag_len() {
         in_out.push(0);
     }
-    let _ = seal_in_place(
-        &sealing_key,
-        &nonce,
-        &[],
-        &mut in_out,
-        CHACHA20_POLY1305.tag_len(),
-    )?;
+    let _ = seal_in_place(&sealing_key, &nonce, &[], &mut in_out, CHACHA20_POLY1305.tag_len())?;
 
     let data = hex::encode(&in_out);
     let mut nonce_data = hex::encode(nonce);
@@ -68,8 +62,7 @@ pub fn decrypt(ciphertext: &str, encryption_key: &str) -> Result<String, Databas
     }
 
     let mut in_out = new_data.unwrap();
-    let decrypted_data =
-        open_in_place(&opening_key, &new_nonce.unwrap(), &[], 0, &mut in_out).unwrap();
+    let decrypted_data = open_in_place(&opening_key, &new_nonce.unwrap(), &[], 0, &mut in_out).unwrap();
 
     let plaintext = String::from_utf8(decrypted_data.to_vec());
     //Doing this rather that implement a From for just this once instance

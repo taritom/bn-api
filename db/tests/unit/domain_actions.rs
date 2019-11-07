@@ -17,16 +17,11 @@ fn commit() {
     );
 
     let now = Utc::now().naive_utc();
-    assert!(
-        domain_action.scheduled_at <= now && domain_action.scheduled_at > now - Duration::hours(1)
-    );
+    assert!(domain_action.scheduled_at <= now && domain_action.scheduled_at > now - Duration::hours(1));
 
     let domain_action = domain_action.commit(conn).unwrap();
     assert!(!domain_action.id.is_nil());
-    assert_eq!(
-        DomainActionTypes::Communication,
-        domain_action.domain_action_type
-    );
+    assert_eq!(DomainActionTypes::Communication, domain_action.domain_action_type);
 }
 
 #[test]
@@ -45,14 +40,8 @@ fn new_scheduled_at() {
     let blocked_until = domain_action.blocked_until.clone();
 
     domain_action.schedule_at(new_scheduled_at);
-    assert_eq!(
-        new_scheduled_at.timestamp(),
-        domain_action.scheduled_at.timestamp()
-    );
-    assert_eq!(
-        60 * 60,
-        domain_action.expires_at.timestamp() - expires_at.timestamp()
-    );
+    assert_eq!(new_scheduled_at.timestamp(), domain_action.scheduled_at.timestamp());
+    assert_eq!(60 * 60, domain_action.expires_at.timestamp() - expires_at.timestamp());
     assert_eq!(
         60 * 60,
         domain_action.blocked_until.timestamp() - blocked_until.timestamp()
@@ -66,10 +55,7 @@ fn find_stuck() {
 
     let the_past = Utc::now().naive_utc() - Duration::hours(1);
 
-    let stuck_example = project
-        .create_domain_action()
-        .with_blocked_until(the_past)
-        .finish();
+    let stuck_example = project.create_domain_action().with_blocked_until(the_past).finish();
     // Create another domain action just to prove that find_stuck doesn't return everything
     let _ = project.create_domain_action().finish();
 
@@ -158,14 +144,8 @@ fn has_pending_action() {
         Some(Tables::Events),
         Some(id),
     );
-    domain_action.scheduled_at = Utc::now()
-        .naive_utc()
-        .checked_add_signed(Duration::hours(1))
-        .unwrap();
-    domain_action.expires_at = Utc::now()
-        .naive_utc()
-        .checked_add_signed(Duration::days(1))
-        .unwrap();
+    domain_action.scheduled_at = Utc::now().naive_utc().checked_add_signed(Duration::hours(1)).unwrap();
+    domain_action.expires_at = Utc::now().naive_utc().checked_add_signed(Duration::days(1)).unwrap();
 
     domain_action.commit(connection).unwrap();
 

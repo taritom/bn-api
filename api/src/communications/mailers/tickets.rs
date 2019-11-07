@@ -40,9 +40,11 @@ pub fn send_tickets(
         Some(source),
         destinations,
         Some(template_id),
-        Some(vec![template_data]), Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]), Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
+        Some(vec![template_data]),
+        Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]),
+        Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
     )
-        .queue(conn)?;
+    .queue(conn)?;
 
     Ok(())
 }
@@ -61,19 +63,11 @@ pub fn transfer_drip_reminder(
     let title = "BigNeon: Ticket transfer reminder".to_string();
     let user = User::find(transfer.source_user_id, conn)?;
     let template_id = if source_or_destination == SourceOrDestination::Source {
-        config
-            .sendgrid_template_bn_transfer_tickets_drip_source
-            .clone()
+        config.sendgrid_template_bn_transfer_tickets_drip_source.clone()
     } else {
-        config
-            .sendgrid_template_bn_transfer_tickets_drip_destination
-            .clone()
+        config.sendgrid_template_bn_transfer_tickets_drip_destination.clone()
     };
-    let transfer_cancel_url = format!(
-        "{}/my-events?event_id={}",
-        config.front_end_url.clone(),
-        event.id,
-    );
+    let transfer_cancel_url = format!("{}/my-events?event_id={}", config.front_end_url.clone(), event.id,);
 
     let mut template_data = TemplateData::new();
     template_data.insert(
@@ -118,11 +112,7 @@ pub fn transfer_sent_receipt(
         let destinations = CommAddress::from(email);
         let title = "BigNeon: Ticket transfer sent".to_string();
         let template_id = config.sendgrid_template_bn_transfer_tickets_receipt.clone();
-        let transfer_cancel_url = format!(
-            "{}/my-events?event_id={}",
-            config.front_end_url.clone(),
-            event.id,
-        );
+        let transfer_cancel_url = format!("{}/my-events?event_id={}", config.front_end_url.clone(), event.id,);
         let mut template_data = TemplateData::new();
         template_data.insert("sender_name".to_string(), Transfer::sender_name(&user));
         template_data.insert(
@@ -159,9 +149,7 @@ pub fn transfer_cancelled_receipt(
     let source = CommAddress::from(config.communication_default_source_email.clone());
     let destinations = CommAddress::from(email);
     let title = "BigNeon: Cancelled ticket transfer".to_string();
-    let template_id = config
-        .sendgrid_template_bn_cancel_transfer_tickets_receipt
-        .clone();
+    let template_id = config.sendgrid_template_bn_cancel_transfer_tickets_receipt.clone();
     let mut template_data = TemplateData::new();
     template_data.insert("sender_name".to_string(), Transfer::sender_name(&from_user));
     template_data.insert(
@@ -177,11 +165,7 @@ pub fn transfer_cancelled_receipt(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-        Some(vec![
-            "transfer",
-            "transfer_receiver",
-            "transfer_cancellation",
-        ]),
+        Some(vec!["transfer", "transfer_receiver", "transfer_cancellation"]),
         None,
     )
     .queue(conn)?;
@@ -215,11 +199,7 @@ pub fn transfer_cancelled(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-        Some(vec![
-            "transfer",
-            "transfer_receiver",
-            "transfer_cancellation",
-        ]),
+        Some(vec!["transfer", "transfer_receiver", "transfer_cancellation"]),
         None,
     )
     .queue(conn)?;

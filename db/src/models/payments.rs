@@ -158,15 +158,9 @@ impl Payment {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         diesel::update(payments::table.filter(payments::id.eq(self.id)))
-            .set((
-                payments::status.eq(status),
-                payments::updated_at.eq(dsl::now),
-            ))
+            .set((payments::status.eq(status), payments::updated_at.eq(dsl::now)))
             .execute(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not change the status of payment",
-            )?;
+            .to_db_error(ErrorCode::UpdateError, "Could not change the status of payment")?;
 
         DomainEvent::create(
             DomainEventTypes::PaymentUpdated,
@@ -190,10 +184,7 @@ impl Payment {
         let old_amount = self.amount;
 
         diesel::update(self)
-            .set((
-                payments::amount.eq(&amount),
-                payments::updated_at.eq(dsl::now),
-            ))
+            .set((payments::amount.eq(&amount), payments::updated_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update amount on payment")?;
         DomainEvent::create(
@@ -230,16 +221,11 @@ impl Payment {
             )
             .commit(conn)?;
         }
-        self.order(conn)?
-            .complete_if_fully_paid(current_user_id, conn)?;
+        self.order(conn)?.complete_if_fully_paid(current_user_id, conn)?;
 
         Ok(())
     }
-    pub fn mark_pending_ipn(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn mark_pending_ipn(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.status != PaymentStatus::Completed {
             self.update_status(PaymentStatus::PendingIpn, current_user_id, conn)?;
             let mut order = self.order(conn)?;
@@ -262,11 +248,10 @@ impl Payment {
     ) -> Result<(), DatabaseError> {
         use models::enums::PaymentStatus::*;
         match self.status {
-            Completed | Authorized | Refunded | PendingConfirmation => {
-                DatabaseError::business_process_error("Could not mark payment as cancelled because it is in a status that doesn't allow cancelling")
-            }
+            Completed | Authorized | Refunded | PendingConfirmation => DatabaseError::business_process_error(
+                "Could not mark payment as cancelled because it is in a status that doesn't allow cancelling",
+            ),
             Requested | Unpaid | Draft | Unknown | PendingIpn => {
-
                 DomainEvent::create(
                     DomainEventTypes::PaymentCancelled,
                     "Payment was cancelled".to_string(),
@@ -275,7 +260,7 @@ impl Payment {
                     current_user_id,
                     Some(raw_data),
                 )
-                    .commit(conn)?;
+                .commit(conn)?;
                 self.update_status(Cancelled, current_user_id, conn)
             }
             Cancelled => Ok(()),
@@ -307,11 +292,7 @@ pub struct NewPayment {
 }
 
 impl NewPayment {
-    pub(crate) fn commit(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Payment, DatabaseError> {
+    pub(crate) fn commit(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Payment, DatabaseError> {
         let res: Payment = diesel::insert_into(payments::table)
             .values(&self)
             .get_result(conn)

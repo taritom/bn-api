@@ -194,24 +194,18 @@ pub fn activity() {
     )
     .unwrap();
 
-    let transfer =
-        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection)
-            .unwrap();
+    let transfer = TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::User, Some(&organization), &database);
-    let test_request =
-        TestRequest::create_with_uri("/transfers/activity?past_or_upcoming=Upcoming");
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, Some(&organization), &database);
+    let test_request = TestRequest::create_with_uri("/transfers/activity?past_or_upcoming=Upcoming");
     let paging_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let filter_parameters =
-        Query::<PastOrUpcomingParameters>::extract(&test_request.request).unwrap();
-    let response: Result<WebPayload<UserTransferActivitySummary>, BigNeonError> =
-        transfers::activity((
-            database.connection.clone().into(),
-            paging_parameters,
-            filter_parameters,
-            auth_user.clone(),
-        ));
+    let filter_parameters = Query::<PastOrUpcomingParameters>::extract(&test_request.request).unwrap();
+    let response: Result<WebPayload<UserTransferActivitySummary>, BigNeonError> = transfers::activity((
+        database.connection.clone().into(),
+        paging_parameters,
+        filter_parameters,
+        auth_user.clone(),
+    ));
 
     let response = response.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -275,8 +269,7 @@ pub fn show_by_transfer_key() {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = transfer.transfer_key;
-    let response: HttpResponse =
-        transfers::show_by_transfer_key((database.connection.clone().into(), path)).into();
+    let response: HttpResponse = transfers::show_by_transfer_key((database.connection.clone().into(), path)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -292,18 +285,8 @@ fn index() {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let user3 = database.create_user().finish();
-    database
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    database
-        .create_order()
-        .for_user(&user2)
-        .quantity(1)
-        .is_paid()
-        .finish();
+    database.create_order().for_user(&user).quantity(1).is_paid().finish();
+    database.create_order().for_user(&user2).quantity(1).is_paid().finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
@@ -324,9 +307,7 @@ fn index() {
     let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
     transfer2.update_associated_orders(connection).unwrap();
     transfer2
         .update(

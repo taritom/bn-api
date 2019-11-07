@@ -48,10 +48,7 @@ impl Genre {
             .expect_single()
     }
 
-    pub fn find_or_create(
-        names: &Vec<String>,
-        conn: &PgConnection,
-    ) -> Result<Vec<Uuid>, DatabaseError> {
+    pub fn find_or_create(names: &Vec<String>, conn: &PgConnection) -> Result<Vec<Uuid>, DatabaseError> {
         #[derive(QueryableByName)]
         struct R {
             #[sql_type = "dUuid"]
@@ -88,8 +85,7 @@ impl Genre {
     }
 
     pub fn format_names(names: &Vec<String>) -> Vec<String> {
-        let mut formatted_names: Vec<String> =
-            names.into_iter().map(|n| Genre::format_name(n)).collect();
+        let mut formatted_names: Vec<String> = names.into_iter().map(|n| Genre::format_name(n)).collect();
         formatted_names.sort();
         formatted_names.dedup();
 

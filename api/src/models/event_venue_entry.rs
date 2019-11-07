@@ -63,8 +63,7 @@ impl EventVenueEntry {
         venue_ids.sort();
         venue_ids.dedup();
 
-        let event_ticket_range_mapping =
-            Event::ticket_pricing_range_by_events(&event_ids, false, connection)?;
+        let event_ticket_range_mapping = Event::ticket_pricing_range_by_events(&event_ids, false, connection)?;
 
         let venues = Venue::find_by_ids(venue_ids, connection)?;
         let venue_map = venues.into_iter().fold(HashMap::new(), |mut map, v| {
@@ -78,16 +77,11 @@ impl EventVenueEntry {
         organization_ids.sort();
         organization_ids.dedup();
 
-        let tracking_keys_for_orgs = Organization::tracking_keys_for_ids(
-            organization_ids,
-            &state.config.api_keys_encryption_key,
-            connection,
-        )?;
+        let tracking_keys_for_orgs =
+            Organization::tracking_keys_for_ids(organization_ids, &state.config.api_keys_encryption_key, connection)?;
 
         let event_interest = match user {
-            Some(ref u) => {
-                EventInterest::find_interest_by_event_ids_for_user(&event_ids, u.id, connection)?
-            }
+            Some(ref u) => EventInterest::find_interest_by_event_ids_for_user(&event_ids, u.id, connection)?,
             None => HashMap::new(),
         };
 
@@ -107,9 +101,7 @@ impl EventVenueEntry {
             let organization_id = event.organization_id;
             let tracking_keys = tracking_keys_for_orgs
                 .get(&organization_id)
-                .unwrap_or(&TrackingKeys {
-                    ..Default::default()
-                })
+                .unwrap_or(&TrackingKeys { ..Default::default() })
                 .clone();
             let slug = slug_map.remove(&event.id).unwrap_or("".to_string());
 
@@ -137,10 +129,7 @@ impl EventVenueEntry {
                 max_ticket_price,
                 is_external: event.is_external,
                 external_url: event.external_url,
-                user_is_interested: event_interest
-                    .get(&event.id)
-                    .map(|i| i.to_owned())
-                    .unwrap_or(false),
+                user_is_interested: event_interest.get(&event.id).map(|i| i.to_owned()).unwrap_or(false),
                 localized_times,
                 tracking_keys,
                 event_type: event.event_type,

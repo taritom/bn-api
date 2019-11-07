@@ -220,14 +220,10 @@ fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let name = "Comp Example".to_string();
     let email = Some("invalid".to_string());
@@ -254,10 +250,7 @@ fn create_with_validation_errors() {
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
-    assert_eq!(
-        &email[0].message.clone().unwrap().into_owned(),
-        "Email is invalid"
-    );
+    assert_eq!(&email[0].message.clone().unwrap().into_owned(), "Email is invalid");
 }
 
 #[test]
@@ -268,8 +261,7 @@ fn update_with_validation_errors() {
     let comp = database.create_comp().finish();
     let event = Event::find(comp.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let email = "invalid".to_string();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id"]);
@@ -281,16 +273,12 @@ fn update_with_validation_errors() {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        comps::update((database.connection.clone(), json, path, auth_user)).into();
+    let response: HttpResponse = comps::update((database.connection.clone(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
-    assert_eq!(
-        &email[0].message.clone().unwrap().into_owned(),
-        "Email is invalid"
-    );
+    assert_eq!(&email[0].message.clone().unwrap().into_owned(), "Email is invalid");
 }

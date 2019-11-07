@@ -54,12 +54,7 @@ impl NewStage {
 }
 
 impl Stage {
-    pub fn create(
-        venue_id: Uuid,
-        name: String,
-        description: Option<String>,
-        capacity: Option<i64>,
-    ) -> NewStage {
+    pub fn create(venue_id: Uuid, name: String, description: Option<String>, capacity: Option<i64>) -> NewStage {
         NewStage {
             venue_id,
             name,
@@ -76,10 +71,7 @@ impl Stage {
         )
     }
 
-    pub fn find_by_venue_id(
-        venue_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Stage>, DatabaseError> {
+    pub fn find_by_venue_id(venue_id: Uuid, conn: &PgConnection) -> Result<Vec<Stage>, DatabaseError> {
         stages::table
             .filter(stages::venue_id.eq(venue_id))
             .order_by(stages::name)
@@ -88,11 +80,7 @@ impl Stage {
             .to_db_error(ErrorCode::QueryError, "Unable to load all stages")
     }
 
-    pub fn update(
-        &self,
-        attributes: StageEditableAttributes,
-        conn: &PgConnection,
-    ) -> Result<Stage, DatabaseError> {
+    pub fn update(&self, attributes: StageEditableAttributes, conn: &PgConnection) -> Result<Stage, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update stage",

@@ -67,10 +67,7 @@ impl DomainEventPublisher {
             .filter(domain_event_publishers::deleted_at.is_null())
             .order_by(domain_event_publishers::last_domain_event_seq.asc())
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load Domain Event Publishers",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load Domain Event Publishers")
     }
 
     pub fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -80,10 +77,7 @@ impl DomainEventPublisher {
                 domain_event_publishers::updated_at.eq(dsl::now),
             ))
             .execute(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not delete domain event publisher",
-            )?;
+            .to_db_error(ErrorCode::UpdateError, "Could not delete domain event publisher")?;
 
         Ok(())
     }
@@ -93,10 +87,7 @@ impl DomainEventPublisher {
         conn: &PgConnection,
     ) -> Result<HashMap<DomainEventPublisher, Vec<DomainEvent>>, DatabaseError> {
         use schema::*;
-        let mut publisher_unpublished_domain_events: HashMap<
-            DomainEventPublisher,
-            Vec<DomainEvent>,
-        > = HashMap::new();
+        let mut publisher_unpublished_domain_events: HashMap<DomainEventPublisher, Vec<DomainEvent>> = HashMap::new();
 
         #[derive(Queryable, Deserialize)]
         struct R {
@@ -106,20 +97,15 @@ impl DomainEventPublisher {
         }
         let unpublished_domain_event_data: Vec<R> = domain_event_publishers::table
             .inner_join(
-                domain_events::table
-                    .on(domain_events::event_type.eq(any(domain_event_publishers::event_types))),
+                domain_events::table.on(domain_events::event_type.eq(any(domain_event_publishers::event_types))),
             )
             .left_join(
                 domain_event_published::table.on(domain_event_published::domain_event_id
                     .eq(domain_events::id)
-                    .and(
-                        domain_event_published::domain_event_publisher_id
-                            .eq(domain_event_publishers::id),
-                    )),
+                    .and(domain_event_published::domain_event_publisher_id.eq(domain_event_publishers::id))),
             )
             .left_join(
-                organizations::table
-                    .on(domain_event_publishers::organization_id.eq(organizations::id.nullable())),
+                organizations::table.on(domain_event_publishers::organization_id.eq(organizations::id.nullable())),
             )
             .left_join(events::table.on(events::organization_id.eq(organizations::id)))
             .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
@@ -132,10 +118,7 @@ impl DomainEventPublisher {
             .left_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
             .left_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .left_join(ticket_instances::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .left_join(
-                transfer_tickets::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
+            .left_join(transfer_tickets::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
             .left_join(
                 transfers::table.on(transfer_tickets::transfer_id.eq(transfers::id).and(
                     domain_events::main_table
@@ -201,17 +184,13 @@ impl DomainEventPublisher {
             .then_order_by(domain_events::created_at.asc())
             .limit(limit)
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Error loading domain event publishers",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Error loading domain event publishers")?;
 
         for (domain_event_publisher_id, domain_event_ids) in &unpublished_domain_event_data
             .into_iter()
             .group_by(|data| data.domain_event_publisher_id)
         {
-            let domain_event_publisher =
-                DomainEventPublisher::find(domain_event_publisher_id, conn)?;
+            let domain_event_publisher = DomainEventPublisher::find(domain_event_publisher_id, conn)?;
             let domain_events = DomainEvent::find_by_ids(
                 domain_event_ids
                     .into_iter()
@@ -239,10 +218,7 @@ impl DomainEventPublisher {
             ))
             .on_conflict_do_nothing()
             .execute(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not insert domain event published",
-            )?;
+            .to_db_error(ErrorCode::InsertError, "Could not insert domain event published")?;
 
         for webhook_payload in domain_event.webhook_payloads(front_end_url, conn)? {
             let mut comms = Communication::new(
@@ -270,24 +246,22 @@ impl DomainEventPublisher {
     ) -> Result<(), DatabaseError> {
         use diesel::dsl;
         use schema::*;
-        let res: Option<DomainEventPublisher> =
-            diesel::update(
-                domain_event_publishers::table
-                    .filter(domain_event_publishers::last_domain_event_seq.is_null().or(
-                        domain_event_publishers::last_domain_event_seq.lt(last_domain_event_seq),
-                    ))
-                    .filter(domain_event_publishers::id.eq(self.id)),
-            )
-            .set((
-                domain_event_publishers::last_domain_event_seq.eq(last_domain_event_seq),
-                domain_event_publishers::updated_at.eq(dsl::now),
-            ))
-            .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update domain event publisher",
-            )
-            .optional()?;
+        let res: Option<DomainEventPublisher> = diesel::update(
+            domain_event_publishers::table
+                .filter(
+                    domain_event_publishers::last_domain_event_seq
+                        .is_null()
+                        .or(domain_event_publishers::last_domain_event_seq.lt(last_domain_event_seq)),
+                )
+                .filter(domain_event_publishers::id.eq(self.id)),
+        )
+        .set((
+            domain_event_publishers::last_domain_event_seq.eq(last_domain_event_seq),
+            domain_event_publishers::updated_at.eq(dsl::now),
+        ))
+        .get_result(conn)
+        .to_db_error(ErrorCode::UpdateError, "Could not update domain event publisher")
+        .optional()?;
 
         let r = match res {
             Some(r) => Ok(r),
@@ -334,10 +308,7 @@ impl DomainEventPublisher {
         diesel::update(self)
             .set((attributes, domain_event_publishers::updated_at.eq(dsl::now)))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update domain event publisher",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Could not update domain event publisher")
     }
 }
 
@@ -356,9 +327,6 @@ impl NewDomainEventPublisher {
         diesel::insert_into(domain_event_publishers::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not insert domain event publisher",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not insert domain event publisher")
     }
 }

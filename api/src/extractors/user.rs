@@ -33,8 +33,9 @@ impl FromRequest<AppState> for User {
                         .map_err(|e| BigNeonError::from(e))?;
                         let connection = req.connection()?;
                         match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => Ok(User::new(user, req)
-                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?),
+                            Ok(user) => Ok(
+                                User::new(user, req).map_err(|_| ErrorUnauthorized("User has invalid role data"))?
+                            ),
                             Err(e) => Err(ErrorInternalServerError(e)),
                         }
                     }

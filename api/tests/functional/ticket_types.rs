@@ -223,10 +223,7 @@ pub fn create_with_validation_errors() {
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -259,24 +256,15 @@ pub fn create_with_validation_errors() {
         parent_id: None,
         ..Default::default()
     };
-    let response: HttpResponse = ticket_types::create((
-        database.connection.into(),
-        path,
-        Json(request_data),
-        auth_user,
-        state,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let start_date_errors = validation_response.fields.get("start_date").unwrap();
     assert_eq!(start_date_errors.len(), 1);
-    assert_eq!(
-        start_date_errors[0].code,
-        "start_date_must_be_before_end_date"
-    );
+    assert_eq!(start_date_errors[0].code, "start_date_must_be_before_end_date");
     assert_eq!(
         &start_date_errors[0].message.clone().unwrap().into_owned(),
         "Start date must be before end date"
@@ -289,10 +277,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -325,27 +310,15 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         parent_id: None,
         ..Default::default()
     };
-    let response: HttpResponse = ticket_types::create((
-        database.connection.into(),
-        path,
-        Json(request_data),
-        auth_user,
-        state,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();
-    let start_date_errors = validation_response
-        .fields
-        .get("ticket_pricing.start_date")
-        .unwrap();
+    let start_date_errors = validation_response.fields.get("ticket_pricing.start_date").unwrap();
     assert_eq!(start_date_errors.len(), 1);
-    assert_eq!(
-        start_date_errors[0].code,
-        "start_date_must_be_before_end_date"
-    );
+    assert_eq!(start_date_errors[0].code, "start_date_must_be_before_end_date");
     assert_eq!(
         &start_date_errors[0].message.clone().unwrap().into_owned(),
         "Start date must be before end date"
@@ -358,10 +331,7 @@ pub fn create_with_overlapping_periods() {
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -381,7 +351,7 @@ pub fn create_with_overlapping_periods() {
     ticket_pricing.push(CreateTicketPricingRequest {
         name: String::from("Base"),
         price_in_cents: 20000,
-        start_date: start_date,
+        start_date,
         end_date,
         is_box_office_only: Some(false),
     });
@@ -400,42 +370,22 @@ pub fn create_with_overlapping_periods() {
         parent_id: None,
         ..Default::default()
     };
-    let response: HttpResponse = ticket_types::create((
-        database.connection.into(),
-        path,
-        Json(request_data),
-        auth_user,
-        state,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let ticket_pricing_errors = validation_response.fields.get("ticket_pricing").unwrap();
     assert_eq!(ticket_pricing_errors.len(), 2);
+    assert_eq!(ticket_pricing_errors[0].code, "ticket_pricing_overlapping_periods");
     assert_eq!(
-        ticket_pricing_errors[0].code,
-        "ticket_pricing_overlapping_periods"
-    );
-    assert_eq!(
-        &ticket_pricing_errors[0]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &ticket_pricing_errors[0].message.clone().unwrap().into_owned(),
         "Ticket pricing dates overlap another ticket pricing period"
     );
+    assert_eq!(ticket_pricing_errors[1].code, "ticket_pricing_overlapping_periods");
     assert_eq!(
-        ticket_pricing_errors[1].code,
-        "ticket_pricing_overlapping_periods"
-    );
-    assert_eq!(
-        &ticket_pricing_errors[1]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &ticket_pricing_errors[1].message.clone().unwrap().into_owned(),
         "Ticket pricing dates overlap another ticket pricing period"
     );
 }
@@ -445,10 +395,7 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
 
     //Construct Ticket creation and pricing request
@@ -489,14 +436,8 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         parent_id: None,
         ..Default::default()
     };
-    let response: HttpResponse = ticket_types::create((
-        database.connection.into(),
-        path,
-        Json(request_data),
-        auth_user,
-        state,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(response.error().is_some());
@@ -523,8 +464,7 @@ pub fn update_with_invalid_id() {
     created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -590,8 +530,7 @@ pub fn update_with_validation_errors() {
     let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -639,10 +578,7 @@ pub fn update_with_validation_errors() {
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let start_date_errors = validation_response.fields.get("start_date").unwrap();
     assert_eq!(start_date_errors.len(), 1);
-    assert_eq!(
-        start_date_errors[0].code,
-        "start_date_must_be_before_end_date"
-    );
+    assert_eq!(start_date_errors[0].code, "start_date_must_be_before_end_date");
     assert_eq!(
         &start_date_errors[0].message.clone().unwrap().into_owned(),
         "Start date must be before end date"
@@ -670,8 +606,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
     let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -717,15 +652,9 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();
-    let start_date_errors = validation_response
-        .fields
-        .get("ticket_pricing.start_date")
-        .unwrap();
+    let start_date_errors = validation_response.fields.get("ticket_pricing.start_date").unwrap();
     assert_eq!(start_date_errors.len(), 1);
-    assert_eq!(
-        start_date_errors[0].code,
-        "start_date_must_be_before_end_date"
-    );
+    assert_eq!(start_date_errors[0].code, "start_date_must_be_before_end_date");
     assert_eq!(
         &start_date_errors[0].message.clone().unwrap().into_owned(),
         "Start date must be before end date"
@@ -753,8 +682,7 @@ pub fn update_with_overlapping_periods() {
     let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -768,7 +696,7 @@ pub fn update_with_overlapping_periods() {
     request_ticket_pricing.push(UpdateTicketPricingRequest {
         id: Some(created_ticket_pricing[1].id),
         name: Some(String::from("Base")),
-        start_date: start_date,
+        start_date,
         end_date,
         price_in_cents: Some(20000),
         is_box_office_only: Some(false),
@@ -823,8 +751,7 @@ pub fn cancel_with_sold_tickets_and_hold() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -882,8 +809,7 @@ pub fn cancel_with_sold_tickets_and_hold() {
     assert_eq!(85, valid_unsold_ticket_count);
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let state = test_request.extract_state();
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
@@ -910,8 +836,7 @@ pub fn cancel_with_no_sold_tickets_or_hold() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -927,8 +852,7 @@ pub fn cancel_with_no_sold_tickets_or_hold() {
     assert_eq!(100, valid_unsold_ticket_count);
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let state = test_request.extract_state();
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;

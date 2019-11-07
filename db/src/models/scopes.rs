@@ -47,6 +47,8 @@ pub enum Scopes {
     OrgWrite,
     RedeemTicket,
     RegionWrite,
+    SettlementRead,
+    SettlementReadEarly,
     SettlementWrite,
     TransferCancel,
     TransferCancelOwn,
@@ -115,6 +117,8 @@ impl fmt::Display for Scopes {
             Scopes::OrgUsers => "org:users",
             Scopes::RedeemTicket => "redeem:ticket",
             Scopes::RegionWrite => "region:write",
+            Scopes::SettlementRead => "settlement:read",
+            Scopes::SettlementReadEarly => "settlement:read-early",
             Scopes::SettlementWrite => "settlement:write",
             Scopes::TicketAdmin => "ticket:admin",
             Scopes::TicketRead => "ticket:read",
@@ -179,6 +183,8 @@ impl FromStr for Scopes {
             "org:users" => Scopes::OrgUsers,
             "redeem:ticket" => Scopes::RedeemTicket,
             "region:write" => Scopes::RegionWrite,
+            "settlement:read" => Scopes::SettlementRead,
+            "settlement:read-early" => Scopes::SettlementReadEarly,
             "settlement:write" => Scopes::SettlementWrite,
             "ticket:admin" => Scopes::TicketAdmin,
             "ticket:read" => Scopes::TicketRead,
@@ -206,10 +212,7 @@ impl FromStr for Scopes {
 }
 
 pub fn get_scopes(roles: Vec<Roles>) -> Vec<Scopes> {
-    let mut scopes: Vec<Scopes> = roles
-        .into_iter()
-        .flat_map(|r| get_scopes_for_role(r))
-        .collect();
+    let mut scopes: Vec<Scopes> = roles.into_iter().flat_map(|r| get_scopes_for_role(r)).collect();
     scopes.sort();
     scopes.dedup();
     scopes
@@ -361,6 +364,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrgFinancialReports,
                 Scopes::OrgModifySettlementType,
                 Scopes::RegionWrite,
+                Scopes::SettlementRead,
+                Scopes::SettlementReadEarly,
                 Scopes::SettlementWrite,
             ];
             roles.extend(get_scopes_for_role(OrgOwner));
@@ -550,6 +555,8 @@ fn get_scopes_test() {
             "org:write",
             "redeem:ticket",
             "region:write",
+            "settlement:read",
+            "settlement:read-early",
             "settlement:write",
             "ticket-type:read",
             "ticket-type:write",
@@ -614,6 +621,8 @@ fn get_scopes_test() {
             "org:write",
             "redeem:ticket",
             "region:write",
+            "settlement:read",
+            "settlement:read-early",
             "settlement:write",
             "ticket:admin",
             "ticket:read",

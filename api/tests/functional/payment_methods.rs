@@ -21,11 +21,9 @@ fn index() {
         .finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
-    let expected_payment_methods: Vec<DisplayPaymentMethod> =
-        vec![payment_method.into(), payment_method2.into()];
+    let expected_payment_methods: Vec<DisplayPaymentMethod> = vec![payment_method.into(), payment_method2.into()];
     let payment_methods_expected_json = serde_json::to_string(&expected_payment_methods).unwrap();
-    let response: HttpResponse =
-        payment_methods::index((database.connection.into(), auth_user)).into();
+    let response: HttpResponse = payment_methods::index((database.connection.into(), auth_user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

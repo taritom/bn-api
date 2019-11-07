@@ -48,17 +48,10 @@ impl<'a> ArtistBuilder<'a> {
     }
 
     pub fn finish(&self) -> Artist {
-        let mut artist = Artist::create(
-            &self.name,
-            self.organization_id,
-            &self.bio,
-            &self.website_url,
-        );
+        let mut artist = Artist::create(&self.name, self.organization_id, &self.bio, &self.website_url);
         artist.spotify_id = self.spotify_id.clone();
 
         let artist = artist.commit(self.connection).unwrap();
-        artist
-            .set_privacy(self.is_private, self.connection)
-            .unwrap()
+        artist.set_privacy(self.is_private, self.connection).unwrap()
     }
 }

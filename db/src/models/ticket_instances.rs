@@ -12,8 +12,7 @@ use models::*;
 use rand;
 use rand::Rng;
 use schema::{
-    assets, events, order_items, orders, organizations, ticket_instances, ticket_types, transfers,
-    users, wallets,
+    assets, events, order_items, orders, organizations, ticket_instances, ticket_types, transfers, users, wallets,
 };
 use std::cmp;
 use tari_client::*;
@@ -24,9 +23,7 @@ use validators::*;
 
 const TICKET_NUMBER_LENGTH: usize = 8;
 
-#[derive(
-    Clone, Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName,
-)]
+#[derive(Clone, Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName)]
 #[table_name = "ticket_instances"]
 pub struct TicketInstance {
     pub id: Uuid,
@@ -70,10 +67,7 @@ impl TicketInstance {
             .filter(ticket_instances::id.eq(self.id))
             .select(organizations::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load organization for ticket instance",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load organization for ticket instance")
     }
 
     pub fn owner(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
@@ -83,10 +77,7 @@ impl TicketInstance {
             .filter(ticket_instances::id.eq(self.id))
             .select(users::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load owner for ticket instance",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load owner for ticket instance")
     }
 
     pub fn ticket_type(&self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
@@ -96,10 +87,7 @@ impl TicketInstance {
             .filter(ticket_instances::id.eq(self.id))
             .select(ticket_types::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load ticket type for ticket instance",
-            )
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket type for ticket instance")
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketInstance, DatabaseError> {
@@ -167,10 +155,7 @@ impl TicketInstance {
     ) -> Result<(DisplayEvent, Option<DisplayUser>, DisplayTicket), DatabaseError> {
         let ticket_intermediary = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
+            .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
@@ -257,17 +242,13 @@ impl TicketInstance {
         end_time: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<(DisplayEvent, Vec<DisplayTicket>)>, DatabaseError> {
-        let mut query =
-            ticket_instances::table
-                .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-                .inner_join(
-                    order_items::table
-                        .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-                )
-                .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-                .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-                .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-                .left_join(transfers::table.on(sql("transfers.id = (
+        let mut query = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .left_join(transfers::table.on(sql("transfers.id = (
                         SELECT tt.transfer_id
                         FROM transfer_tickets tt
                         JOIN transfers t
@@ -275,14 +256,12 @@ impl TicketInstance {
                         WHERE tt.ticket_instance_id = ticket_instances.id
                         AND t.status = 'Pending'
                     )")))
-                .filter(events::event_end.ge(
-                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(events::event_end.le(
-                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(wallets::user_id.eq(user_id))
-                .into_boxed();
+            .filter(
+                events::event_end.ge(start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
+            )
+            .filter(events::event_end.le(end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))))
+            .filter(wallets::user_id.eq(user_id))
+            .into_boxed();
 
         if let Some(event_id) = event_id {
             query = query.filter(events::id.eq(event_id));
@@ -326,18 +305,14 @@ impl TicketInstance {
         let mut grouped_display_tickets = Vec::new();
         for (key, group) in &tickets.into_iter().group_by(|ticket| ticket.event_id) {
             let event = Event::find(key, conn)?.for_display(conn)?;
-            let display_tickets: Vec<DisplayTicket> =
-                group.into_iter().map(|ticket| ticket.into()).collect();
+            let display_tickets: Vec<DisplayTicket> = group.into_iter().map(|ticket| ticket.into()).collect();
             grouped_display_tickets.push((event, display_tickets));
         }
 
         Ok(grouped_display_tickets)
     }
 
-    pub fn find_for_user(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+    pub fn find_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Vec<TicketInstance>, DatabaseError> {
         ticket_instances::table
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .filter(wallets::user_id.eq(user_id))
@@ -443,10 +418,7 @@ impl TicketInstance {
         Ok(tickets)
     }
 
-    fn validate_record(
-        &self,
-        update_attrs: &UpdateTicketInstanceAttributes,
-    ) -> Result<(), DatabaseError> {
+    fn validate_record(&self, update_attrs: &UpdateTicketInstanceAttributes) -> Result<(), DatabaseError> {
         let mut validation_errors = Ok(());
         let first_name = update_attrs
             .first_name_override
@@ -487,9 +459,7 @@ impl TicketInstance {
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
         let ticket_type = order_item.ticket_type(conn)?;
-        let new_status = if ticket_type.is_some()
-            && ticket_type.unwrap().status == TicketTypeStatus::Cancelled
-        {
+        let new_status = if ticket_type.is_some() && ticket_type.unwrap().status == TicketTypeStatus::Cancelled {
             TicketInstanceStatus::Nullified
         } else {
             TicketInstanceStatus::Available
@@ -510,10 +480,7 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
 
         if tickets.len() as u32 != quantity {
-            return DatabaseError::validation_error(
-                "quantity",
-                "Could not release the correct amount of tickets",
-            );
+            return DatabaseError::validation_error("quantity", "Could not release the correct amount of tickets");
         }
 
         if new_status == TicketInstanceStatus::Nullified {
@@ -598,16 +565,12 @@ impl TicketInstance {
             .bind::<sql_types::Uuid, _>(ticket_type_id)
             .bind::<BigInt, _>(quantity as i64);
 
-        let tickets: Vec<TicketInstance> = q.get_results(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not release tickets from the hold",
-        )?;
+        let tickets: Vec<TicketInstance> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not release tickets from the hold")?;
 
         if tickets.len() as u32 != quantity {
-            return DatabaseError::validation_error(
-                "quantity",
-                "Could not release the correct amount of tickets",
-            );
+            return DatabaseError::validation_error("quantity", "Could not release the correct amount of tickets");
         }
 
         for ticket in tickets.iter() {
@@ -665,9 +628,7 @@ impl TicketInstance {
 
         let result = query
             .select((
-                sql::<sql_types::Nullable<sql_types::BigInt>>(
-                    "COUNT(DISTINCT ticket_instances.id)",
-                ),
+                sql::<sql_types::Nullable<sql_types::BigInt>>("COUNT(DISTINCT ticket_instances.id)"),
                 sql::<sql_types::Nullable<sql_types::BigInt>>(
                     "SUM(CASE WHEN ticket_instances.status IN ('Available', 'Reserved') THEN 1 ELSE 0 END)",
                 ),
@@ -688,25 +649,16 @@ impl TicketInstance {
         }
     }
 
-    pub fn find_for_order_item(
-        order_item_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+    pub fn find_for_order_item(order_item_id: Uuid, conn: &PgConnection) -> Result<Vec<TicketInstance>, DatabaseError> {
         ticket_instances::table
             .filter(ticket_instances::order_item_id.eq(order_item_id))
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load Ticket Instances")
     }
 
-    pub fn find_ids_for_order(
-        order_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Uuid>, DatabaseError> {
+    pub fn find_ids_for_order(order_id: Uuid, conn: &PgConnection) -> Result<Vec<Uuid>, DatabaseError> {
         ticket_instances::table
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
+            .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(order_items::order_id.eq(order_id))
             .select(ticket_instances::id)
             .get_results(conn)
@@ -752,18 +704,11 @@ impl TicketInstance {
                 ticket_instances::updated_at.eq(dsl::now),
             ))
             .execute(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update ticket_instance wallet.",
-            )?;
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_instance wallet.")?;
         Ok(())
     }
 
-    pub fn mark_as_purchased(
-        order_item: &OrderItem,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn mark_as_purchased(order_item: &OrderItem, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         let wallet = Wallet::find_for_user(user_id, conn)?;
 
         if wallet.is_empty() {
@@ -773,19 +718,17 @@ impl TicketInstance {
             ));
         }
 
-        let tickets = diesel::update(
-            ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
-        )
-        .set((
-            ticket_instances::wallet_id.eq(wallet[0].id()),
-            ticket_instances::status.eq(TicketInstanceStatus::Purchased),
-            ticket_instances::updated_at.eq(dsl::now),
-        ))
-        .get_results::<TicketInstance>(conn)
-        .to_db_error(
-            ErrorCode::UpdateError,
-            "Could not update ticket_instance status to purchased.",
-        )?;
+        let tickets = diesel::update(ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)))
+            .set((
+                ticket_instances::wallet_id.eq(wallet[0].id()),
+                ticket_instances::status.eq(TicketInstanceStatus::Purchased),
+                ticket_instances::updated_at.eq(dsl::now),
+            ))
+            .get_results::<TicketInstance>(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update ticket_instance status to purchased.",
+            )?;
 
         //Generate redeem codes for the tickets
         for t in &tickets {
@@ -850,12 +793,8 @@ impl TicketInstance {
         Ok(RedeemResults::TicketRedeemSuccess)
     }
 
-    pub fn show_redeemable_ticket(
-        ticket_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<RedeemableTicket, DatabaseError> {
-        let tickets_and_counts =
-            Event::guest_list_tickets(None, Some(ticket_id), None, &None, None, conn)?;
+    pub fn show_redeemable_ticket(ticket_id: Uuid, conn: &PgConnection) -> Result<RedeemableTicket, DatabaseError> {
+        let tickets_and_counts = Event::guest_list_tickets(None, Some(ticket_id), None, &None, None, conn)?;
 
         match tickets_and_counts.0.get(0) {
             Some(ticket_data) => {
@@ -878,14 +817,8 @@ impl TicketInstance {
         to_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
-        let transfer = TicketInstance::create_transfer(
-            from_user_id,
-            ticket_ids,
-            Some(address),
-            Some(sent_via),
-            true,
-            conn,
-        )?;
+        let transfer =
+            TicketInstance::create_transfer(from_user_id, ticket_ids, Some(address), Some(sent_via), true, conn)?;
         let wallet = Wallet::find_default_for_user(from_user_id, conn)?;
         let receiver_wallet = Wallet::find_default_for_user(to_user_id, conn)?;
         TicketInstance::receive_ticket_transfer(
@@ -968,14 +901,8 @@ impl TicketInstance {
             "sender_wallet_id": wallet_id,
             "transfer_key": &transfer_key
         }));
-        let transfer = Transfer::create(
-            user_id,
-            transfer_key,
-            sent_via,
-            address.map(|a| a.to_string()),
-            direct,
-        )
-        .commit(conn)?;
+        let transfer =
+            Transfer::create(user_id, transfer_key, sent_via, address.map(|a| a.to_string()), direct).commit(conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
             transfer.add_transfer_ticket(t_id, conn)?;
             update_count += 1;
@@ -1016,13 +943,9 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<TicketInstance, DatabaseError> {
         if self.status == TicketInstanceStatus::Redeemed {
-            return DatabaseError::business_process_error(
-                "Unable to update ticket as it has already been redeemed.",
-            );
+            return DatabaseError::business_process_error("Unable to update ticket as it has already been redeemed.");
         } else if self.status != TicketInstanceStatus::Purchased {
-            return DatabaseError::business_process_error(
-                "Unable to update ticket as it is not purchased.",
-            );
+            return DatabaseError::business_process_error("Unable to update ticket as it is not purchased.");
         }
 
         self.validate_record(&attrs)?;
@@ -1085,10 +1008,7 @@ impl TicketInstance {
         //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
         //being transfered
         let transfer_tickets = transfer.transfer_tickets(conn)?;
-        let ticket_ids: Vec<Uuid> = transfer_tickets
-            .iter()
-            .map(|tt| tt.ticket_instance_id)
-            .collect();
+        let ticket_ids: Vec<Uuid> = transfer_tickets.iter().map(|tt| tt.ticket_instance_id).collect();
         let tickets = TicketInstance::find_by_ids(&ticket_ids, conn)?;
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
@@ -1142,11 +1062,7 @@ impl TicketInstance {
         Ok(tickets)
     }
 
-    fn create_nullified_domain_event(
-        &self,
-        user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    fn create_nullified_domain_event(&self, user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         DomainEvent::create(
             DomainEventTypes::TicketInstanceNullified,
             "Ticket nullified".to_string(),
@@ -1347,8 +1263,8 @@ pub enum RedeemResults {
 
 fn generate_redeem_key(len: u32) -> String {
     let hash_char_list = vec![
-        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-        'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'P',
+        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     ];
     (0..len)
         .map(|_| hash_char_list[rand::thread_rng().gen_range(0, hash_char_list.len())])

@@ -40,10 +40,7 @@ impl FromStr for Category {
         let c = match s {
             "MUSIC_EVENT" => MusicEvent,
             _ => {
-                return Err(FacebookError::ParseError(format!(
-                    "Invalid value encountered:{}",
-                    s
-                )));
+                return Err(FacebookError::ParseError(format!("Invalid value encountered:{}", s)));
             }
         };
         Ok(c)

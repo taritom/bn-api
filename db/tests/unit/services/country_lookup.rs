@@ -77,11 +77,7 @@ fn parse_city_state_country() {
 
     assert_eq!(
         country_lookup.parse_city_state_country("MA"),
-        Ok(vec![(
-            None,
-            None,
-            Some(country_lookup.find("Morocco").unwrap())
-        )])
+        Ok(vec![(None, None, Some(country_lookup.find("Morocco").unwrap()))])
     );
 
     assert_eq!(
@@ -100,11 +96,7 @@ fn parse_city_state_country() {
 
     assert_eq!(
         country_lookup.parse_city_state_country("Aomori JapaN"),
-        Ok(vec![(
-            None,
-            jp_country.state("JP-02"),
-            Some(jp_country.clone())
-        )])
+        Ok(vec![(None, jp_country.state("JP-02"), Some(jp_country.clone()))])
     );
 
     assert_eq!(

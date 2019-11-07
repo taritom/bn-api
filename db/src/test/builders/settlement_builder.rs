@@ -22,7 +22,7 @@ impl<'a> SettlementBuilder<'a> {
             end_time: None,
             comment: None,
             only_finished_events: true,
-            connection: connection,
+            connection,
         }
     }
 
@@ -56,12 +56,8 @@ impl<'a> SettlementBuilder<'a> {
             .organization_id
             .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
             .unwrap();
-        let start_time = self
-            .start_time
-            .unwrap_or(dates::now().add_days(-5).finish());
-        let end_time = self
-            .end_time
-            .unwrap_or(start_time.into_builder().add_days(5).finish());
+        let start_time = self.start_time.unwrap_or(dates::now().add_days(-5).finish());
+        let end_time = self.end_time.unwrap_or(start_time.into_builder().add_days(5).finish());
 
         Settlement::create(
             organization_id,

@@ -4,9 +4,7 @@ use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types::{Array, Bool, Uuid as dUuid};
 use models::*;
-use schema::{
-    artist_genres, artists, event_artists, events, genres, organization_users, organizations,
-};
+use schema::{artist_genres, artists, event_artists, events, genres, organization_users, organizations};
 use utils::errors::*;
 use utils::text;
 use uuid::Uuid;
@@ -74,9 +72,7 @@ impl NewArtist {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new artist",
-            diesel::insert_into(artists::table)
-                .values(self)
-                .get_result(conn),
+            diesel::insert_into(artists::table).values(self).get_result(conn),
         )
     }
 
@@ -124,10 +120,7 @@ impl Artist {
             .order_by(artists::name)
             .select(artists::all_columns)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load artists with linked spotify ids",
-            )
+            .to_db_error(ErrorCode::QueryError, "Unable to load artists with linked spotify ids")
     }
 
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
@@ -196,12 +189,7 @@ impl Artist {
         Ok(())
     }
 
-    pub fn create(
-        name: &str,
-        organization_id: Option<Uuid>,
-        bio: &str,
-        website_url: &str,
-    ) -> NewArtist {
+    pub fn create(name: &str, organization_id: Option<Uuid>, bio: &str, website_url: &str) -> NewArtist {
         NewArtist {
             organization_id,
             name: String::from(name),
@@ -228,10 +216,7 @@ impl Artist {
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
                 )
-                .left_join(
-                    organizations::table
-                        .on(artists::organization_id.eq(organizations::id.nullable())),
-                )
+                .left_join(organizations::table.on(artists::organization_id.eq(organizations::id.nullable())))
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
@@ -266,10 +251,7 @@ impl Artist {
         Ok(result)
     }
 
-    pub fn all(
-        user: Option<&User>,
-        conn: &PgConnection,
-    ) -> Result<Vec<DisplayArtist>, DatabaseError> {
+    pub fn all(user: Option<&User>, conn: &PgConnection) -> Result<Vec<DisplayArtist>, DatabaseError> {
         let artists: Vec<Artist> = match user {
             Some(u) => artists::table
                 .left_join(
@@ -277,10 +259,7 @@ impl Artist {
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
                 )
-                .left_join(
-                    organizations::table
-                        .on(artists::organization_id.eq(organizations::id.nullable())),
-                )
+                .left_join(organizations::table.on(artists::organization_id.eq(organizations::id.nullable())))
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
@@ -337,10 +316,7 @@ impl Artist {
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
                 )
-                .left_join(
-                    organizations::table
-                        .on(artists::organization_id.eq(organizations::id.nullable())),
-                )
+                .left_join(organizations::table.on(artists::organization_id.eq(organizations::id.nullable())))
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
@@ -374,19 +350,11 @@ impl Artist {
         Ok(result)
     }
 
-    pub fn update(
-        &self,
-        attributes: &ArtistEditableAttributes,
-        conn: &PgConnection,
-    ) -> Result<Artist, DatabaseError> {
+    pub fn update(&self, attributes: &ArtistEditableAttributes, conn: &PgConnection) -> Result<Artist, DatabaseError> {
         attributes.validate()?;
         let query = diesel::update(self).set((attributes, artists::updated_at.eq(dsl::now)));
 
-        DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Error updating artist",
-            query.get_result(conn),
-        )
+        DatabaseError::wrap(ErrorCode::UpdateError, "Error updating artist", query.get_result(conn))
     }
 
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
@@ -404,19 +372,12 @@ impl Artist {
         }
     }
 
-    pub fn set_privacy(
-        &self,
-        is_private: bool,
-        conn: &PgConnection,
-    ) -> Result<Artist, DatabaseError> {
+    pub fn set_privacy(&self, is_private: bool, conn: &PgConnection) -> Result<Artist, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update is_private for artist",
             diesel::update(self)
-                .set((
-                    artists::is_private.eq(is_private),
-                    artists::updated_at.eq(dsl::now),
-                ))
+                .set((artists::is_private.eq(is_private), artists::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
     }
@@ -483,11 +444,7 @@ pub struct DisplayArtist {
 }
 
 impl DisplayArtist {
-    fn from(
-        artist: Artist,
-        genres: Vec<String>,
-        conn: &PgConnection,
-    ) -> Result<Self, DatabaseError> {
+    fn from(artist: Artist, genres: Vec<String>, conn: &PgConnection) -> Result<Self, DatabaseError> {
         let main_genre = if let Some(main_genre_id) = artist.main_genre_id {
             Some(Genre::find(main_genre_id, conn)?.name)
         } else {

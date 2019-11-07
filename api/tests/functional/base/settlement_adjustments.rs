@@ -12,31 +12,25 @@ pub fn index(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
     let user = database.create_user().finish();
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = database.create_settlement().with_organization(&organization).finish();
     let settlement_adjustment = database
         .create_settlement_adjustment()
         .with_settlement(&settlement)
         .finish();
     let _settlement_adjustment2 = database.create_settlement_adjustment().finish();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
 
-    let response =
-        settlement_adjustments::index((database.connection.clone().into(), path, auth_user));
+    let response = settlement_adjustments::index((database.connection.clone().into(), path, auth_user));
 
     if should_succeed {
         let response = response.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
-        let settlement_adjustments: Vec<SettlementAdjustment> =
-            serde_json::from_str(&body).unwrap();
+        let settlement_adjustments: Vec<SettlementAdjustment> = serde_json::from_str(&body).unwrap();
         assert_eq!(vec![settlement_adjustment], settlement_adjustments);
     } else {
         assert_eq!(
@@ -50,10 +44,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = database.create_settlement().with_organization(&organization).finish();
 
     let json = Json(NewSettlementAdjustmentRequest {
         note: None,
@@ -61,14 +52,12 @@ pub fn create(role: Roles, should_succeed: bool) {
         amount_in_cents: 100,
     });
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
     let response: HttpResponse =
-        settlement_adjustments::create((database.connection.clone().into(), path, json, auth_user))
-            .into();
+        settlement_adjustments::create((database.connection.clone().into(), path, json, auth_user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -89,23 +78,18 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = database.create_settlement().with_organization(&organization).finish();
     let settlement_adjustment = database
         .create_settlement_adjustment()
         .with_settlement(&settlement)
         .finish();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement_adjustment.id;
     let response: HttpResponse =
-        settlement_adjustments::destroy((database.connection.clone().into(), path, auth_user))
-            .into();
+        settlement_adjustments::destroy((database.connection.clone().into(), path, auth_user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;

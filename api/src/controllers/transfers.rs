@@ -149,13 +149,7 @@ pub fn cancel(
     }
 
     if let Some(source_email) = source_user.email.clone() {
-        mailers::tickets::transfer_cancelled_receipt(
-            &state.config,
-            source_email,
-            &source_user,
-            &transfer,
-            connection,
-        )?;
+        mailers::tickets::transfer_cancelled_receipt(&state.config, source_email, &source_user, &transfer, connection)?;
     }
 
     Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
@@ -171,13 +165,8 @@ fn check_transfer_cancel_access(
         let events = transfer.events(connection)?;
         for event in events {
             let org = event.organization(connection)?;
-            valid = valid
-                && user.has_scope_for_organization_event(
-                    Scopes::TransferCancel,
-                    &org,
-                    event.id,
-                    connection,
-                )?;
+            valid =
+                valid && user.has_scope_for_organization_event(Scopes::TransferCancel, &org, event.id, connection)?;
         }
 
         if !valid {

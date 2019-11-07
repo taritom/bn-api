@@ -25,29 +25,23 @@ impl FacebookClient {
 
         FacebookClient {
             inner_client: inner.clone(),
-            official_events: OfficialEventsEndpoint {
-                client: inner.clone(),
-            },
+            official_events: OfficialEventsEndpoint { client: inner.clone() },
             me: MeEndpoint::new(inner.clone()),
-            permissions: PermissionsEndpoint {
-                client: inner.clone(),
-            },
+            permissions: PermissionsEndpoint { client: inner.clone() },
         }
     }
 
-    pub fn get_login_url(
-        app_id: &str,
-        redirect_uri: Option<&str>,
-        state: &str,
-        scopes: &[&str],
-    ) -> String {
-        let scope = scopes.iter().fold("".to_string(), |s, t| {
-            if s.len() == 0 {
-                t.to_string()
-            } else {
-                s + "," + t
-            }
-        });
+    pub fn get_login_url(app_id: &str, redirect_uri: Option<&str>, state: &str, scopes: &[&str]) -> String {
+        let scope = scopes.iter().fold(
+            "".to_string(),
+            |s, t| {
+                if s.len() == 0 {
+                    t.to_string()
+                } else {
+                    s + "," + t
+                }
+            },
+        );
 
         let result = form_urlencoded::Serializer::new(String::new())
             .append_pair("client_id", app_id)

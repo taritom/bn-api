@@ -26,10 +26,7 @@ pub fn insert_event_template_data(
     );
     template_data.insert(
         "event_age_limit".to_string(),
-        event
-            .age_limit
-            .clone()
-            .unwrap_or("This event is all ages".to_string()),
+        event.age_limit.clone().unwrap_or("This event is all ages".to_string()),
     );
     if let Some(event_start) = localized_times.event_start {
         template_data.insert(
@@ -43,22 +40,14 @@ pub fn insert_event_template_data(
         );
         template_data.insert(
             "event_event_start".to_string(),
-            event_start
-                .format("%l:%M %p %Z")
-                .to_string()
-                .trim()
-                .to_string(),
+            event_start.format("%l:%M %p %Z").to_string().trim().to_string(),
         );
     }
 
     if let Some(door_time) = localized_times.door_time {
         template_data.insert(
             "event_doors_open_time".to_string(),
-            door_time
-                .format("%l:%M %p %Z")
-                .to_string()
-                .trim()
-                .to_string(),
+            door_time.format("%l:%M %p %Z").to_string().trim().to_string(),
         );
     }
 
@@ -72,18 +61,11 @@ pub fn insert_event_template_data(
         .filter(|a| a.importance != 0)
         .map(|a| a.artist.name.clone())
         .collect();
-    template_data.insert(
-        "artist_headliners".to_string(),
-        artist_headliners.join(", "),
-    );
+    template_data.insert("artist_headliners".to_string(), artist_headliners.join(", "));
     template_data.insert("artist_other".to_string(), artist_other.join(", "));
     if let Some(venue) = venue {
         let url_encoded_address: String = byte_serialize(
-            format!(
-                "{},{},{},{}",
-                &venue.address, &venue.city, &venue.state, &venue.country
-            )
-            .as_bytes(),
+            format!("{},{},{},{}", &venue.address, &venue.city, &venue.state, &venue.country).as_bytes(),
         )
         .collect();
         template_data.insert("venue_name".to_string(), venue.name);
@@ -92,10 +74,7 @@ pub fn insert_event_template_data(
         template_data.insert("venue_state".to_string(), venue.state);
         template_data.insert("venue_country".to_string(), venue.country);
         template_data.insert("venue_postal_code".to_string(), venue.postal_code);
-        template_data.insert(
-            "venue_phone".to_string(),
-            venue.phone.unwrap_or("".to_string()),
-        );
+        template_data.insert("venue_phone".to_string(), venue.phone.unwrap_or("".to_string()));
         template_data.insert(
             "venue_promo_image_url".to_string(),
             venue.promo_image_url.unwrap_or("".to_string()),

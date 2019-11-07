@@ -35,8 +35,7 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
     let password_reset_link = format!(
         "{}/password-reset?token={}",
         config.front_end_url.clone(),
-        user.password_reset_token
-            .expect("Password reset token is not set")
+        user.password_reset_token.expect("Password reset token is not set")
     );
     let email: &str = user.email.as_ref().expect("Email is not set");
     let source = CommAddress::from(config.communication_default_source_email.clone());
@@ -59,16 +58,11 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
     )
 }
 
-pub fn invite_user_email(
-    config: &Config,
-    user: &User,
-    conn: &PgConnection,
-) -> Result<(), BigNeonError> {
+pub fn invite_user_email(config: &Config, user: &User, conn: &PgConnection) -> Result<(), BigNeonError> {
     let invite_link = format!(
         "{}/password-reset?token={}&invite=true",
         config.front_end_url.clone(),
-        user.password_reset_token
-            .expect("Password reset token is not set")
+        user.password_reset_token.expect("Password reset token is not set")
     );
 
     let email: &str = user.email.as_ref().expect("Email is not set");

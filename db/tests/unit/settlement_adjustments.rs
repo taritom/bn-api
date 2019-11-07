@@ -36,8 +36,7 @@ fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let settlement_adjustment = project.create_settlement_adjustment().finish();
-    let read_settlement_adjustment =
-        SettlementAdjustment::find(settlement_adjustment.id, connection).unwrap();
+    let read_settlement_adjustment = SettlementAdjustment::find(settlement_adjustment.id, connection).unwrap();
     assert_eq!(settlement_adjustment.id, read_settlement_adjustment.id);
 }
 

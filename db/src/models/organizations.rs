@@ -9,8 +9,8 @@ use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid}
 use models::scopes;
 use models::*;
 use schema::{
-    assets, event_users, events, fee_schedules, order_items, orders, organization_users,
-    organizations, ticket_types, users, venues,
+    assets, event_users, events, fee_schedules, order_items, orders, organization_users, organizations, ticket_types,
+    users, venues,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -23,16 +23,7 @@ use uuid::Uuid;
 const DEFAULT_SETTLEMENT_TIMEZONE: &str = "America/Los_Angeles";
 
 #[derive(
-    Identifiable,
-    Associations,
-    Queryable,
-    QueryableByName,
-    AsChangeset,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Debug,
+    Identifiable, Associations, Queryable, QueryableByName, AsChangeset, Clone, Serialize, Deserialize, PartialEq, Debug,
 )]
 #[table_name = "organizations"]
 pub struct Organization {
@@ -132,9 +123,8 @@ impl NewOrganization {
         let org: Organization = diesel::insert_into(organizations::table)
             .values((
                 &updated_organisation,
-                organizations::event_fee_in_cents
-                    .eq(updated_organisation.client_event_fee_in_cents.unwrap_or(0)
-                        + updated_organisation.company_event_fee_in_cents.unwrap_or(0)),
+                organizations::event_fee_in_cents.eq(updated_organisation.client_event_fee_in_cents.unwrap_or(0)
+                    + updated_organisation.company_event_fee_in_cents.unwrap_or(0)),
             ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
@@ -226,9 +216,7 @@ impl Organization {
     ) -> Result<(), DatabaseError> {
         if let Some(upcoming_domain_action) = self.upcoming_settlement_domain_action(conn)? {
             if upcoming_domain_action.scheduled_at > Utc::now().naive_utc() {
-                return DatabaseError::business_process_error(
-                    "Settlement processing domain action is already pending",
-                );
+                return DatabaseError::business_process_error("Settlement processing domain action is already pending");
             }
         }
 
@@ -296,9 +284,7 @@ impl Organization {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
             .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(
-                order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
-            )
+            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
             .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .filter(organizations::id.eq(self.id))
             .select(organizations::created_at)
@@ -308,15 +294,17 @@ impl Organization {
             .to_db_error(ErrorCode::QueryError, "Error loading first order date")
     }
 
-    pub fn next_settlement_date(
-        &self,
-        settlement_period_in_days: Option<u32>,
-    ) -> Result<NaiveDateTime, DatabaseError> {
-        let timezone = self.timezone()?;
+    pub fn next_settlement_date(&self, settlement_period_in_days: Option<u32>) -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = if self.settlement_type == SettlementTypes::Rolling {
+            "America/Los_Angeles"
+                .to_string()
+                .parse::<Tz>()
+                .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?
+        } else {
+            self.timezone()?
+        };
         let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
-        let today = timezone
-            .ymd(now.year(), now.month(), now.day())
-            .and_hms(0, 0, 0);
+        let today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
 
         // If this is a normal week long settlement period, set it to start on the following Monday
         // Else set as number of days from today
@@ -331,8 +319,7 @@ impl Organization {
         } else {
             let next_date = today.naive_utc()
                 + Duration::days(
-                    DEFAULT_SETTLEMENT_PERIOD_IN_DAYS
-                        - today.naive_local().weekday().num_days_from_monday() as i64,
+                    DEFAULT_SETTLEMENT_PERIOD_IN_DAYS - today.naive_local().weekday().num_days_from_monday() as i64,
                 );
 
             Ok(next_date)
@@ -397,10 +384,7 @@ impl Organization {
         Ok(organization)
     }
 
-    pub fn find_by_asset_id(
-        asset_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Organization, DatabaseError> {
+    pub fn find_by_asset_id(asset_id: Uuid, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
             .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
@@ -408,10 +392,7 @@ impl Organization {
             .filter(assets::id.eq(asset_id))
             .select(organizations::all_columns)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve organization by asset id",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve organization by asset id")
     }
 
     pub fn find_by_ticket_type_ids(
@@ -438,9 +419,7 @@ impl Organization {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
             .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(
-                order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
-            )
+            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
             .filter(order_items::id.eq_any(order_item_ids))
             .select(organizations::all_columns)
             .order_by(organizations::name.asc())
@@ -473,10 +452,7 @@ impl Organization {
             .order_by(users::last_name.asc())
             .then_order_by(users::first_name.asc())
             .load::<OrganizationUser>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve organization users",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve organization users")?;
 
         let mut result = vec![];
 
@@ -536,19 +512,11 @@ impl Organization {
         Ok(!results.data.is_empty())
     }
 
-    pub fn get_scopes_for_user(
-        &self,
-        user: &User,
-        conn: &PgConnection,
-    ) -> Result<Vec<Scopes>, DatabaseError> {
+    pub fn get_scopes_for_user(&self, user: &User, conn: &PgConnection) -> Result<Vec<Scopes>, DatabaseError> {
         Ok(scopes::get_scopes(self.get_roles_for_user(user, conn)?))
     }
 
-    pub fn get_roles_for_user(
-        &self,
-        user: &User,
-        conn: &PgConnection,
-    ) -> Result<Vec<Roles>, DatabaseError> {
+    pub fn get_roles_for_user(&self, user: &User, conn: &PgConnection) -> Result<Vec<Roles>, DatabaseError> {
         if user.is_admin() {
             let mut roles = Vec::new();
 
@@ -556,8 +524,7 @@ impl Organization {
 
             Ok(roles)
         } else {
-            let org_member =
-                OrganizationUser::find_by_user_id(user.id, self.id, conn).optional()?;
+            let org_member = OrganizationUser::find_by_user_id(user.id, self.id, conn).optional()?;
             match org_member {
                 Some(member) => Ok(member.role),
                 None => Ok(vec![]),
@@ -572,20 +539,14 @@ impl Organization {
             .to_db_error(ErrorCode::QueryError, "Error loading organization")
     }
 
-    pub fn find_for_event(
-        event_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Organization, DatabaseError> {
+    pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         events::table
             .inner_join(organizations::table)
             .filter(events::deleted_at.is_null())
             .filter(events::id.eq(event_id))
             .select(organizations::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find organization for this event",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find organization for this event")
     }
 
     pub fn tracking_keys_for_ids(
@@ -608,10 +569,7 @@ impl Organization {
                 organizations::facebook_pixel_key,
             ))
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load all organization tracking keys",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load all organization tracking keys")?;
 
         let mut result: HashMap<Uuid, TrackingKeys> = HashMap::new();
 
@@ -641,16 +599,11 @@ impl Organization {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all organizations",
-            organizations::table
-                .order_by(organizations::name)
-                .load(conn),
+            organizations::table.order_by(organizations::name).load(conn),
         )
     }
 
-    pub fn all_linked_to_user(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Organization>, DatabaseError> {
+    pub fn all_linked_to_user(user_id: Uuid, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
         let orgs = organization_users::table
             .filter(organization_users::user_id.eq(user_id))
             .inner_join(organizations::table)
@@ -718,11 +671,7 @@ impl Organization {
         if event_ids.len() > 0 {
             if role.iter().position(|&r| r == Roles::Promoter).is_some() {
                 EventUser::update_or_create(user_id, &event_ids, Roles::Promoter, conn)?;
-            } else if role
-                .iter()
-                .position(|&r| r == Roles::PromoterReadOnly)
-                .is_some()
-            {
+            } else if role.iter().position(|&r| r == Roles::PromoterReadOnly).is_some() {
                 EventUser::update_or_create(user_id, &event_ids, Roles::PromoterReadOnly, conn)?;
             }
         }
@@ -799,10 +748,7 @@ impl Organization {
         };
 
         let mut query = events::table
-            .inner_join(
-                organizations::table
-                    .inner_join(organization_interactions::table.left_join(users::table)),
-            )
+            .inner_join(organizations::table.inner_join(organization_interactions::table.left_join(users::table)))
             .filter(events::organization_id.eq(self.id))
             .into_boxed();
 
@@ -823,8 +769,7 @@ impl Organization {
                     query = query.filter(
                         sql("users.email ILIKE ")
                             .bind::<Text, _>(fuzzy_query_string.clone())
-                            .or(sql("users.phone ILIKE ")
-                                .bind::<Text, _>(fuzzy_query_string.clone()))
+                            .or(sql("users.phone ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
                             .or(sql("CONCAT(users.first_name, ' ', users.last_name) ILIKE ")
                                 .bind::<Text, _>(fuzzy_query_string.clone()))
                             .or(sql("CONCAT(users.last_name, ' ', users.first_name) ILIKE ")
@@ -860,8 +805,8 @@ impl Organization {
                 events::organization_id,
                 sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"), //order_count
                 users::created_at,
-                sql::<Nullable<Timestamp>>("NULL"), //first_order_time
-                sql::<Nullable<Timestamp>>("NULL"), //last_order_time
+                sql::<Nullable<Timestamp>>("NULL"),            //first_order_time
+                sql::<Nullable<Timestamp>>("NULL"),            //last_order_time
                 sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"), //revenue_in_cents - This will be replaced
                 organization_interactions::first_interaction.nullable(),
                 organization_interactions::last_interaction.nullable(),
@@ -870,10 +815,7 @@ impl Organization {
             .paginate(page as i64)
             .per_page(limit as i64)
             .load_and_count_pages(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load fans for organization",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load fans for organization")?;
 
         //Now extract all of the user_ids that were found
         let user_ids: Vec<Uuid> = fans.iter().map(|x| x.user_id).collect();
@@ -883,12 +825,10 @@ impl Organization {
         let fans = fans
             .into_iter()
             .map(|x| {
-                let fan_revenue = user_value_map.get(&x.user_id).map(|x| x.clone()).unwrap_or(
-                    FanRevenue {
-                        ..Default::default()
-                    }
-                    .clone(),
-                );
+                let fan_revenue = user_value_map
+                    .get(&x.user_id)
+                    .map(|x| x.clone())
+                    .unwrap_or(FanRevenue { ..Default::default() }.clone());
                 let fan = DisplayFan {
                     revenue_in_cents: Some(fan_revenue.revenue_in_cents.unwrap_or(0)),
                     first_order_time: fan_revenue.first_order_time,
@@ -914,37 +854,20 @@ impl Organization {
         if let Some(interaction_data) = self.interaction_data(user_id, conn).optional()? {
             interaction_data.update(
                 &OrganizationInteractionEditableAttributes {
-                    first_interaction: Some(cmp::min(
-                        interaction_data.first_interaction,
-                        interaction_date,
-                    )),
-                    last_interaction: Some(cmp::max(
-                        interaction_data.last_interaction,
-                        interaction_date,
-                    )),
+                    first_interaction: Some(cmp::min(interaction_data.first_interaction, interaction_date)),
+                    last_interaction: Some(cmp::max(interaction_data.last_interaction, interaction_date)),
                     interaction_count: Some(interaction_data.interaction_count + 1),
                 },
                 conn,
             )?;
         } else {
-            OrganizationInteraction::create(
-                self.id,
-                user_id,
-                interaction_date,
-                interaction_date,
-                1,
-            )
-            .commit(conn)?;
+            OrganizationInteraction::create(self.id, user_id, interaction_date, interaction_date, 1).commit(conn)?;
         }
 
         Ok(())
     }
 
-    pub fn regenerate_interaction_data(
-        &self,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn regenerate_interaction_data(&self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         use schema::*;
         #[derive(Debug, Queryable, QueryableByName)]
         struct R {
@@ -965,9 +888,7 @@ impl Organization {
             .filter(
                 orders::on_behalf_of_user_id
                     .eq(user_id)
-                    .or(orders::on_behalf_of_user_id
-                        .is_null()
-                        .and(orders::user_id.eq(user_id))),
+                    .or(orders::on_behalf_of_user_id.is_null().and(orders::user_id.eq(user_id))),
             )
             .select((
                 sql::<Nullable<Timestamp>>("MIN(orders.order_date)"),
@@ -1062,10 +983,7 @@ impl Organization {
                 sql::<BigInt>("COUNT(DISTINCT event_interest.id)"),
             ))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load fan event interest data",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load fan event interest data")?;
         first_interaction = first_interaction.or(event_interest_data.first_interaction);
         if let (Some(old_first_interaction), Some(new_first_interaction)) =
             (first_interaction, event_interest_data.first_interaction)
@@ -1089,9 +1007,7 @@ impl Organization {
             .filter(
                 orders::on_behalf_of_user_id
                     .eq(user_id)
-                    .or(orders::on_behalf_of_user_id
-                        .is_null()
-                        .and(orders::user_id.eq(user_id))),
+                    .or(orders::on_behalf_of_user_id.is_null().and(orders::user_id.eq(user_id))),
             )
             .select((
                 sql::<Nullable<Timestamp>>("MIN(refunds.created_at)"),
@@ -1099,10 +1015,7 @@ impl Organization {
                 sql::<BigInt>("COUNT(DISTINCT refunds.id)"),
             ))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load fan event interest data",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load fan event interest data")?;
         first_interaction = first_interaction.or(refund_data.first_interaction);
         if let (Some(old_first_interaction), Some(new_first_interaction)) =
             (first_interaction, refund_data.first_interaction)
@@ -1120,16 +1033,14 @@ impl Organization {
         if let Some(interaction_data) = self.interaction_data(user_id, conn).optional()? {
             interaction_data.update(
                 &OrganizationInteractionEditableAttributes {
-                    first_interaction: first_interaction,
-                    last_interaction: last_interaction,
+                    first_interaction,
+                    last_interaction,
                     interaction_count: Some(interaction_count),
                 },
                 conn,
             )?;
         } else {
-            if let (Some(first_interaction), Some(last_interaction)) =
-                (first_interaction, last_interaction)
-            {
+            if let (Some(first_interaction), Some(last_interaction)) = (first_interaction, last_interaction) {
                 OrganizationInteraction::create(
                     self.id,
                     user_id,

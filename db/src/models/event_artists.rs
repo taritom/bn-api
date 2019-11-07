@@ -39,17 +39,11 @@ pub struct NewEventArtist {
 }
 
 impl NewEventArtist {
-    pub fn commit(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<EventArtist, DatabaseError> {
+    pub fn commit(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<EventArtist, DatabaseError> {
         let result: EventArtist = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not add artist to event",
-            diesel::insert_into(event_artists::table)
-                .values(self)
-                .get_result(conn),
+            diesel::insert_into(event_artists::table).values(self).get_result(conn),
         )?;
 
         DomainEvent::create(
@@ -126,10 +120,7 @@ impl EventArtist {
         Ok(display_results)
     }
 
-    pub fn find_all_from_event(
-        event_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
+    pub fn find_all_from_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
         let result = EventArtist::find_all_from_events(&vec![event_id], conn)?
             .remove(&event_id)
             .map_or(Vec::new(), |x| x);

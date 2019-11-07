@@ -14,9 +14,7 @@ pub struct CommAddress {
 
 impl CommAddress {
     pub fn new() -> CommAddress {
-        CommAddress {
-            addresses: Vec::new(),
-        }
+        CommAddress { addresses: Vec::new() }
     }
 
     pub fn from(address: String) -> CommAddress {
@@ -61,6 +59,7 @@ pub struct Communication {
     pub extra_data: Option<HashMap<String, String>>,
     pub main_table: Option<Tables>,
     pub main_table_id: Option<Uuid>,
+    pub event_id: Option<Uuid>,
 }
 
 impl Communication {
@@ -74,6 +73,7 @@ impl Communication {
         template_data: Option<Vec<TemplateData>>,
         categories: Option<Vec<S>>,
         extra_data: Option<HashMap<String, String>>,
+        event_id: Option<Uuid>
     ) -> Communication {
         Communication {
             comm_type,
@@ -87,6 +87,7 @@ impl Communication {
             extra_data,
             main_table_id: None,
             main_table: None,
+            event_id
         }
     }
 

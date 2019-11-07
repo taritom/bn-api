@@ -17,11 +17,7 @@ pub fn send_push_notification_async(
     }
 }
 
-pub fn send_push_notification(
-    tokens: &[String],
-    body: &str,
-    custom_data: Option<Value>,
-) -> Result<(), BigNeonError> {
+pub fn send_push_notification(tokens: &[String], body: &str, custom_data: Option<Value>) -> Result<(), BigNeonError> {
     let push_notifier = PushNotifier::new().gzip_policy(GzipPolicy::Always);
 
     let mut msgs = vec![];
@@ -36,9 +32,6 @@ pub fn send_push_notification(
     let result = push_notifier
         .send_push_notifications(&msgs)
         .map_err(|e| ApplicationError::new(e.to_string()))?;
-    jlog!(
-        Debug,
-        &format!("Expo push notification response:{:?}", result)
-    );
+    jlog!(Debug, &format!("Expo push notification response:{:?}", result));
     Ok(())
 }

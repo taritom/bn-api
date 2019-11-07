@@ -27,11 +27,7 @@ impl DatabaseTransaction {
 }
 
 impl Middleware<AppState> for DatabaseTransaction {
-    fn response(
-        &self,
-        request: &HttpRequest<AppState>,
-        response: HttpResponse,
-    ) -> Result<Response> {
+    fn response(&self, request: &HttpRequest<AppState>, response: HttpResponse) -> Result<Response> {
         if let Some(connection) = request.extensions().get::<Connection>() {
             let connection_object = connection.get();
 

@@ -37,11 +37,7 @@ impl From<PagingParameters> for Paging {
         } else {
             "".to_string()
         };
-        let default_dir = if let Some(i) = received.dir {
-            i
-        } else {
-            SortingDir::Asc
-        };
+        let default_dir = if let Some(i) = received.dir { i } else { SortingDir::Asc };
 
         Paging {
             page: default_page,
@@ -85,10 +81,7 @@ impl<T> Payload<T> {
     }
 
     pub fn empty(paging: Paging) -> Payload<T> {
-        let mut payload = Payload {
-            data: vec![],
-            paging,
-        };
+        let mut payload = Payload { data: vec![], paging };
         payload.paging.total = 0;
         payload
     }
@@ -118,14 +111,10 @@ where
             .collect::<Vec<String>>()
             .join("");
 
-        let tag_str = self
-            .paging
-            .tags
-            .iter()
-            .fold("".to_string(), |mut acc, (k, v)| {
-                acc.push_str(&format!("{}{}", k, v));
-                acc
-            });
+        let tag_str = self.paging.tags.iter().fold("".to_string(), |mut acc, (k, v)| {
+            acc.push_str(&format!("{}{}", k, v));
+            acc
+        });
 
         // Hash the resultant string
         let sha = sha1::digest(&format!("{}{}", etag_strs, tag_str));
@@ -157,9 +146,7 @@ impl PagingParameters {
         self.dir.unwrap_or(SortingDir::Asc)
     }
     pub fn get_tag(&self, tag: &'static str) -> Option<String> {
-        self.tags
-            .get(tag)
-            .map(|v| v.as_str().unwrap_or("").to_string())
+        self.tags.get(tag).map(|v| v.as_str().unwrap_or("").to_string())
     }
 
     pub fn get_tag_as_str(&self, tag: &'static str) -> Option<&str> {

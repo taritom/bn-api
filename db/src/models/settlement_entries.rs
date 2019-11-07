@@ -5,23 +5,13 @@ use diesel::prelude::*;
 use diesel::sql_types::{Nullable, Text};
 use itertools::Itertools;
 use models::*;
-use schema::{settlement_entries, ticket_types};
+use schema::{events, settlement_entries, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(
-    AsChangeset,
-    Clone,
-    Debug,
-    Deserialize,
-    Identifiable,
-    PartialEq,
-    Queryable,
-    QueryableByName,
-    Serialize,
-)]
+#[derive(AsChangeset, Clone, Debug, Deserialize, Identifiable, PartialEq, Queryable, QueryableByName, Serialize)]
 #[table_name = "settlement_entries"]
 pub struct SettlementEntry {
     pub id: Uuid,
@@ -67,10 +57,8 @@ impl SettlementEntry {
         conn: &PgConnection,
     ) -> Result<Vec<EventGroupedSettlementEntry>, DatabaseError> {
         let entries: Vec<DisplaySettlementEntry> = settlement_entries::table
-            .left_join(
-                ticket_types::table
-                    .on(settlement_entries::ticket_type_id.eq(ticket_types::id.nullable())),
-            )
+            .left_join(ticket_types::table.on(settlement_entries::ticket_type_id.eq(ticket_types::id.nullable())))
+            .inner_join(events::table.on(events::id.eq(settlement_entries::event_id)))
             .filter(settlement_entries::settlement_id.eq(settlement.id))
             .select((
                 settlement_entries::id,
@@ -87,7 +75,8 @@ impl SettlementEntry {
                 settlement_entries::created_at,
                 settlement_entries::updated_at,
             ))
-            .order_by(settlement_entries::event_id)
+            .order_by(events::event_start)
+            .then_order_by(settlement_entries::event_id)
             .then_order_by(settlement_entries::settlement_entry_type.nullable().desc())
             .then_order_by(ticket_types::rank)
             .then_order_by(settlement_entries::face_value_in_cents)

@@ -53,10 +53,7 @@ fn first_order_date() {
 
     // With order
     let order = project.create_order().for_event(&event).is_paid().finish();
-    assert_eq!(
-        organization.first_order_date(connection),
-        Ok(order.created_at)
-    );
+    assert_eq!(organization.first_order_date(connection), Ok(order.created_at));
 }
 
 #[test]
@@ -168,15 +165,9 @@ fn create() {
     assert_eq!(slug.main_table, Tables::Organizations);
     assert_eq!(slug.slug_type, SlugTypes::Organization);
 
-    assert_ne!(
-        organization.sendgrid_api_key,
-        Some("A_Test_Key".to_string())
-    );
+    assert_ne!(organization.sendgrid_api_key, Some("A_Test_Key".to_string()));
     organization.decrypt(&"encryption_key".to_string()).unwrap();
-    assert_eq!(
-        organization.sendgrid_api_key,
-        Some("A_Test_Key".to_string())
-    );
+    assert_eq!(organization.sendgrid_api_key, Some("A_Test_Key".to_string()));
 
     let updated_fee_schedule = FeeSchedule::find(fee_schedule.id, connection).unwrap();
     assert_eq!(updated_fee_schedule.organization_id, organization.id);
@@ -201,24 +192,17 @@ fn next_settlement_date() {
 
     let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
     let now = pt_timezone.from_utc_datetime(&Utc::now().naive_utc());
-    let pt_today = pt_timezone
-        .ymd(now.year(), now.month(), now.day())
-        .and_hms(0, 0, 0);
-    let expected_pt = pt_today.naive_utc()
-        + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64);
+    let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+    let expected_pt =
+        pt_today.naive_utc() + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64);
     let sa_timezone: Tz = "Africa/Johannesburg".parse().unwrap();
     let now = sa_timezone.from_utc_datetime(&Utc::now().naive_utc());
-    let sa_today = sa_timezone
-        .ymd(now.year(), now.month(), now.day())
-        .and_hms(0, 0, 0);
-    let expected_sa = sa_today.naive_utc()
-        + Duration::days(7 - sa_today.naive_local().weekday().num_days_from_monday() as i64);
+    let sa_today = sa_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+    let expected_sa =
+        sa_today.naive_utc() + Duration::days(7 - sa_today.naive_local().weekday().num_days_from_monday() as i64);
 
     // Default behavior no timezone, upcoming Monday 12:00 AM PT
-    assert_eq!(
-        organization.next_settlement_date(None).unwrap(),
-        expected_pt
-    );
+    assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
 
     // Override organization timezone to SA
     let organization = organization
@@ -232,16 +216,13 @@ fn next_settlement_date() {
             connection,
         )
         .unwrap();
-    assert_eq!(
-        organization.next_settlement_date(None).unwrap(),
-        expected_sa
-    );
+    assert_eq!(organization.next_settlement_date(None).unwrap(), expected_sa);
 
-    // Override organization timezone to PT
+    // Switch to rolling which always uses PT
     let organization = organization
         .update(
             OrganizationEditableAttributes {
-                timezone: Some("America/Los_Angeles".to_string()),
+                settlement_type: Some(SettlementTypes::Rolling),
                 ..Default::default()
             },
             None,
@@ -249,17 +230,26 @@ fn next_settlement_date() {
             connection,
         )
         .unwrap();
-    assert_eq!(
-        organization.next_settlement_date(None).unwrap(),
-        expected_pt
-    );
+    assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
+
+    // Override organization timezone to PT and switch back to PostEvent
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("America/Los_Angeles".to_string()),
+                settlement_type: Some(SettlementTypes::PostEvent),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
 
     // Using a passed in settlement period
     let expected_pt = pt_today.naive_utc() + Duration::days(1);
-    assert_eq!(
-        organization.next_settlement_date(Some(1)).unwrap(),
-        expected_pt
-    );
+    assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_pt);
 
     let organization = organization
         .update(
@@ -273,10 +263,21 @@ fn next_settlement_date() {
         )
         .unwrap();
     let expected_sa = sa_today.naive_utc() + Duration::days(1);
-    assert_eq!(
-        organization.next_settlement_date(Some(1)).unwrap(),
-        expected_sa
-    );
+    assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_sa);
+
+    // Rolling with passed in settlement period
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                settlement_type: Some(SettlementTypes::Rolling),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_pt);
 }
 
 #[test]
@@ -284,19 +285,12 @@ fn upcoming_settlement_domain_action() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let organization = project.create_organization().finish();
-    let upcoming_settlement_domain_action = organization
-        .upcoming_settlement_domain_action(connection)
-        .unwrap();
+    let upcoming_settlement_domain_action = organization.upcoming_settlement_domain_action(connection).unwrap();
     assert!(upcoming_settlement_domain_action.is_some());
 
     // Mark as done
-    upcoming_settlement_domain_action
-        .unwrap()
-        .set_done(connection)
-        .unwrap();
-    let upcoming_settlement_domain_action = organization
-        .upcoming_settlement_domain_action(connection)
-        .unwrap();
+    upcoming_settlement_domain_action.unwrap().set_done(connection).unwrap();
+    let upcoming_settlement_domain_action = organization.upcoming_settlement_domain_action(connection).unwrap();
     assert!(upcoming_settlement_domain_action.is_none());
 }
 
@@ -317,9 +311,7 @@ fn schedule_domain_actions() {
     assert_eq!(1, domain_actions.len());
 
     // No change since action exists
-    organization
-        .schedule_domain_actions(None, connection)
-        .unwrap();
+    organization.schedule_domain_actions(None, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
         Tables::Organizations,
         organization.id,
@@ -343,9 +335,7 @@ fn schedule_domain_actions() {
     assert_eq!(0, domain_actions.len());
 
     // Added back as it was no longer there (the job creates the next domain action normally)
-    organization
-        .schedule_domain_actions(None, connection)
-        .unwrap();
+    organization.schedule_domain_actions(None, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
         Tables::Organizations,
         organization.id,
@@ -405,11 +395,9 @@ fn find_by_ticket_type_ids() {
     let ticket_types = event2.ticket_types(true, None, &connection).unwrap();
     let ticket_type3 = &ticket_types[0];
 
-    let organizations = Organization::find_by_ticket_type_ids(
-        vec![ticket_type.id, ticket_type2.id, ticket_type3.id],
-        connection,
-    )
-    .unwrap();
+    let organizations =
+        Organization::find_by_ticket_type_ids(vec![ticket_type.id, ticket_type2.id, ticket_type3.id], connection)
+            .unwrap();
     assert_eq!(2, organizations.len());
     assert!(organizations.contains(&event.organization(connection).unwrap()));
     assert!(organizations.contains(&event2.organization(connection).unwrap()));
@@ -475,29 +463,22 @@ fn find_by_order_item_ids() {
 
     let items = cart.items(&connection).unwrap();
     let items2 = cart2.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let order_item2 = items2
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type2.id))
         .unwrap();
 
     // Ticket belonging to only first event / organization
-    let organizations =
-        Organization::find_by_order_item_ids(&vec![order_item.id], connection).unwrap();
+    let organizations = Organization::find_by_order_item_ids(&vec![order_item.id], connection).unwrap();
     assert_eq!(organizations, vec![organization.clone()]);
 
     // Ticket belonging to only second event / organization
-    let organizations =
-        Organization::find_by_order_item_ids(&vec![order_item2.id], connection).unwrap();
+    let organizations = Organization::find_by_order_item_ids(&vec![order_item2.id], connection).unwrap();
     assert_eq!(organizations, vec![organization2.clone()]);
 
     // Ticket belonging to both events / organizations
-    let organizations =
-        Organization::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection)
-            .unwrap();
+    let organizations = Organization::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection).unwrap();
     assert_eq!(organizations, vec![organization, organization2]);
 }
 
@@ -582,17 +563,10 @@ fn update() {
     changed_attrs.phone = Some("+27123456789".to_string());
     changed_attrs.sendgrid_api_key = Some(Some("A_Test_Key".to_string()));
     let mut updated_organization = edited_organization
-        .update(
-            changed_attrs,
-            None,
-            &"encryption_key".to_string(),
-            connection,
-        )
+        .update(changed_attrs, None, &"encryption_key".to_string(), connection)
         .unwrap();
 
-    updated_organization
-        .decrypt(&"encryption_key".to_string())
-        .unwrap();
+    updated_organization.decrypt(&"encryption_key".to_string()).unwrap();
     assert_eq!(edited_organization, updated_organization);
 
     // Same settlement job as the timezone has not changed
@@ -607,17 +581,9 @@ fn update() {
     let mut changed_attrs: OrganizationEditableAttributes = Default::default();
     changed_attrs.timezone = Some("America/Los_Angeles".to_string());
     let updated_organization = updated_organization
-        .update(
-            changed_attrs,
-            None,
-            &"encryption_key".to_string(),
-            connection,
-        )
+        .update(changed_attrs, None, &"encryption_key".to_string(), connection)
         .unwrap();
-    assert_eq!(
-        updated_organization.timezone,
-        Some("America/Los_Angeles".to_string())
-    );
+    assert_eq!(updated_organization.timezone, Some("America/Los_Angeles".to_string()));
 
     // New settlement report job as old date invalidated, old job is now cancelled on reload
     assert_ne!(
@@ -655,12 +621,8 @@ fn find_for_event() {
         .with_member(&user, Roles::OrgOwner)
         .with_address()
         .finish();
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let found_organization =
-        Organization::find_for_event(event.id, project.get_connection()).unwrap();
+    let event = project.create_event().with_organization(&organization).finish();
+    let found_organization = Organization::find_for_event(event.id, project.get_connection()).unwrap();
     assert_eq!(organization, found_organization);
 }
 
@@ -686,10 +648,7 @@ fn upcoming_events() {
         .with_status(EventStatus::Draft)
         .finish();
 
-    assert_eq!(
-        organization.upcoming_events(connection).unwrap(),
-        vec![future_event]
-    );
+    assert_eq!(organization.upcoming_events(connection).unwrap(), vec![future_event]);
 }
 
 #[test]
@@ -709,9 +668,7 @@ fn tracking_keys_for_ids() {
         .update(org_update, None, &encryption_key, connection)
         .unwrap();
 
-    let result =
-        Organization::tracking_keys_for_ids(vec![organization.id], &encryption_key, connection)
-            .unwrap();
+    let result = Organization::tracking_keys_for_ids(vec![organization.id], &encryption_key, connection).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(
         *result.get(&organization.id).unwrap(),
@@ -743,10 +700,7 @@ fn venues() {
         .with_name("Venue1".to_string())
         .with_organization(&organization2)
         .finish();
-    assert_eq!(
-        organization.venues(connection).unwrap(),
-        vec![venue1, venue2]
-    );
+    assert_eq!(organization.venues(connection).unwrap(), vec![venue1, venue2]);
     assert_eq!(organization2.venues(connection).unwrap(), vec![venue3]);
 }
 
@@ -770,10 +724,7 @@ fn pending_invites() {
         .finish();
 
     let pending = organization.pending_invites(None, connection).unwrap();
-    assert_eq!(
-        pending,
-        vec![organization_invite.clone(), organization_invite2.clone()]
-    );
+    assert_eq!(pending, vec![organization_invite.clone(), organization_invite2.clone()]);
     organization_invite2.accept_invite(connection).unwrap();
 
     let pending = organization.pending_invites(None, connection).unwrap();
@@ -851,23 +802,17 @@ fn users() {
     assert_eq!(user3.id, user_results2[1].1.id);
 
     // Restricted to event1
-    let user_results = organization
-        .users(Some(event.id), project.get_connection())
-        .unwrap();
+    let user_results = organization.users(Some(event.id), project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 1);
     assert_eq!(user4.id, user_results[0].1.id);
 
     // Restricted to event2
-    let user_results = organization
-        .users(Some(event2.id), project.get_connection())
-        .unwrap();
+    let user_results = organization.users(Some(event2.id), project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 1);
     assert_eq!(user4.id, user_results[0].1.id);
 
     // Restricted to event3
-    let user_results = organization
-        .users(Some(event3.id), project.get_connection())
-        .unwrap();
+    let user_results = organization.users(Some(event3.id), project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 0);
 }
 
@@ -935,14 +880,10 @@ fn all_org_names_linked_to_user() {
         .with_member(&user2, Roles::OrgOwner)
         .with_member(&user1, Roles::OrgMember)
         .finish();
-    let user1_links =
-        Organization::all_org_names_linked_to_user(user1.id, project.get_connection()).unwrap();
-    let user2_links =
-        Organization::all_org_names_linked_to_user(user2.id, project.get_connection()).unwrap();
-    let user3_links =
-        Organization::all_org_names_linked_to_user(user3.id, project.get_connection()).unwrap();
-    let user4_links =
-        Organization::all_org_names_linked_to_user(user4.id, project.get_connection()).unwrap();
+    let user1_links = Organization::all_org_names_linked_to_user(user1.id, project.get_connection()).unwrap();
+    let user2_links = Organization::all_org_names_linked_to_user(user2.id, project.get_connection()).unwrap();
+    let user3_links = Organization::all_org_names_linked_to_user(user3.id, project.get_connection()).unwrap();
+    let user4_links = Organization::all_org_names_linked_to_user(user4.id, project.get_connection()).unwrap();
 
     //User1 has 2 links, owner of Org1 and member of Org2
     assert_eq!(user1_links.len(), 2);
@@ -1019,9 +960,7 @@ fn remove_users() {
     assert_eq!(user_results.len(), 3);
 
     //remove user
-    let result = organization
-        .remove_user(user2_id, project.get_connection())
-        .unwrap();
+    let result = organization.remove_user(user2_id, project.get_connection()).unwrap();
     assert_eq!(result, 1);
     let user_results2: Vec<User> = organization
         .users(None, project.get_connection())
@@ -1061,10 +1000,7 @@ pub fn get_roles_for_user() {
         organization.get_roles_for_user(&user3, connection).unwrap(),
         vec![Roles::OrgOwner]
     );
-    assert!(organization
-        .get_roles_for_user(&user4, connection)
-        .unwrap()
-        .is_empty());
+    assert!(organization.get_roles_for_user(&user4, connection).unwrap().is_empty());
 }
 
 #[test]
@@ -1471,12 +1407,7 @@ fn add_user() {
         .with_ticket_pricing()
         .finish();
     organization
-        .add_user(
-            user3.id,
-            vec![Roles::PromoterReadOnly],
-            vec![event.id],
-            connection,
-        )
+        .add_user(user3.id, vec![Roles::PromoterReadOnly], vec![event.id], connection)
         .unwrap();
     assert!(organization
         .get_roles_for_user(&user3, connection)
@@ -1492,8 +1423,7 @@ fn add_fee_schedule() {
     let organization = project.create_organization().finish();
     let fee_structure = project.create_fee_schedule().finish(None);
 
-    let updated_fee_schedule =
-        FeeSchedule::find(fee_structure.id, project.get_connection()).unwrap();
+    let updated_fee_schedule = FeeSchedule::find(fee_structure.id, project.get_connection()).unwrap();
     assert_eq!(updated_fee_schedule.organization_id, Uuid::nil());
 
     organization
@@ -1502,8 +1432,7 @@ fn add_fee_schedule() {
     let organization = Organization::find(organization.id, project.get_connection()).unwrap();
     assert_eq!(organization.fee_schedule_id, fee_structure.id);
 
-    let updated_fee_schedule =
-        FeeSchedule::find(fee_structure.id, project.get_connection()).unwrap();
+    let updated_fee_schedule = FeeSchedule::find(fee_structure.id, project.get_connection()).unwrap();
     assert_eq!(updated_fee_schedule.organization_id, organization.id);
 }
 
@@ -1514,19 +1443,11 @@ fn regenerate_interaction_data() {
     let organization = project.create_organization().finish();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let interaction_data = organization
-        .interaction_data(user.id, connection)
-        .optional()
-        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).optional().unwrap();
     assert!(interaction_data.is_none());
 
-    organization
-        .regenerate_interaction_data(user.id, connection)
-        .unwrap();
-    let interaction_data = organization
-        .interaction_data(user.id, connection)
-        .optional()
-        .unwrap();
+    organization.regenerate_interaction_data(user.id, connection).unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).optional().unwrap();
     assert!(interaction_data.is_none());
 
     let event = project
@@ -1557,10 +1478,7 @@ fn regenerate_interaction_data() {
 
     // Refunds
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.item_type == OrderItemTypes::Tickets)
-        .unwrap();
+    let order_item = items.iter().find(|i| i.item_type == OrderItemTypes::Tickets).unwrap();
     let mut tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket1 = tickets.remove(0);
     let ticket2 = tickets.remove(0);
@@ -1569,10 +1487,7 @@ fn regenerate_interaction_data() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket1.id),
     }];
-    order
-        .clone()
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    order.clone().refund(&refund_items, user.id, None, connection).unwrap();
     let interaction_data = organization.interaction_data(user.id, connection).unwrap();
     assert_eq!(interaction_data.interaction_count, 3);
 
@@ -1602,13 +1517,7 @@ fn regenerate_interaction_data() {
     assert_eq!(interaction_data.interaction_count, 6);
 
     // Redeem
-    TicketInstance::redeem_ticket(
-        ticket3.id,
-        ticket3.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket3.id, ticket3.redeem_key.clone().unwrap(), user.id, connection).unwrap();
     let interaction_data = organization.interaction_data(user.id, connection).unwrap();
     assert_eq!(interaction_data.interaction_count, 7);
 }
@@ -1619,10 +1528,7 @@ fn log_interaction() {
     let connection = project.get_connection();
     let organization = project.create_organization().finish();
     let user = project.create_user().finish();
-    let interaction_data = organization
-        .interaction_data(user.id, connection)
-        .optional()
-        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).optional().unwrap();
     assert!(interaction_data.is_none());
 
     let first_interaction = dates::now().add_minutes(-10).finish();
@@ -1735,17 +1641,11 @@ fn search_fans() {
     // Expected results after initial orders
     let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
 
-    let order_user_organization_data = organization
-        .interaction_data(order_user.id, connection)
-        .unwrap();
+    let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 1);
-    let order_user2_organization_data = organization
-        .interaction_data(order_user2.id, connection)
-        .unwrap();
+    let order_user2_organization_data = organization.interaction_data(order_user2.id, connection).unwrap();
     assert_eq!(order_user2_organization_data.interaction_count, 2);
-    let order_user3_organization_data = organization
-        .interaction_data(order_user3.id, connection)
-        .unwrap();
+    let order_user3_organization_data = organization.interaction_data(order_user3.id, connection).unwrap();
     assert_eq!(order_user3_organization_data.interaction_count, 1);
 
     expected_results.sort();
@@ -1764,11 +1664,7 @@ fn search_fans() {
     results.sort();
     assert_eq!(results, expected_results);
     assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == order_user.id)
-            .unwrap(),
+        search_results.data.iter().find(|f| f.user_id == order_user.id).unwrap(),
         &DisplayFan {
             user_id: order_user.id,
             first_name: order_user.first_name.clone(),
@@ -1805,8 +1701,7 @@ fn search_fans() {
             first_order_time: Some(order2.order_date),
             last_order_time: Some(order3.order_date),
             revenue_in_cents: Some(
-                order2.calculate_total(connection).unwrap()
-                    + order3.calculate_total(connection).unwrap()
+                order2.calculate_total(connection).unwrap() + order3.calculate_total(connection).unwrap()
             ),
             first_interaction_time: Some(order_user2_organization_data.first_interaction),
             last_interaction_time: Some(order_user2_organization_data.last_interaction),
@@ -1838,10 +1733,7 @@ fn search_fans() {
 
     // Initial order is refunded -- it should still show the user but with new order details
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.item_type == OrderItemTypes::Tickets)
-        .unwrap();
+    let order_item = items.iter().find(|i| i.item_type == OrderItemTypes::Tickets).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let refund_items: Vec<RefundItemRequest> = tickets
         .iter()
@@ -1850,14 +1742,10 @@ fn search_fans() {
             ticket_instance_id: Some(t.id),
         })
         .collect();
-    order
-        .refund(&refund_items, order_user.id, None, connection)
-        .unwrap();
+    order.refund(&refund_items, order_user.id, None, connection).unwrap();
     let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
-    let order_user_organization_data = organization
-        .interaction_data(order_user.id, connection)
-        .unwrap();
+    let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 2);
     let search_results = organization
         .search_fans(
@@ -1873,11 +1761,7 @@ fn search_fans() {
     results.sort();
     assert_eq!(results, expected_results);
     assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == order_user.id)
-            .unwrap(),
+        search_results.data.iter().find(|f| f.user_id == order_user.id).unwrap(),
         &DisplayFan {
             user_id: order_user.id,
             first_name: order_user.first_name.clone(),
@@ -1906,9 +1790,7 @@ fn search_fans() {
         .finish();
     let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
-    let order_user_organization_data = organization
-        .interaction_data(order_user.id, connection)
-        .unwrap();
+    let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 3);
     let search_results = organization
         .search_fans(
@@ -1924,11 +1806,7 @@ fn search_fans() {
     results.sort();
     assert_eq!(results, expected_results);
     assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == order_user.id)
-            .unwrap(),
+        search_results.data.iter().find(|f| f.user_id == order_user.id).unwrap(),
         &DisplayFan {
             user_id: order_user.id,
             first_name: order_user.first_name.clone(),
@@ -2002,35 +1880,20 @@ fn search_fans() {
     let previous_transfer_user_organization_data = organization
         .interaction_data(previous_transfer_user.id, connection)
         .unwrap();
-    assert_eq!(
-        previous_transfer_user_organization_data.interaction_count,
-        3
-    );
-    let transfer_user_organization_data = organization
-        .interaction_data(transfer_user.id, connection)
-        .unwrap();
+    assert_eq!(previous_transfer_user_organization_data.interaction_count, 3);
+    let transfer_user_organization_data = organization.interaction_data(transfer_user.id, connection).unwrap();
     assert_eq!(transfer_user_organization_data.interaction_count, 1);
-    let order_user_organization_data = organization
-        .interaction_data(order_user.id, connection)
-        .unwrap();
+    let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 4);
-    let order_user2_organization_data = organization
-        .interaction_data(order_user2.id, connection)
-        .unwrap();
+    let order_user2_organization_data = organization.interaction_data(order_user2.id, connection).unwrap();
     assert_eq!(order_user2_organization_data.interaction_count, 2);
-    let order_user3_organization_data = organization
-        .interaction_data(order_user3.id, connection)
-        .unwrap();
+    let order_user3_organization_data = organization.interaction_data(order_user3.id, connection).unwrap();
     assert_eq!(order_user3_organization_data.interaction_count, 5);
     let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
     results.sort();
     assert_eq!(results, expected_results);
     assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == order_user.id)
-            .unwrap(),
+        search_results.data.iter().find(|f| f.user_id == order_user.id).unwrap(),
         &DisplayFan {
             user_id: order_user.id,
             first_name: order_user.first_name.clone(),
@@ -2067,8 +1930,7 @@ fn search_fans() {
             first_order_time: Some(order2.order_date),
             last_order_time: Some(order3.order_date),
             revenue_in_cents: Some(
-                order2.calculate_total(connection).unwrap()
-                    + order3.calculate_total(connection).unwrap()
+                order2.calculate_total(connection).unwrap() + order3.calculate_total(connection).unwrap()
             ),
             first_interaction_time: Some(order_user2_organization_data.first_interaction),
             last_interaction_time: Some(order_user2_organization_data.last_interaction),
@@ -2117,9 +1979,7 @@ fn search_fans() {
             first_order_time: None,
             last_order_time: None,
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(
-                previous_transfer_user_organization_data.first_interaction
-            ),
+            first_interaction_time: Some(previous_transfer_user_organization_data.first_interaction),
             last_interaction_time: Some(previous_transfer_user_organization_data.last_interaction),
         }
     );
@@ -2150,16 +2010,8 @@ fn search_fans() {
     // Redeem ticket causing user last_interaction_time to change
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     let ticket = &order5.tickets(ticket_type.id, connection).unwrap()[0];
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        order_user.id,
-        connection,
-    )
-    .unwrap();
-    let order_user_organization_data = organization
-        .interaction_data(order_user.id, connection)
-        .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), order_user.id, connection).unwrap();
+    let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 5);
     let search_results = organization
         .search_fans(
@@ -2172,11 +2024,7 @@ fn search_fans() {
         )
         .unwrap();
     assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == order_user.id)
-            .unwrap(),
+        search_results.data.iter().find(|f| f.user_id == order_user.id).unwrap(),
         &DisplayFan {
             user_id: order_user.id,
             first_name: order_user.first_name.clone(),
@@ -2224,8 +2072,7 @@ fn search_fans() {
             first_order_time: Some(order2.order_date),
             last_order_time: Some(order3.order_date),
             revenue_in_cents: Some(
-                order2.calculate_total(connection).unwrap()
-                    + order3.calculate_total(connection).unwrap()
+                order2.calculate_total(connection).unwrap() + order3.calculate_total(connection).unwrap()
             ),
             first_interaction_time: Some(order_user2_organization_data.first_interaction),
             last_interaction_time: Some(order_user2_organization_data.last_interaction),
@@ -2355,11 +2202,7 @@ fn credit_card_fees() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    project
-        .create_order()
-        .for_event(&event)
-        .for_user(&user)
-        .finish();
+    project.create_order().for_event(&event).for_user(&user).finish();
 
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
 

@@ -20,11 +20,9 @@ fn find_after_seq() {
     )
     .commit(connection)
     .unwrap();
-    assert!(
-        DomainEvent::find_after_seq(initial_domain_event.seq, 2, connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(DomainEvent::find_after_seq(initial_domain_event.seq, 2, connection)
+        .unwrap()
+        .is_empty());
 
     let domain_event = DomainEvent::create(
         DomainEventTypes::EventArtistAdded,
@@ -66,11 +64,9 @@ fn find_after_seq() {
         DomainEvent::find_after_seq(domain_event.seq, 2, connection).unwrap(),
         vec![domain_event2.clone()]
     );
-    assert!(
-        DomainEvent::find_after_seq(domain_event2.seq, 2, connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(DomainEvent::find_after_seq(domain_event2.seq, 2, connection)
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -119,8 +115,7 @@ fn webhook_payloads() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let organization = project.create_organization().with_fees().finish();
-    let event_start =
-        NaiveDateTime::parse_from_str("2055-06-14 16:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let event_start = NaiveDateTime::parse_from_str("2055-06-14 16:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
     let venue = project.create_venue().finish();
     let event = project
         .create_event()
@@ -145,9 +140,7 @@ fn webhook_payloads() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
     // Missing main ID
     let domain_event = DomainEvent::create(
@@ -192,10 +185,7 @@ fn webhook_payloads() {
     let transferer_payload = transfer_payloads
         .clone()
         .into_iter()
-        .find(|p| {
-            fetch_from_payload::<String>(&p, "webhook_event_type")
-                == "initiate_pending_transfer".to_string()
-        })
+        .find(|p| fetch_from_payload::<String>(&p, "webhook_event_type") == "initiate_pending_transfer".to_string())
         .clone()
         .unwrap();
     assert_eq!(
@@ -218,10 +208,7 @@ fn webhook_payloads() {
         fetch_from_payload::<Option<Uuid>>(&transferer_payload, "recipient_id"),
         transfer.destination_temporary_user_id
     );
-    assert!(!fetch_from_payload::<bool>(
-        &transferer_payload,
-        "direct_transfer"
-    ));
+    assert!(!fetch_from_payload::<bool>(&transferer_payload, "direct_transfer"));
     assert_eq!(
         fetch_from_payload::<i64>(&transferer_payload, "number_of_tickets_transferred"),
         1
@@ -230,10 +217,7 @@ fn webhook_payloads() {
     let recipient_payload = transfer_payloads
         .clone()
         .into_iter()
-        .find(|p| {
-            fetch_from_payload::<String>(&p, "webhook_event_type")
-                == "receive_pending_transfer".to_string()
-        })
+        .find(|p| fetch_from_payload::<String>(&p, "webhook_event_type") == "receive_pending_transfer".to_string())
         .clone()
         .unwrap();
     assert_eq!(
@@ -276,10 +260,7 @@ fn webhook_payloads() {
     );
 
     for transfer_payload in transfer_payloads {
-        assert_eq!(
-            fetch_from_payload::<Uuid>(&transfer_payload, "show_id"),
-            event.id
-        );
+        assert_eq!(fetch_from_payload::<Uuid>(&transfer_payload, "show_id"), event.id);
         assert_eq!(
             fetch_from_payload::<String>(&transfer_payload, "show_event_name"),
             event.name.clone()
@@ -318,10 +299,7 @@ fn webhook_payloads() {
         fetch_from_payload::<String>(&user_payload, "webhook_event_type"),
         "user_created".to_string()
     );
-    assert_eq!(
-        fetch_from_payload::<Uuid>(&user_payload, "user_id"),
-        user.id
-    );
+    assert_eq!(fetch_from_payload::<Uuid>(&user_payload, "user_id"), user.id);
     assert_eq!(
         fetch_from_payload::<i64>(&user_payload, "timestamp"),
         domain_event.created_at.timestamp()
@@ -330,10 +308,7 @@ fn webhook_payloads() {
     assert_eq!(fetch_from_payload::<String>(&user_payload, "phone"), phone);
 
     let timezone = "Africa/Johannesburg".to_string();
-    let venue = project
-        .create_venue()
-        .with_timezone(timezone.clone())
-        .finish();
+    let venue = project.create_venue().with_timezone(timezone.clone()).finish();
     let event = project
         .create_event()
         .with_event_start(event_start)
@@ -371,10 +346,7 @@ fn webhook_payloads() {
         fetch_from_payload::<String>(&order_payload, "webhook_event_type"),
         "purchase_ticket".to_string()
     );
-    assert_eq!(
-        fetch_from_payload::<Uuid>(&order_payload, "user_id"),
-        user.id
-    );
+    assert_eq!(fetch_from_payload::<Uuid>(&order_payload, "user_id"), user.id);
     assert_eq!(
         fetch_from_payload::<i64>(&order_payload, "timestamp"),
         domain_event.created_at.timestamp()
@@ -394,10 +366,9 @@ fn webhook_payloads() {
 
     let email = "test@tari.com".to_string();
     let phone = "1-000-000-0000".to_string();
-    let temporary_user =
-        TemporaryUser::create(Uuid::new_v4(), Some(email.clone()), Some(phone.clone()))
-            .commit(user.id, connection)
-            .unwrap();
+    let temporary_user = TemporaryUser::create(Uuid::new_v4(), Some(email.clone()), Some(phone.clone()))
+        .commit(user.id, connection)
+        .unwrap();
 
     let temporary_user_domain_event = DomainEvent::create(
         DomainEventTypes::TemporaryUserCreated,
@@ -427,19 +398,12 @@ fn webhook_payloads() {
         fetch_from_payload::<i64>(&temporary_user_payload, "timestamp"),
         domain_event.created_at.timestamp()
     );
-    assert_eq!(
-        fetch_from_payload::<String>(&temporary_user_payload, "email"),
-        email
-    );
-    assert_eq!(
-        fetch_from_payload::<String>(&temporary_user_payload, "phone"),
-        phone
-    );
+    assert_eq!(fetch_from_payload::<String>(&temporary_user_payload, "email"), email);
+    assert_eq!(fetch_from_payload::<String>(&temporary_user_payload, "phone"), phone);
 
-    let push_token =
-        PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
-            .commit(user.id, connection)
-            .unwrap();
+    let push_token = PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
+        .commit(user.id, connection)
+        .unwrap();
     let push_token_domain_event = DomainEvent::create(
         DomainEventTypes::PushNotificationTokenCreated,
         "Nothing to see here".to_string(),
@@ -460,10 +424,7 @@ fn webhook_payloads() {
         fetch_from_payload::<String>(&push_token_payload, "webhook_event_type"),
         "user_device_tokens_added".to_string()
     );
-    assert_eq!(
-        fetch_from_payload::<Uuid>(&push_token_payload, "user_id"),
-        user.id
-    );
+    assert_eq!(fetch_from_payload::<Uuid>(&push_token_payload, "user_id"), user.id);
     assert_eq!(
         fetch_from_payload::<i64>(&push_token_payload, "timestamp"),
         push_token_domain_event.created_at.timestamp()
@@ -565,11 +526,9 @@ fn find() {
     let id = Uuid::new_v4();
 
     // Empty, no events
-    assert!(
-        DomainEvent::find(Tables::PaymentMethods, Some(id), None, connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(DomainEvent::find(Tables::PaymentMethods, Some(id), None, connection)
+        .unwrap()
+        .is_empty());
 
     // New events
     let domain_event = DomainEvent::create(
@@ -598,19 +557,14 @@ fn find() {
         DomainEvent::find(Tables::PaymentMethods, Some(id), None, connection).unwrap(),
         [domain_event.clone(), domain_event2.clone()]
     );
+    assert!(DomainEvent::find(Tables::Payments, Some(id), None, connection)
+        .unwrap()
+        .is_empty());
     assert!(
-        DomainEvent::find(Tables::Payments, Some(id), None, connection)
+        DomainEvent::find(Tables::PaymentMethods, Some(Uuid::new_v4()), None, connection,)
             .unwrap()
             .is_empty()
     );
-    assert!(DomainEvent::find(
-        Tables::PaymentMethods,
-        Some(Uuid::new_v4()),
-        None,
-        connection,
-    )
-    .unwrap()
-    .is_empty());
 
     // Filtered by type
     assert_eq!(

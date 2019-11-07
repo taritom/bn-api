@@ -21,9 +21,7 @@ impl Responder for TokenResponse {
 
     fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
         let body = serde_json::to_string(&self)?;
-        Ok(HttpResponse::Ok()
-            .content_type("application/json")
-            .body(body))
+        Ok(HttpResponse::Ok().content_type("application/json").body(body))
     }
 }
 
@@ -42,18 +40,10 @@ impl TokenResponse {
         user: &User,
     ) -> Result<Self, BigNeonError> {
         let access_token_claims = AccessToken::new(&user.id, token_issuer.to_string(), expiry);
-        let access_token = encode(
-            &Header::default(),
-            &access_token_claims,
-            token_secret.as_bytes(),
-        )?;
+        let access_token = encode(&Header::default(), &access_token_claims, token_secret.as_bytes())?;
 
         let refresh_token_claims = RefreshToken::new(&user.id, token_issuer.to_string());
-        let refresh_token = encode(
-            &Header::default(),
-            &refresh_token_claims,
-            token_secret.as_bytes(),
-        )?;
+        let refresh_token = encode(&Header::default(), &refresh_token_claims, token_secret.as_bytes())?;
 
         Ok(TokenResponse {
             access_token,
@@ -68,13 +58,8 @@ impl TokenResponse {
         user_id: &Uuid,
         signed_refresh_token: &str,
     ) -> Result<Self, BigNeonError> {
-        let access_token_claims =
-            AccessToken::new(&user_id, token_issuer.to_string(), expiry_time_in_minutes);
-        let access_token = encode(
-            &Header::default(),
-            &access_token_claims,
-            token_secret.as_bytes(),
-        )?;
+        let access_token_claims = AccessToken::new(&user_id, token_issuer.to_string(), expiry_time_in_minutes);
+        let access_token = encode(&Header::default(), &access_token_claims, token_secret.as_bytes())?;
 
         Ok(TokenResponse {
             access_token,

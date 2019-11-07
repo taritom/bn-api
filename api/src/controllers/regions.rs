@@ -19,9 +19,7 @@ pub fn index(
     ))
 }
 
-pub fn show(
-    (connection, parameters): (Connection, Path<PathParameters>),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     let region = Region::find(parameters.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&region))
 }

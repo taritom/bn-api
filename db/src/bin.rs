@@ -46,15 +46,15 @@ pub fn main() {
                 ),
         )
         .subcommand(
-        SubCommand::with_name("functions")
-            .about("Runs the functions.sql file")
-            .arg(
-                Arg::with_name("connection")
-                    .short("c")
-                    .takes_value(true)
-                    .help("Connection string to the database"),
-            ),
-    )
+            SubCommand::with_name("functions")
+                .about("Runs the functions.sql file")
+                .arg(
+                    Arg::with_name("connection")
+                        .short("c")
+                        .takes_value(true)
+                        .help("Connection string to the database"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("create")
                 .about("Creates a new instance of the database and inserts the system administrator user")
@@ -69,20 +69,26 @@ pub fn main() {
                         .short("e")
                         .takes_value(true)
                         .help("email for system administrator"),
-                ).arg(
-                Arg::with_name("phone")
-                    .short("m")
-                    .takes_value(true)
-                    .help("phone number for system administrator"),
-            ).arg(
-                Arg::with_name("password")
-                    .short("p")
-                    .takes_value(true)
-                    .help("password for system administrator"),
-                ).arg(
-                Arg::with_name("force").short("f").help("Drops the database if it exists. WARNING! This is NOT REVERSIBLE")
-            ),
-        ).subcommand(
+                )
+                .arg(
+                    Arg::with_name("phone")
+                        .short("m")
+                        .takes_value(true)
+                        .help("phone number for system administrator"),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .takes_value(true)
+                        .help("password for system administrator"),
+                )
+                .arg(
+                    Arg::with_name("force")
+                        .short("f")
+                        .help("Drops the database if it exists. WARNING! This is NOT REVERSIBLE"),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("drop")
                 .about("Deletes the current database. WARNING! This is NOT REVERSIBLE")
                 .arg(
@@ -90,33 +96,40 @@ pub fn main() {
                         .short("c")
                         .takes_value(true)
                         .help("Connection string to the database"),
-                )
-        ).subcommand(
-        SubCommand::with_name("new-migration")
-            .about("Create a new migration")
-            .arg(Arg::with_name("name")
-                     .long("name")
-                     .short("n")
-                     .takes_value(true)
-                     .help("Name of the migration")
-            )
-        ).subcommand(
-        SubCommand::with_name("rollback")
-            .about("Rolls back the last migration")
-            .arg(Arg::with_name("connection")
-                     .short("c")
-                     .takes_value(true)
-                     .help("Connection string to the database")
-            )
-        ).subcommand(
-        SubCommand::with_name("seed")
-            .about("Populates the database with example data")
-            .arg(Arg::with_name("connection")
-                     .short("c")
-                     .takes_value(true)
-                     .help("Connection string to the database")
-            )
-    ).get_matches();
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("new-migration")
+                .about("Create a new migration")
+                .arg(
+                    Arg::with_name("name")
+                        .long("name")
+                        .short("n")
+                        .takes_value(true)
+                        .help("Name of the migration"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("rollback")
+                .about("Rolls back the last migration")
+                .arg(
+                    Arg::with_name("connection")
+                        .short("c")
+                        .takes_value(true)
+                        .help("Connection string to the database"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("seed")
+                .about("Populates the database with example data")
+                .arg(
+                    Arg::with_name("connection")
+                        .short("c")
+                        .takes_value(true)
+                        .help("Connection string to the database"),
+                ),
+        )
+        .get_matches();
 
     match matches.subcommand() {
         ("create", Some(matches)) => create_db_and_user(matches),
@@ -154,10 +167,7 @@ fn execute_sql(postgres_conn_string: &str, query: &str) -> Result<(), diesel::re
 
 fn create_db(conn_string: &str) -> Result<(), diesel::result::Error> {
     let (postgres_conn_string, db) = get_db(conn_string);
-    execute_sql(
-        &postgres_conn_string,
-        &format!("CREATE DATABASE \"{}\"", db),
-    )
+    execute_sql(&postgres_conn_string, &format!("CREATE DATABASE \"{}\"", db))
 }
 
 fn migrate_db(matches: &ArgMatches) {
@@ -173,8 +183,7 @@ fn migrate_db(matches: &ArgMatches) {
 
     let connection = PgConnection::establish(conn_string).unwrap();
 
-    embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
-        .expect("Migration failed");
+    embedded_migrations::run_with_output(&connection, &mut std::io::stdout()).expect("Migration failed");
 
     run_function_migrations(matches);
 }
@@ -217,25 +226,19 @@ fn create_db_and_user(matches: &ArgMatches) {
         drop_db(matches);
     }
 
-    create_db(conn_string)
-        .expect("Can't create database because one with the same name already exists");
+    create_db(conn_string).expect("Can't create database because one with the same name already exists");
 
     {
         let connection = get_connection(conn_string);
 
-        embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
-            .expect("Migration failed");
+        embedded_migrations::run_with_output(&connection, &mut std::io::stdout()).expect("Migration failed");
 
         run_function_migrations(matches);
     }
 
     let username = matches.value_of("email").expect("Email was not provided");
-    let phone = matches
-        .value_of("phone")
-        .expect("Phone number was not provided");
-    let password = matches
-        .value_of("password")
-        .expect("Password was not provided");
+    let phone = matches.value_of("phone").expect("Phone number was not provided");
+    let password = matches.value_of("password").expect("Password was not provided");
     println!("Creating user");
 
     let db_connection = get_connection(conn_string);
@@ -278,11 +281,8 @@ fn drop_db(matches: &ArgMatches) {
         .expect("Connection string was not provided");
     let (postgres_conn_string, db) = get_db(conn_string);
     println!("Dropping {} from {}", db, postgres_conn_string);
-    execute_sql(
-        &postgres_conn_string,
-        &format!("DROP DATABASE IF EXISTS \"{}\"", db),
-    )
-    .expect("Error dropping database");
+    execute_sql(&postgres_conn_string, &format!("DROP DATABASE IF EXISTS \"{}\"", db))
+        .expect("Error dropping database");
 }
 
 fn create_new_migration(matches: &ArgMatches) {

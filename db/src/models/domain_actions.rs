@@ -199,11 +199,7 @@ impl DomainAction {
     /// general, it is assumed that the action will succeed at a later stage. If the
     /// action should not be retried, use `errored` instead. If the number of retries
     /// is exceeded, the status will changed to `RetriedExceeded`.
-    pub fn set_failed(
-        &self,
-        reason: &str,
-        conn: &PgConnection,
-    ) -> Result<DomainAction, DatabaseError> {
+    pub fn set_failed(&self, reason: &str, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
         if self.max_attempt_count <= self.attempt_count + 1 {
             diesel::update(self)
                 .set((
@@ -231,11 +227,7 @@ impl DomainAction {
     /// Call this method to indicate that the action has errored and should not be retried.
     /// If there is a chance that the action could succeed at a later stage, use `failed()`
     /// instead
-    pub fn set_errored(
-        &self,
-        reason: &str,
-        conn: &PgConnection,
-    ) -> Result<DomainAction, DatabaseError> {
+    pub fn set_errored(&self, reason: &str, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
         diesel::update(self)
             .set((
                 domain_actions::last_failure_reason.eq(reason),

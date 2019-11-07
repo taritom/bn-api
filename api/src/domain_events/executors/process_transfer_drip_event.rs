@@ -31,21 +31,20 @@ impl ProcessTransferDripEventExecutor {
         ProcessTransferDripEventExecutor { config }
     }
 
-    pub fn perform_job(
-        &self,
-        action: &DomainAction,
-        conn: &Connection,
-    ) -> Result<(), BigNeonError> {
+    pub fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
         let conn = conn.get();
-        let id = action.main_table_id.clone().ok_or(ApplicationError::new(
-            "No id supplied in the action".to_string(),
-        ))?;
+        let id = action
+            .main_table_id
+            .clone()
+            .ok_or(ApplicationError::new("No id supplied in the action".to_string()))?;
 
         let payload: ProcessTransferDripPayload = serde_json::from_value(action.payload.clone())?;
 
-        match action.main_table.clone().ok_or(ApplicationError::new(
-            "No table supplied in the action".to_string(),
-        ))? {
+        match action
+            .main_table
+            .clone()
+            .ok_or(ApplicationError::new("No table supplied in the action".to_string()))?
+        {
             Tables::Events => {
                 let event = Event::find(id, conn)?;
                 if let Some(publish_date) = event.publish_date {
@@ -88,8 +87,7 @@ impl ProcessTransferDripEventExecutor {
                                             &event,
                                             &self.config,
                                             conn,
-                                            &*ServiceLocator::new(&self.config)?
-                                                .create_deep_linker()?,
+                                            &*ServiceLocator::new(&self.config)?.create_deep_linker()?,
                                         )?;
                                     }
 
@@ -105,10 +103,7 @@ impl ProcessTransferDripEventExecutor {
                                     }
                                 }
 
-                                transfer.log_drip_domain_event(
-                                    SourceOrDestination::Destination,
-                                    conn,
-                                )?;
+                                transfer.log_drip_domain_event(SourceOrDestination::Destination, conn)?;
                             }
                         }
                     }

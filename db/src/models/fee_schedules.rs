@@ -19,11 +19,7 @@ pub struct FeeSchedule {
 }
 
 impl FeeSchedule {
-    pub fn create(
-        organization_id: Uuid,
-        name: String,
-        ranges: Vec<(NewFeeScheduleRange)>,
-    ) -> NewFeeSchedule {
+    pub fn create(organization_id: Uuid, name: String, ranges: Vec<(NewFeeScheduleRange)>) -> NewFeeSchedule {
         NewFeeSchedule {
             organization_id,
             name,
@@ -57,11 +53,7 @@ impl FeeSchedule {
             .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedules")
     }
 
-    pub fn get_range(
-        &self,
-        price: i64,
-        conn: &PgConnection,
-    ) -> Result<FeeScheduleRange, DatabaseError> {
+    pub fn get_range(&self, price: i64, conn: &PgConnection) -> Result<FeeScheduleRange, DatabaseError> {
         let ranges: Vec<FeeScheduleRange> = fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
             .order_by(fee_schedule_ranges::min_price_in_cents.asc())
@@ -92,11 +84,7 @@ pub struct NewFeeSchedule {
 }
 
 impl NewFeeSchedule {
-    pub fn commit(
-        self,
-        created_by_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<FeeSchedule, DatabaseError> {
+    pub fn commit(self, created_by_user_id: Option<Uuid>, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         let previous_version = fee_schedules::table
             .filter(fee_schedules::name.eq(&self.name))
             .order_by(fee_schedules::version.desc())
@@ -140,10 +128,7 @@ impl NewFeeSchedule {
         diesel::insert_into(fee_schedule_ranges::table)
             .values(ranges)
             .execute(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not create fee schedule range",
-            )?;
+            .to_db_error(ErrorCode::InsertError, "Could not create fee schedule range")?;
 
         DomainEvent::create(
             DomainEventTypes::FeeScheduleCreated,

@@ -15,20 +15,15 @@ fn find_all() {
     domain_event_publisher
         .update_last_domain_event_seq(1, connection)
         .unwrap();
-    let domain_event_publisher =
-        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    let domain_event_publisher = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
     let mut domain_event_publisher2 = project.create_domain_event_publisher().finish();
     domain_event_publisher2
         .update_last_domain_event_seq(2, connection)
         .unwrap();
-    let domain_event_publisher2 =
-        DomainEventPublisher::find(domain_event_publisher2.id, connection).unwrap();
+    let domain_event_publisher2 = DomainEventPublisher::find(domain_event_publisher2.id, connection).unwrap();
     assert_eq!(
         DomainEventPublisher::find_all(connection).unwrap(),
-        vec![
-            domain_event_publisher.clone(),
-            domain_event_publisher2.clone()
-        ]
+        vec![domain_event_publisher.clone(), domain_event_publisher2.clone()]
     );
 
     domain_event_publisher2.delete(connection).unwrap();
@@ -46,15 +41,13 @@ fn update_last_domain_event_seq() {
     domain_event_publisher
         .update_last_domain_event_seq(1, connection)
         .unwrap();
-    let mut domain_event_publisher =
-        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    let mut domain_event_publisher = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
     assert_eq!(domain_event_publisher.last_domain_event_seq, Some(1));
 
     domain_event_publisher
         .update_last_domain_event_seq(2, connection)
         .unwrap();
-    let domain_event_publisher =
-        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    let domain_event_publisher = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
     assert_eq!(domain_event_publisher.last_domain_event_seq, Some(2));
 }
 
@@ -85,14 +78,10 @@ fn find_with_unpublished_domain_events() {
     )
     .commit(connection)
     .unwrap();
-    let global_domain_event_publisher = DomainEventPublisher::create(
-        None,
-        vec![DomainEventTypes::OrderCompleted],
-        webhook.clone(),
-        true,
-    )
-    .commit(connection)
-    .unwrap();
+    let global_domain_event_publisher =
+        DomainEventPublisher::create(None, vec![DomainEventTypes::OrderCompleted], webhook.clone(), true)
+            .commit(connection)
+            .unwrap();
 
     let event = project
         .create_event()
@@ -108,8 +97,7 @@ fn find_with_unpublished_domain_events() {
         .finish();
 
     // Before orders are placed
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 0);
 
     let order = project
@@ -124,12 +112,9 @@ fn find_with_unpublished_domain_events() {
         .for_event(&event2)
         .is_paid()
         .finish();
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
-    let organization_domain_events = publisher_data
-        .get(&organization_domain_event_publisher)
-        .unwrap();
+    let organization_domain_events = publisher_data.get(&organization_domain_event_publisher).unwrap();
     assert_eq!(organization_domain_events.len(), 1);
     assert_eq!(
         organization_domain_events
@@ -156,13 +141,10 @@ fn find_with_unpublished_domain_events() {
         webhook_url: None,
         import_historic_events: Some(false),
     };
-    let global_domain_event_publisher = global_domain_event_publisher
-        .update(&parameters, connection)
-        .unwrap();
+    let global_domain_event_publisher = global_domain_event_publisher.update(&parameters, connection).unwrap();
 
     // 2 are still shown as both occurred after the publisher was created
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
     let global_domain_events = publisher_data.get(&global_domain_event_publisher).unwrap();
     assert_eq!(global_domain_events.len(), 2);
@@ -173,8 +155,7 @@ fn find_with_unpublished_domain_events() {
         .set(domain_events::created_at.eq(dates::now().add_minutes(-5).finish()))
         .execute(connection)
         .unwrap();
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
     let global_domain_events = publisher_data.get(&global_domain_event_publisher).unwrap();
     assert_eq!(global_domain_events.len(), 1);
@@ -187,9 +168,7 @@ fn find_with_unpublished_domain_events() {
     );
 
     // Organizational one still lists domain event as it includes records from all time
-    let organization_domain_events = publisher_data
-        .get(&organization_domain_event_publisher)
-        .unwrap();
+    let organization_domain_events = publisher_data.get(&organization_domain_event_publisher).unwrap();
     assert_eq!(organization_domain_events.len(), 1);
     assert_eq!(
         organization_domain_events
@@ -204,22 +183,18 @@ fn find_with_unpublished_domain_events() {
         .set(domain_events::created_at.eq(order_created_at))
         .execute(connection)
         .unwrap();
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
     let global_domain_events = publisher_data.get(&global_domain_event_publisher).unwrap();
     assert_eq!(global_domain_events.len(), 2);
-    let organization_domain_events = publisher_data
-        .get(&organization_domain_event_publisher)
-        .unwrap();
+    let organization_domain_events = publisher_data.get(&organization_domain_event_publisher).unwrap();
     assert_eq!(organization_domain_events.len(), 1);
 
     // Publish event only for global publisher
     global_domain_event_publisher
         .publish(&order_domain_event, &"".to_string(), connection)
         .unwrap();
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
     let global_domain_events = publisher_data.get(&global_domain_event_publisher).unwrap();
     assert_eq!(global_domain_events.len(), 1);
@@ -232,9 +207,7 @@ fn find_with_unpublished_domain_events() {
     );
 
     // Organizational one still lists domain event as it hasn't been published for that publisher yet
-    let organization_domain_events = publisher_data
-        .get(&organization_domain_event_publisher)
-        .unwrap();
+    let organization_domain_events = publisher_data.get(&organization_domain_event_publisher).unwrap();
     assert_eq!(organization_domain_events.len(), 1);
     assert_eq!(
         organization_domain_events
@@ -248,8 +221,7 @@ fn find_with_unpublished_domain_events() {
     organization_domain_event_publisher
         .publish(&order_domain_event, &"".to_string(), connection)
         .unwrap();
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 1);
     let global_domain_events = publisher_data.get(&global_domain_event_publisher).unwrap();
     assert_eq!(global_domain_events.len(), 1);
@@ -288,8 +260,7 @@ fn publish() {
     .commit(connection)
     .unwrap();
 
-    let publisher_data =
-        DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
+    let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 1);
     let domain_event = &publisher_data.get(&domain_event_publisher).unwrap()[0];
     domain_event_publisher
@@ -312,10 +283,7 @@ fn create() {
     .commit(connection)
     .unwrap();
 
-    assert_eq!(
-        domain_event_publisher.organization_id,
-        Some(organization.id)
-    );
+    assert_eq!(domain_event_publisher.organization_id, Some(organization.id));
     assert_eq!(
         domain_event_publisher.event_types,
         vec![DomainEventTypes::TransferTicketStarted]
@@ -337,8 +305,7 @@ fn find() {
     )
     .commit(connection)
     .unwrap();
-    let found_publisher =
-        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    let found_publisher = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
     assert_eq!(found_publisher, domain_event_publisher);
 }
 
@@ -361,9 +328,7 @@ fn update() {
         webhook_url: Some(new_webhook_url.clone()),
         import_historic_events: Some(false),
     };
-    let domain_event_publisher = domain_event_publisher
-        .update(&parameters, connection)
-        .unwrap();
+    let domain_event_publisher = domain_event_publisher.update(&parameters, connection).unwrap();
 
     assert_eq!(domain_event_publisher.webhook_url, new_webhook_url);
     assert_eq!(domain_event_publisher.import_historic_events, false);

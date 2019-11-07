@@ -1,11 +1,15 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::schema::{orders, refunds};
 use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use chrono::Duration;
+use diesel;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -13,21 +17,14 @@ use uuid::Uuid;
 fn count_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
         .with_name("Event1".to_string())
         .with_tickets()
         .finish();
-    let mut ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let mut ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
 
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
@@ -51,29 +48,18 @@ fn count_report() {
         .is_paid()
         .finish();
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    order.refund(&refund_items, user.id, None, connection).unwrap();
 
     // Redeem ticket
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(
-        ticket2.id,
-        ticket2.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
 
     // Hold order
     let hold = project
@@ -135,13 +121,7 @@ fn count_report() {
     // New price point for ticket type but has same price
     let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
     ticket_type = ticket_type
-        .update(
-            TicketTypeEditableAttributes {
-                ..Default::default()
-            },
-            None,
-            connection,
-        )
+        .update(TicketTypeEditableAttributes { ..Default::default() }, None, connection)
         .unwrap();
     let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
     assert_ne!(old_pricing.id, new_pricing.id);
@@ -200,8 +180,7 @@ fn count_report() {
         .count_report(None, None, true, true, true, false, connection)
         .unwrap();
     assert_eq!(6, result.sales.len());
-    let ticket_count_report =
-        Report::ticket_count_report(Some(event.id), Some(organization.id), connection).unwrap();
+    let ticket_count_report = Report::ticket_count_report(Some(event.id), Some(organization.id), connection).unwrap();
     assert_eq!(result, ticket_count_report);
 
     let result = event
@@ -233,9 +212,10 @@ fn slug() {
 }
 
 #[test]
-fn get_all_events_with_sales_between() {
+fn get_all_events_with_transactions_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let organization = project.create_organization().finish();
     let organization2 = project.create_organization().finish();
     let organization_event = project
@@ -244,6 +224,11 @@ fn get_all_events_with_sales_between() {
         .with_organization(&organization)
         .finish();
     let organization_event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let organization_event3 = project
         .create_event()
         .with_ticket_pricing()
         .with_organization(&organization)
@@ -259,21 +244,47 @@ fn get_all_events_with_sales_between() {
         .with_organization(&organization2)
         .finish();
 
-    for event in vec![
-        &organization_event,
-        &organization_event2,
-        &other_organization_event,
-    ] {
-        project
-            .create_order()
-            .for_event(&event)
-            .quantity(1)
-            .is_paid()
-            .finish();
+    for event in vec![&organization_event, &organization_event2, &other_organization_event] {
+        project.create_order().for_event(&event).quantity(1).is_paid().finish();
     }
 
+    // Order with two refunds
+    let mut order = project
+        .create_order()
+        .for_event(&organization_event3)
+        .quantity(2)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::paid_at.eq(Utc::now().naive_utc() + Duration::days(-6)))
+        .execute(connection)
+        .unwrap();
+    let ticket_type = &organization_event3.ticket_types(true, None, connection).unwrap()[0];
+    let items = order.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(tickets[0].id),
+    }];
+    let (refund, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
+        .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(6)))
+        .execute(connection)
+        .unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(tickets[1].id),
+    }];
+    let (refund2, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund2.id)))
+        .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(8)))
+        .execute(connection)
+        .unwrap();
+
     // Organization events with sales
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(5).finish(),
@@ -285,8 +296,59 @@ fn get_all_events_with_sales_between() {
         vec![organization_event.clone(), organization_event2.clone()]
     );
 
+    // Timeframe includes order so included in result set
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-7).finish(),
+        dates::now().add_days(5).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
+    // Timeframe includes refund so included in result set
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(7).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
+    // Timeframe includes both order and refunds, only one event returned in data
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-7).finish(),
+        dates::now().add_days(9).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
     // Other organization
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization2.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(5).finish(),
@@ -296,7 +358,7 @@ fn get_all_events_with_sales_between() {
     assert_eq!(found_events, vec![other_organization_event.clone()]);
 
     // Outside of window for sale
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(-4).finish(),
@@ -319,20 +381,14 @@ fn get_all_events_ending_between() {
     let connection = project.get_connection();
     let organization = project.create_organization().finish();
     let user = project.create_user().finish();
-    let published_event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let published_event = project.create_event().with_organization(&organization).finish();
     let _other_organization_published_event = project.create_event().finish();
     let draft_event = project
         .create_event()
         .with_organization(&organization)
         .with_status(EventStatus::Draft)
         .finish();
-    let deleted_event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let deleted_event = project.create_event().with_organization(&organization).finish();
     deleted_event.delete(user.id, connection).unwrap();
     let published_event_ending_before_window = project
         .create_event()
@@ -375,10 +431,7 @@ fn get_all_events_ending_between() {
     .unwrap();
     assert_eq!(
         found_events,
-        vec![
-            published_event.clone(),
-            published_event_ending_after_window.clone()
-        ]
+        vec![published_event.clone(), published_event_ending_after_window.clone()]
     );
 
     // Increasing the window to include all published event
@@ -472,8 +525,7 @@ fn create_next_transfer_drip_action() {
     assert_eq!(domain_action.main_table_id, Some(event.id));
     assert_eq!(domain_action.main_table, Some(Tables::Events));
 
-    let payload: ProcessTransferDripPayload =
-        serde_json::from_value(domain_action.payload.clone()).unwrap();
+    let payload: ProcessTransferDripPayload = serde_json::from_value(domain_action.payload.clone()).unwrap();
     assert_eq!(
         payload,
         ProcessTransferDripPayload {
@@ -568,8 +620,7 @@ fn create_next_transfer_drip_action_staging() {
     assert_eq!(domain_action.main_table_id, Some(event.id));
     assert_eq!(domain_action.main_table, Some(Tables::Events));
 
-    let payload: ProcessTransferDripPayload =
-        serde_json::from_value(domain_action.payload.clone()).unwrap();
+    let payload: ProcessTransferDripPayload = serde_json::from_value(domain_action.payload.clone()).unwrap();
     assert_eq!(
         payload,
         ProcessTransferDripPayload {
@@ -758,10 +809,7 @@ fn next_drip_date() {
     let event = event.update(None, parameters, connection).unwrap();
     assert_eq!(
         event.next_drip_date(Environment::Test),
-        Some(
-            event.event_start.unwrap()
-                - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
-        )
+        Some(event.event_start.unwrap() - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT))
     );
 
     // Event is today, next drip day given there's wiggle room
@@ -772,10 +820,7 @@ fn next_drip_date() {
     let event = event.update(None, parameters, connection).unwrap();
     assert_eq!(
         event.next_drip_date(Environment::Test),
-        Some(
-            event.event_start.unwrap()
-                - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
-        )
+        Some(event.event_start.unwrap() - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT))
     );
 
     // Event is today, no next drip day
@@ -955,9 +1000,7 @@ fn summary() {
     event.clone().delete(user.id, connection).unwrap();
     assert_eq!(
         event.summary(connection),
-        DatabaseError::business_process_error(
-            "Unable to display summary, summary data not available for event",
-        )
+        DatabaseError::business_process_error("Unable to display summary, summary data not available for event",)
     );
 }
 
@@ -968,11 +1011,7 @@ fn activity_summary() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1015,48 +1054,42 @@ fn activity_summary() {
     assert_eq!(
         event.activity_summary(user.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
         event.activity_summary(user2.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user2.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user2.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
         event.activity_summary(user3.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
         event2.activity_summary(user.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
         event2.activity_summary(user2.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user2.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user2.id, None, connection).unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
         event2.activity_summary(user3.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user3.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user3.id, None, connection).unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );
@@ -1067,14 +1100,8 @@ fn genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let artist = project
-        .create_artist()
-        .with_name("Artist 1".to_string())
-        .finish();
-    let artist2 = project
-        .create_artist()
-        .with_name("Artist 2".to_string())
-        .finish();
+    let artist = project.create_artist().with_name("Artist 1".to_string()).finish();
+    let artist2 = project.create_artist().with_name("Artist 2".to_string()).finish();
 
     let event = project.create_event().finish();
     let event2 = project.create_event().finish();
@@ -1105,11 +1132,7 @@ fn genres() {
 
     artist
         .set_genres(
-            &vec![
-                "emo".to_string(),
-                "test".to_string(),
-                "Hard Rock".to_string(),
-            ],
+            &vec!["emo".to_string(), "test".to_string(), "Hard Rock".to_string()],
             None,
             connection,
         )
@@ -1119,40 +1142,24 @@ fn genres() {
 
     assert_eq!(
         artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert!(artist2.genres(connection).unwrap().is_empty());
     assert_eq!(
         event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert!(event2.genres(connection).unwrap().is_empty());
 
     artist2
-        .set_genres(
-            &vec!["emo".to_string(), "happy".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "happy".to_string()], None, connection)
         .unwrap();
     assert!(event.update_genres(Some(creator.id), connection).is_ok());
     assert!(event2.update_genres(Some(creator.id), connection).is_ok());
 
     assert_eq!(
         artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert_eq!(
         artist2.genres(connection).unwrap(),
@@ -1195,21 +1202,11 @@ fn pending_transfers() {
         .unwrap();
     assert_eq!(event.pending_transfers(connection).unwrap().len(), 0);
 
-    transfer
-        .add_transfer_ticket(tickets[0].id, connection)
-        .unwrap();
-    assert_equiv!(
-        event.pending_transfers(connection).unwrap(),
-        [transfer.clone()]
-    );
+    transfer.add_transfer_ticket(tickets[0].id, connection).unwrap();
+    assert_equiv!(event.pending_transfers(connection).unwrap(), [transfer.clone()]);
 
-    transfer2
-        .add_transfer_ticket(tickets[1].id, connection)
-        .unwrap();
-    assert_equiv!(
-        event.pending_transfers(connection).unwrap(),
-        [transfer, transfer2]
-    );
+    transfer2.add_transfer_ticket(tickets[1].id, connection).unwrap();
+    assert_equiv!(event.pending_transfers(connection).unwrap(), [transfer, transfer2]);
 }
 
 #[test]
@@ -1220,11 +1217,7 @@ fn update_genres() {
     let organization = project.create_organization().with_fees().finish();
     let artist = project.create_artist().finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "happy".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "happy".to_string()], None, connection)
         .unwrap();
     let event = project
         .create_event()
@@ -1340,10 +1333,7 @@ fn create() {
     )
     .commit(None, connection)
     .unwrap();
-    assert_eq!(
-        event.event_start.map(|t| t.timestamp()),
-        Some(event_start.timestamp())
-    );
+    assert_eq!(event.event_start.map(|t| t.timestamp()), Some(event_start.timestamp()));
     assert_eq!(
         event.door_time.map(|t| t.timestamp()),
         Some(expected_door_time.timestamp())
@@ -1391,9 +1381,7 @@ fn update() {
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
     assert_eq!(
         event.door_time,
         Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))
@@ -1621,18 +1609,9 @@ fn guest_list() {
     assert!(guest_ids.contains(&Some(user3.id)));
     assert!(guest_ids.contains(&Some(user4.id)));
 
-    let guest_list_user_record = guest_list
-        .iter()
-        .find(|gl| gl.ticket.user_id == Some(user.id))
-        .unwrap();
-    assert_eq!(
-        guest_list_user_record.ticket.first_name,
-        Some("First".to_string())
-    );
-    assert_eq!(
-        guest_list_user_record.ticket.last_name,
-        Some("Last".to_string())
-    );
+    let guest_list_user_record = guest_list.iter().find(|gl| gl.ticket.user_id == Some(user.id)).unwrap();
+    assert_eq!(guest_list_user_record.ticket.first_name, Some("First".to_string()));
+    assert_eq!(guest_list_user_record.ticket.last_name, Some("Last".to_string()));
     let guest_list_user_record = guest_list
         .iter()
         .find(|gl| gl.ticket.user_id == Some(user3.id))
@@ -1714,15 +1693,11 @@ fn guest_list() {
 
     //Test the pagination
     let paging = Paging::new(0, 3);
-    let guest_list = event
-        .guest_list(None, &None, Some(&paging), connection)
-        .unwrap();
+    let guest_list = event.guest_list(None, &None, Some(&paging), connection).unwrap();
     assert_eq!(3, guest_list.0.len());
     assert_eq!(4, guest_list.1);
     let paging = Paging::new(1, 3);
-    let guest_list = event
-        .guest_list(None, &None, Some(&paging), connection)
-        .unwrap();
+    let guest_list = event.guest_list(None, &None, Some(&paging), connection).unwrap();
     assert_eq!(4, guest_list.1);
     assert_eq!(1, guest_list.0.len());
 
@@ -1750,10 +1725,7 @@ fn guest_list() {
 fn publish_fails_without_required_fields() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let mut event = project
-        .create_event()
-        .with_status(EventStatus::Draft)
-        .finish();
+    let mut event = project.create_event().with_status(EventStatus::Draft).finish();
     event.promo_image_url = None;
     let result = event.publish(None, connection);
     match result {
@@ -1774,11 +1746,7 @@ fn publish_fails_without_required_fields() {
                 assert_eq!(errors["promo_image_url"].len(), 1);
                 assert_eq!(errors["promo_image_url"][0].code, "required");
                 assert_eq!(
-                    &errors["promo_image_url"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["promo_image_url"][0].message.clone().unwrap().into_owned(),
                     "Event can't be published without a promo image"
                 );
             }
@@ -1891,9 +1859,7 @@ fn publish_in_future() {
         publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
         ..Default::default()
     };
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
 
     let event = event.publish(None, project.get_connection()).unwrap();
 
@@ -1930,9 +1896,7 @@ fn publish_change_publish_date() {
         publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
         ..Default::default()
     };
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
 
     let event = event.publish(None, project.get_connection()).unwrap();
 
@@ -1943,9 +1907,7 @@ fn publish_change_publish_date() {
         ..Default::default()
     };
 
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
 
     assert_eq!(
         event.publish_date,
@@ -1957,9 +1919,7 @@ fn publish_change_publish_date() {
         ..Default::default()
     };
 
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
 
     assert!(event.publish_date.unwrap() > now);
 
@@ -2124,9 +2084,7 @@ fn get_sales_by_date_range() {
     // A day ago to today
     let start_utc = Utc::now().naive_utc().date() - Duration::days(1);
     let end_utc = Utc::now().naive_utc().date();
-    let results = event
-        .get_sales_by_date_range(start_utc, end_utc, connection)
-        .unwrap();
+    let results = event.get_sales_by_date_range(start_utc, end_utc, connection).unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(
         results,
@@ -2147,9 +2105,7 @@ fn get_sales_by_date_range() {
     // Just today
     let start_utc = Utc::now().naive_utc().date();
     let end_utc = Utc::now().naive_utc().date();
-    let results = event
-        .get_sales_by_date_range(start_utc, end_utc, connection)
-        .unwrap();
+    let results = event.get_sales_by_date_range(start_utc, end_utc, connection).unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(
         results,
@@ -2162,9 +2118,7 @@ fn get_sales_by_date_range() {
     // Two days ago to yesterday
     let start_utc = Utc::now().naive_utc().date() - Duration::days(2);
     let end_utc = Utc::now().naive_utc().date() - Duration::days(1);
-    let results = event
-        .get_sales_by_date_range(start_utc, end_utc, connection)
-        .unwrap();
+    let results = event.get_sales_by_date_range(start_utc, end_utc, connection).unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(
         results,
@@ -2195,23 +2149,13 @@ fn get_sales_by_date_range() {
 fn find_incl_org_venue_fees() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let venue = project.create_venue().finish();
     let event = project
         .create_event()
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
@@ -2316,10 +2260,7 @@ fn find_by_order_item_ids() {
 
     let items = cart.items(&connection).unwrap();
     let items2 = cart2.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let order_item2 = items2
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type2.id))
@@ -2334,8 +2275,7 @@ fn find_by_order_item_ids() {
     assert_eq!(events, vec![event2.clone()]);
 
     // Ticket belonging to both events
-    let events =
-        Event::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection).unwrap();
+    let events = Event::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection).unwrap();
     assert_equiv!(events, vec![event, event2]);
 }
 
@@ -2346,14 +2286,8 @@ fn find_individuals() {
     let event = project
         .create_event()
         .with_name("NewEvent".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_venue(&venue)
         .finish();
 
@@ -2361,17 +2295,14 @@ fn find_individuals() {
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
-    let event = event
-        .update(None, parameters, project.get_connection())
-        .unwrap();
+    let event = event.update(None, parameters, project.get_connection()).unwrap();
 
     let found_event = Event::find(event.id, project.get_connection()).unwrap();
     assert_eq!(found_event, event);
 
     //find event via venue
     let found_event_via_venue =
-        Event::find_all_active_events_for_venue(&event.venue_id.unwrap(), project.get_connection())
-            .unwrap();
+        Event::find_all_active_events_for_venue(&event.venue_id.unwrap(), project.get_connection()).unwrap();
     assert_eq!(found_event_via_venue[0], event);
 }
 
@@ -2383,40 +2314,22 @@ fn find_all_events_for_organization() {
     let past_event = project
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
     let current_event = project
         .create_event()
         .with_name("Event2".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2018-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2814-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2018-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2814-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
     let future_event = project
         .create_event()
         .with_name("Event3".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2918-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2919-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2918-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2919-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
 
@@ -2455,16 +2368,8 @@ fn find_all_events_for_organization() {
     assert_eq!(events.paging.total, 2);
 
     // No filter on past or upcoming returns all events
-    let events = Event::find_all_events_for_organization(
-        organization.id,
-        None,
-        None,
-        false,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let events =
+        Event::find_all_events_for_organization(organization.id, None, None, false, 0, 100, connection).unwrap();
     assert_eq!(
         events.data,
         vec![
@@ -2807,18 +2712,10 @@ fn search() {
         .finish();
 
     artist1
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     artist2
-        .set_genres(
-            &vec!["emo".to_string(), "rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "rock".to_string()], None, connection)
         .unwrap();
 
     assert!(event.update_genres(Some(creator.id), connection).is_ok());
@@ -3845,9 +3742,7 @@ fn filter_events_by_event_type() {
         .with_event_type(EventTypes::Music)
         .finish();
 
-    event_music
-        .add_artist(None, artist1.id, connection)
-        .unwrap();
+    event_music.add_artist(None, artist1.id, connection).unwrap();
 
     //find more than one event
     let event_art = project
@@ -3935,9 +3830,7 @@ fn current_ticket_pricing_range() {
     let ticket_type2 = &event.ticket_types(true, None, connection).unwrap()[1];
 
     // No current pricing set
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(false, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(false, connection).unwrap();
     assert_eq!(None, min_ticket_price);
     assert_eq!(None, max_ticket_price);
 
@@ -3955,9 +3848,7 @@ fn current_ticket_pricing_range() {
         )
         .unwrap();
 
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(false, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(false, connection).unwrap();
     assert_eq!(None, min_ticket_price);
     assert_eq!(None, max_ticket_price);
 
@@ -3975,9 +3866,7 @@ fn current_ticket_pricing_range() {
         )
         .unwrap();
 
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(false, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(false, connection).unwrap();
     assert_eq!(Some(8000), min_ticket_price);
     assert_eq!(Some(8000), max_ticket_price);
 
@@ -3994,9 +3883,7 @@ fn current_ticket_pricing_range() {
         )
         .unwrap();
 
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(false, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(false, connection).unwrap();
     assert_eq!(Some(8000), min_ticket_price);
     assert_eq!(Some(20000), max_ticket_price);
 
@@ -4028,9 +3915,7 @@ fn current_ticket_pricing_range() {
         )
         .unwrap();
 
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(true, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(true, connection).unwrap();
     assert_eq!(Some(5000), min_ticket_price);
     assert_eq!(Some(20000), max_ticket_price);
 }
@@ -4053,42 +3938,24 @@ fn find_for_organization() {
     let event = project
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .with_venue(&venue1)
         .finish();
-    event
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
-    event
-        .add_artist(None, artist2.id, project.get_connection())
-        .unwrap();
+    event.add_artist(None, artist1.id, project.get_connection()).unwrap();
+    event.add_artist(None, artist2.id, project.get_connection()).unwrap();
 
     //find more than one event
     let event2 = project
         .create_event()
         .with_name("Event2".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .with_venue(&venue2)
         .finish();
-    event2
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
+    event2.add_artist(None, artist1.id, project.get_connection()).unwrap();
 
     let all_events = vec![event2.id, event.id];
 
@@ -4170,38 +4037,25 @@ fn find_active_for_venue() {
     let event = project
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    event
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
-    event
-        .add_artist(None, artist2.id, project.get_connection())
-        .unwrap();
+    event.add_artist(None, artist1.id, project.get_connection()).unwrap();
+    event.add_artist(None, artist2.id, project.get_connection()).unwrap();
     let event2 = project
         .create_event()
         .with_name("Event2".into())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    event2
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
+    event2.add_artist(None, artist1.id, project.get_connection()).unwrap();
     //Cancel first event
     event.cancel(None, connection).unwrap();
 
     //find all active events via venue
-    let found_events =
-        Event::find_all_active_events_for_venue(&venue.id, project.get_connection()).unwrap();
+    let found_events = Event::find_all_active_events_for_venue(&venue.id, project.get_connection()).unwrap();
 
     assert_eq!(found_events.len(), 1);
     assert_eq!(found_events[0].id, event2.id);
@@ -4221,10 +4075,7 @@ fn organization() {
         .with_organization(&organization)
         .finish();
 
-    assert_eq!(
-        event.organization(project.get_connection()).unwrap(),
-        organization
-    );
+    assert_eq!(event.organization(project.get_connection()).unwrap(), organization);
 }
 
 #[test]
@@ -4337,14 +4188,9 @@ fn ticket_types() {
 
 #[test]
 fn localized_time() {
-    let utc_time =
-        NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
-    let localized_time =
-        Event::localized_time(Some(utc_time), Some("Africa/Johannesburg")).unwrap();
-    assert_eq!(
-        localized_time.to_rfc2822(),
-        "Tue,  1 Jan 2019 14:00:00 +0200"
-    );
+    let utc_time = NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let localized_time = Event::localized_time(Some(utc_time), Some("Africa/Johannesburg")).unwrap();
+    assert_eq!(localized_time.to_rfc2822(), "Tue,  1 Jan 2019 14:00:00 +0200");
 
     let invalid_localized_time = Event::localized_time(None, Some("Africa/Johannesburg"));
     assert_eq!(invalid_localized_time, None);
@@ -4364,8 +4210,7 @@ fn get_all_localized_times() {
         .create_venue()
         .with_timezone("Africa/Johannesburg".to_string())
         .finish();
-    let utc_time =
-        NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let utc_time = NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
     let event = project
         .create_event()
         .with_event_start(utc_time.clone())
@@ -4461,12 +4306,7 @@ fn search_fans() {
             &project.connection,
         )
         .unwrap();
-    let expected_results = vec![
-        order_user.id,
-        order_user2.id,
-        order_user3.id,
-        order_user4.id,
-    ];
+    let expected_results = vec![order_user.id, order_user2.id, order_user3.id, order_user4.id];
     let results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
     assert_equiv!(results, expected_results);
 }
@@ -4492,13 +4332,9 @@ fn checked_in_users() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
-    let result2 =
-        TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection)
-            .unwrap();
+    let result2 = TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection).unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let users = Event::checked_in_users(event.id, connection).unwrap();
     assert_eq!(users[0], user);

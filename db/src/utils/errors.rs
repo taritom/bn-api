@@ -48,9 +48,7 @@ pub fn get_error_message(code: &ErrorCode) -> (i32, String) {
         MissingInput => (1100, "Missing input".to_string()),
         // No results - 2000 range. Query was successful, but the wrong amount of rows was returned
         NoResults => (2000, "No results".to_string()),
-        MultipleResultsWhenOneExpected => {
-            (2100, "Multiple results when one was expected".to_string())
-        }
+        MultipleResultsWhenOneExpected => (2100, "Multiple results when one was expected".to_string()),
         // Query errors - 3000 range. Something went wrong during the query
         QueryError => (3000, "Query Error".to_string()),
         InsertError => (3100, "Could not insert record".to_string()),
@@ -87,11 +85,7 @@ pub struct EnumParseError {
 
 impl fmt::Display for EnumParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}\nType: {}\nValue: {}",
-            self.message, self.enum_type, self.value
-        )?;
+        write!(f, "{}\nType: {}\nValue: {}", self.message, self.enum_type, self.value)?;
 
         Ok(())
     }
@@ -174,11 +168,7 @@ impl DatabaseError {
     }
 
     /// Wraps the error from a Result into a DatabaseError
-    pub fn wrap<T>(
-        error_code: ErrorCode,
-        message: &str,
-        res: Result<T, DieselError>,
-    ) -> Result<T, DatabaseError> {
+    pub fn wrap<T>(error_code: ErrorCode, message: &str, res: Result<T, DieselError>) -> Result<T, DatabaseError> {
         match res {
             Ok(val) => Ok(val),
             Err(e) => match e {
@@ -238,10 +228,7 @@ impl DatabaseError {
         ))
     }
 
-    pub fn validation_error<T>(
-        field: &'static str,
-        message: &'static str,
-    ) -> Result<T, DatabaseError> {
+    pub fn validation_error<T>(field: &'static str, message: &'static str) -> Result<T, DatabaseError> {
         let mut v = ValidationErrors::new();
         v.add(field, create_validation_error(message, message));
         Err(DatabaseError::new(
@@ -260,10 +247,7 @@ impl DatabaseError {
     }
 
     pub fn no_results<T>(message: &str) -> Result<T, DatabaseError> {
-        Err(DatabaseError::new(
-            ErrorCode::NoResults,
-            Some(message.to_string()),
-        ))
+        Err(DatabaseError::new(ErrorCode::NoResults, Some(message.to_string())))
     }
 }
 
@@ -317,10 +301,7 @@ impl From<regex::Error> for DatabaseError {
 
 impl From<ring::error::Unspecified> for DatabaseError {
     fn from(_e: ring::error::Unspecified) -> Self {
-        DatabaseError::new(
-            ErrorCode::InternalError,
-            Some("Encryption error".to_string()),
-        )
+        DatabaseError::new(ErrorCode::InternalError, Some("Encryption error".to_string()))
     }
 }
 
@@ -357,10 +338,7 @@ impl<U> OptionalToDatabaseError<U> for Result<Option<U>, DatabaseError> {
                 Some(j) => Ok(j),
                 None => Err(DatabaseError::new(
                     ErrorCode::NoResults,
-                    Some(format!(
-                        "No results returned when results were expected:{}",
-                        message
-                    )),
+                    Some(format!("No results returned when results were expected:{}", message)),
                 )),
             },
             Err(e) => Err(e),
@@ -395,10 +373,7 @@ impl<T> SingleResult<T> for Result<Vec<T>, DatabaseError> {
             Ok(mut t) => match t.len() {
                 0 => DatabaseError::no_results("No results"),
                 1 => Ok(t.remove(0)),
-                _ => Err(DatabaseError::new(
-                    ErrorCode::MultipleResultsWhenOneExpected,
-                    None,
-                )),
+                _ => Err(DatabaseError::new(ErrorCode::MultipleResultsWhenOneExpected, None)),
             },
         }
     }
@@ -425,10 +400,7 @@ fn error_with_known_code() {
 #[test]
 fn unknown_error_with_cause() {
     let cause = DatabaseError::new(ErrorCode::Unknown, None);
-    let err = DatabaseError::new(
-        ErrorCode::InvalidInput,
-        Some(cause.description().to_string()),
-    );
+    let err = DatabaseError::new(ErrorCode::InvalidInput, Some(cause.description().to_string()));
     assert_eq!(err.description(), "Invalid input");
     assert_eq!(err.code, 1000);
     assert!(err.cause.is_some());

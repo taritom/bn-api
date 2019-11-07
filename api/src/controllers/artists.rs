@@ -23,16 +23,12 @@ pub fn search(
     if try_spotify && artists.is_empty() && query_parameters.get_tag("q").is_some() {
         //Try spotify
         let spotify_client = &spotify::SINGLETON;
-        let spotify_artists =
-            spotify_client.search(query_parameters.get_tag("q").unwrap_or("".to_string()))?;
+        let spotify_artists = spotify_client.search(query_parameters.get_tag("q").unwrap_or("".to_string()))?;
 
         let payload = Payload::new(spotify_artists, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
     } else {
-        let wrapper = artists
-            .into_iter()
-            .map(|a| CreateArtistRequest::from(a))
-            .collect();
+        let wrapper = artists.into_iter().map(|a| CreateArtistRequest::from(a)).collect();
         let payload = Payload::new(wrapper, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
     }
@@ -47,9 +43,7 @@ pub fn index(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn show(
-    (connection, parameters): (Connection, Path<PathParameters>),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let artist = Artist::find(&parameters.id, connection)?.for_display(connection)?;
     Ok(HttpResponse::Ok().json(&artist))
@@ -122,9 +116,7 @@ pub fn show_from_organizations(
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
     let artists = match user.into_inner() {
-        Some(u) => {
-            Artist::find_for_organization(Some(&u.user), organization_id.id, connection.get())?
-        }
+        Some(u) => Artist::find_for_organization(Some(&u.user), organization_id.id, connection.get())?,
         None => Artist::find_for_organization(None, organization_id.id, connection.get())?,
     };
     let payload = Payload::from_data(artists, query_parameters.page(), query_parameters.limit());

@@ -93,8 +93,7 @@ impl<'a> DomainActionBuilder<'a> {
     pub fn finish(self) -> DomainAction {
         let mut action = DomainAction::create(
             self.domain_event_id,
-            self.domain_action_type
-                .unwrap_or(DomainActionTypes::Communication),
+            self.domain_action_type.unwrap_or(DomainActionTypes::Communication),
             self.communication_channel_type,
             self.payload.unwrap_or(serde_json::Value::Null),
             self.main_table,

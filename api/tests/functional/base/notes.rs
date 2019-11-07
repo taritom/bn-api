@@ -17,11 +17,7 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -55,14 +51,10 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
         expected_notes.push(note2.clone());
     }
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = if filter_deleted_disabled {
-        TestRequest::create_with_uri_custom_params(
-            "/?filter_deleted=false",
-            vec!["main_table", "id"],
-        )
+        TestRequest::create_with_uri_custom_params("/?filter_deleted=false", vec!["main_table", "id"])
     } else {
         TestRequest::create_with_uri_custom_params("/", vec!["main_table", "id"])
     };
@@ -81,10 +73,7 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
     ));
 
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
-    expected_tags.insert(
-        "filter_deleted".to_string(),
-        json!(!filter_deleted_disabled),
-    );
+    expected_tags.insert("filter_deleted".to_string(), json!(!filter_deleted_disabled));
     let wrapped_expected_orgs = Payload {
         data: expected_notes.clone(),
         paging: Paging {
@@ -112,11 +101,7 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -125,8 +110,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         .finish();
 
     let order = database.create_order().for_event(&event).is_paid().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let note_text = "Note Example".to_string();
 
@@ -139,8 +123,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     path.id = order.id;
     path.main_table = Tables::Orders.to_string();
 
-    let response: HttpResponse =
-        notes::create((database.connection.into(), path, json, auth_user)).into();
+    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user)).into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -158,11 +141,7 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -172,15 +151,13 @@ pub fn destroy(role: Roles, should_succeed: bool) {
 
     let order = database.create_order().for_event(&event).is_paid().finish();
     let note = database.create_note().for_order(&order).finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = note.id;
 
-    let response: HttpResponse =
-        notes::destroy((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = notes::destroy((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);

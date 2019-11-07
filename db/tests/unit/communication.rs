@@ -9,18 +9,12 @@ fn new() {
 #[test]
 fn from() {
     let communication_address = CommAddress::from("abc@tari.com".to_string());
-    assert_eq!(
-        communication_address.addresses,
-        vec!["abc@tari.com".to_string()]
-    );
+    assert_eq!(communication_address.addresses, vec!["abc@tari.com".to_string()]);
 }
 
 #[test]
 fn from_vec() {
-    let communication_address = CommAddress::from_vec(vec![
-        "abc@tari.com".to_string(),
-        "abc2@tari.com".to_string(),
-    ]);
+    let communication_address = CommAddress::from_vec(vec!["abc@tari.com".to_string(), "abc2@tari.com".to_string()]);
     assert_eq!(
         communication_address.addresses,
         vec!["abc@tari.com".to_string(), "abc2@tari.com".to_string()]
@@ -29,23 +23,14 @@ fn from_vec() {
 
 #[test]
 fn get() {
-    let communication_address = CommAddress::from_vec(vec![
-        "abc@tari.com".to_string(),
-        "abc2@tari.com".to_string(),
-    ]);
+    let communication_address = CommAddress::from_vec(vec!["abc@tari.com".to_string(), "abc2@tari.com".to_string()]);
     assert_eq!(communication_address.addresses, communication_address.get());
 }
 
 #[test]
 fn get_first() {
-    let communication_address = CommAddress::from_vec(vec![
-        "abc@tari.com".to_string(),
-        "abc2@tari.com".to_string(),
-    ]);
-    assert_eq!(
-        communication_address.get_first(),
-        Ok("abc@tari.com".to_string())
-    );
+    let communication_address = CommAddress::from_vec(vec!["abc@tari.com".to_string(), "abc2@tari.com".to_string()]);
+    assert_eq!(communication_address.get_first(), Ok("abc@tari.com".to_string()));
 
     let communication_address = CommAddress::new();
     assert_eq!(
@@ -93,10 +78,7 @@ fn communication_new() {
     assert_eq!(communication.title, title);
     assert_eq!(communication.body, body);
     assert_eq!(communication.source, source_communication_address);
-    assert_eq!(
-        communication.destinations,
-        destination_communication_address
-    );
+    assert_eq!(communication.destinations, destination_communication_address);
     assert_eq!(communication.template_id, template_id);
     assert_eq!(communication.categories, categories);
 }

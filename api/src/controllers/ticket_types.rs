@@ -138,12 +138,7 @@ pub fn create(
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::TicketTypeWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::TicketTypeWrite, &organization, &event, connection)?;
 
     let created_ticket_types = create_ticket_types(
         &event,
@@ -169,21 +164,10 @@ pub fn create_multiple(
     let data = data.into_inner();
     let event = Event::find(path.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::TicketTypeWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::TicketTypeWrite, &organization, &event, connection)?;
 
-    let created_ticket_types = create_ticket_types(
-        &event,
-        &organization,
-        &user,
-        data.ticket_types,
-        &state,
-        connection,
-    )?;
+    let created_ticket_types =
+        create_ticket_types(&event, &organization, &user, data.ticket_types, &state, connection)?;
     Ok(HttpResponse::Created().json(created_ticket_types))
 }
 
@@ -193,22 +177,12 @@ pub struct TicketTypesResponse {
 }
 
 pub fn index(
-    (connection, path, query_parameters, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        User,
-    ),
+    (connection, path, query_parameters, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::TicketTypeRead,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::TicketTypeRead, &organization, &event, connection)?;
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     //TODO refactor using paging params
@@ -216,11 +190,9 @@ pub fn index(
     let mut payload = Payload::new(vec![], query_parameters.into_inner().into());
 
     for t in ticket_types {
-        payload.data.push(AdminDisplayTicketType::from_ticket_type(
-            &t,
-            &fee_schedule,
-            connection,
-        )?);
+        payload
+            .data
+            .push(AdminDisplayTicketType::from_ticket_type(&t, &fee_schedule, connection)?);
     }
     payload.paging.limit = payload.data.len() as u32;
     payload.paging.total = payload.data.len() as u64;
@@ -229,22 +201,12 @@ pub fn index(
 }
 
 pub fn cancel(
-    (connection, path, user, state): (
-        Connection,
-        Path<EventTicketPathParameters>,
-        User,
-        State<AppState>,
-    ),
+    (connection, path, user, state): (Connection, Path<EventTicketPathParameters>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.event_id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::TicketTypeWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::TicketTypeWrite, &organization, &event, connection)?;
 
     let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
     let ticket_type = ticket_type.cancel(connection)?;
@@ -291,12 +253,7 @@ pub fn update(
     let event = Event::find(path.event_id, connection)?;
     let organization = event.organization(connection)?;
     let fee_schedule_id = organization.fee_schedule_id;
-    user.requires_scope_for_organization_event(
-        Scopes::TicketTypeWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::TicketTypeWrite, &organization, &event, connection)?;
 
     let data = data.into_inner();
     jlog!(Debug, "Updating ticket type", {"ticket_type_id": path.ticket_type_id, "event_id":event.id, "request": &data});
@@ -316,8 +273,7 @@ pub fn update(
             let starting_tari_id = ticket_type.ticket_count(connection)?;
             let additional_ticket_count = requested_capacity - valid_ticket_count;
             let asset = Asset::find_by_ticket_type(ticket_type.id, connection)?;
-            let org_wallet =
-                Wallet::find_default_for_organization(event.organization_id, connection)?;
+            let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
             //Issue more tickets locally
             TicketInstance::create_multiple(
                 asset.id,
@@ -328,13 +284,12 @@ pub fn update(
             )?;
             //Issue more tickets on chain
             match asset.blockchain_asset_id {
-                Some(a) => {
-                    state.config.tari_client.modify_asset_increase_supply(&org_wallet.secret_key,
-                                                                          &org_wallet.public_key,
-                                                                          &a,
-                                                                          requested_capacity as u64,
-                    )?
-                },
+                Some(a) => state.config.tari_client.modify_asset_increase_supply(
+                    &org_wallet.secret_key,
+                    &org_wallet.public_key,
+                    &a,
+                    requested_capacity as u64,
+                )?,
                 None => return application::internal_server_error(
                     "Could not complete capacity increase because the asset has not been assigned on the blockchain",
                 ),
@@ -406,11 +361,7 @@ pub fn update(
                     .iter()
                     .position(|ref r| r.id == current_ticket_pricing_id);
                 match found_index {
-                    Some(index) => ticket_pricing[index].update(
-                        update_parameters,
-                        Some(user.id()),
-                        connection,
-                    )?,
+                    Some(index) => ticket_pricing[index].update(update_parameters, Some(user.id()), connection)?,
                     None => {
                         return application::internal_server_error(&format!(
                             "Unable to find specified ticket pricing with id {}",
@@ -526,17 +477,13 @@ fn create_ticket_types(
             ticket_type_data.name.clone(),
             ticket_type_data.description.clone(),
             ticket_type_data.capacity,
-            ticket_type_data
-                .start_date
-                .or(if ticket_type_data.parent_id.is_some() {
-                    None
-                } else {
-                    Some(times::zero())
-                }),
+            ticket_type_data.start_date.or(if ticket_type_data.parent_id.is_some() {
+                None
+            } else {
+                Some(times::zero())
+            }),
             ticket_type_data.end_date,
-            ticket_type_data
-                .end_date_type
-                .unwrap_or(TicketTypeEndDateType::Manual),
+            ticket_type_data.end_date_type.unwrap_or(TicketTypeEndDateType::Manual),
             Some(org_wallet.id),
             ticket_type_data.increment,
             ticket_type_data.limit_per_person,

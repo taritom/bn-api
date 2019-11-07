@@ -5,7 +5,7 @@ use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
-use log::Level::Trace;
+use log::Level::{Trace};
 use tokio::prelude::*;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
@@ -14,7 +14,6 @@ use utils::expo;
 use std::collections::HashMap;
 use customer_io;
 use uuid::Uuid;
-use bigneon_db::schema::venues::dsl::venues;
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -32,9 +31,7 @@ pub fn send_async(
         _ => {
             let res = match config.block_external_comms {
                 true => {
-                    jlog!(Trace, "Blocked communication", {
-                        "communication": communication
-                    });
+                    jlog!(Trace, "Blocked communication", { "communication": communication });
 
                     Either::A(future::ok(()))
                 }
@@ -63,14 +60,20 @@ pub fn send_async(
                                             serde_json::from_str(template_id).unwrap();
                                         match template.provider {
                                             EmailProvider::CustomerIo => {
-                                                customer_io_send_email_async(
+                                                match customer_io_send_email_async(
                                                     config,
                                                     communication.destinations.addresses,
                                                     communication.title,
                                                     communication.body,
                                                     communication.extra_data,
+                                                    communication.event_id,
+                                                    conn
                                                 )
-                                            }
+                                                    {
+                                                        Ok(t) => t,
+                                                        Err(e) => return Either::A(future::err(e.into())),
+                                                        };
+                                                }
                                             EmailProvider::Sendgrid => {
                                                 sendgrid::send_email_template_async(
                                                     &config.sendgrid_api_key,
@@ -142,30 +145,47 @@ pub fn customer_io_send_email_async(
     dest_email_addresses: Vec<String>,
     title: String,
     body: Option<String>,
-    template_data: Option<HashMap<String, String>>,
+    mut template_data: HashMap<String, String>,
     event_id: Uuid,
     conn: &PgConnection,
-) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
+) -> Result<(), BigNeonError>{
     // new() try's to parse base url to URL
-    let client = match customer_io::CustomerIoClient::new(
+    let client = customer_io::CustomerIoClient::new(
         config.customer_io.api_key.clone(),
         config.customer_io.site_id.clone(),
         &config.customer_io.base_url,
-    ) {
-        Ok(t) => t,
-        Err(err) => return Box::new(future::err(err.into())),
-    };
+    )?;
 
     template_data.insert("subject".to_string(), "Test subject".to_string());
     template_data.insert("message".to_string(), "Test Message".to_string());
 
     let event = Event::find(event_id, conn)?;
     // parse the venue address if venue
-    let venue_id = event.venue_id?;
-    let venue= Venue::find(venue_id, conn)?;
+    let venue_id =  match event.venue_id {
+        Some(t) => t,
+        None => return Err(BigNeonError::from(ApplicationError::new_with_type(
+            ApplicationErrorType::ServerConfigError,
+            "event start date is not available".to_owned(),
+        ))),
+        _ => return Err(BigNeonError::from(ApplicationError::new_with_type(
+            ApplicationErrorType::ServerConfigError,
+            "event start date is not available".to_owned(),
+        ))),
+    };
+    let venue = Venue::find(venue_id, conn)?;
 
     template_data.insert("show_venue_name".to_string(), json!(venue.name).to_string());
-    if start_datetime = venue.event_start?;
+    let start_datetime = match event.event_start{
+            Some(t) => t,
+            None => return Err(BigNeonError::from(ApplicationError::new_with_type(
+                ApplicationErrorType::ServerConfigError,
+                "event start date is not available".to_owned(),
+            ))),
+        _ => return Err(BigNeonError::from(ApplicationError::new_with_type(
+            ApplicationErrorType::ServerConfigError,
+            "event start date is not available".to_owned(),
+        ))),
+    };
 
     template_data.insert("show_start_date".to_string(), json!(start_datetime.date()).to_string());
     template_data.insert("show_start_time".to_string(), json!(start_datetime.time()).to_string());
@@ -189,6 +209,5 @@ pub fn customer_io_send_email_async(
         };
         client.create_anonymous_event(event).unwrap();
     }
-
-    Box::new(future::ok(()))
+    Ok(())
 }

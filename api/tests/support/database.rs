@@ -142,12 +142,7 @@ impl TestDatabase {
         FeeScheduleBuilder::new(self.connection.get())
     }
 
-    pub fn create_purchased_tickets(
-        &self,
-        user: &User,
-        ticket_type_id: Uuid,
-        quantity: u32,
-    ) -> Vec<TicketInstance> {
+    pub fn create_purchased_tickets(&self, user: &User, ticket_type_id: Uuid, quantity: u32) -> Vec<TicketInstance> {
         let mut cart = Order::find_or_create_cart(user, self.connection.get()).unwrap();
         cart.update_quantities(
             user.id,

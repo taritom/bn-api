@@ -153,9 +153,7 @@ impl<'a> EventBuilder<'a> {
             .organization_id
             .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
             .unwrap();
-        let event_start = self
-            .event_start
-            .unwrap_or(dates::now().add_days(2).finish());
+        let event_start = self.event_start.unwrap_or(dates::now().add_days(2).finish());
         let event_end = self
             .event_end
             .unwrap_or(event_start.into_builder().add_days(2).finish());

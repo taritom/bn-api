@@ -62,10 +62,7 @@ impl TicketPricing {
         }
     }
 
-    pub fn validate_record(
-        &self,
-        attributes: &TicketPricingEditableAttributes,
-    ) -> Result<(), DatabaseError> {
+    pub fn validate_record(&self, attributes: &TicketPricingEditableAttributes) -> Result<(), DatabaseError> {
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "ticket_pricing.start_date",
@@ -110,9 +107,7 @@ impl TicketPricing {
                 attributes.start_date.unwrap_or(self.start_date),
                 attributes.end_date.unwrap_or(self.end_date),
                 attributes.price_in_cents.unwrap(),
-                attributes
-                    .is_box_office_only
-                    .unwrap_or(self.is_box_office_only),
+                attributes.is_box_office_only.unwrap_or(self.is_box_office_only),
                 Some(self.status),
             );
             self.destroy(current_user_id, conn)?;
@@ -174,10 +169,7 @@ impl TicketPricing {
             is_default,
         ))
         .get_result::<bool>(conn)
-        .to_db_error(
-            ErrorCode::UpdateError,
-            "Could not confirm periods do not overlap",
-        )?;
+        .to_db_error(ErrorCode::UpdateError, "Could not confirm periods do not overlap")?;
         if !result {
             let mut validation_error = create_validation_error(
                 "ticket_pricing_overlapping_periods",
@@ -201,11 +193,7 @@ impl TicketPricing {
             .to_db_error(ErrorCode::QueryError, "Could not load order_items")
     }
 
-    pub fn destroy(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn destroy(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         //Check if there is any order items linked to this ticket pricing
         if self.affected_order_count(conn)? == 0 {
             //Ticket pricing is unused -> delete
@@ -230,10 +218,7 @@ impl TicketPricing {
                     ticket_pricing::updated_at.eq(dsl::now),
                 ))
                 .get_result(conn)
-                .to_db_error(
-                    ErrorCode::UpdateError,
-                    "Could not update ticket_pricing status",
-                )?;
+                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing status")?;
             DomainEvent::create(
                 DomainEventTypes::TicketPricingDeleted,
                 format!("Ticket pricing '{}' deleted", &result.name),
@@ -248,11 +233,7 @@ impl TicketPricing {
         }
     }
 
-    pub fn start_sales(
-        mut self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn start_sales(mut self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.start_date > times::now() {
             let old_start_date = self.start_date;
             self.start_date = times::now();
@@ -262,10 +243,7 @@ impl TicketPricing {
                     ticket_pricing::updated_at.eq(dsl::now),
                 ))
                 .execute(conn)
-                .to_db_error(
-                    ErrorCode::UpdateError,
-                    "Could not update start date on Ticket Pricing",
-                )?;
+                .to_db_error(ErrorCode::UpdateError, "Could not update start date on Ticket Pricing")?;
 
             DomainEvent::create(
                 DomainEventTypes::TicketPricingSalesStarted,
@@ -280,10 +258,7 @@ impl TicketPricing {
         Ok(())
     }
 
-    pub fn get_default(
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<TicketPricing, DatabaseError> {
+    pub fn get_default(ticket_type_id: Uuid, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
         ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
             .filter(ticket_pricing::status.eq(TicketPricingStatus::Default))
@@ -318,9 +293,7 @@ impl TicketPricing {
 
         if box_office_pricing {
             // Use is_box_office_only pricing, fall back to regular pricing if not set
-            query = query
-                .order(ticket_pricing::is_box_office_only.desc())
-                .limit(1);
+            query = query.order(ticket_pricing::is_box_office_only.desc()).limit(1);
         } else {
             query = query.filter(ticket_pricing::is_box_office_only.eq(false));
         }
@@ -336,12 +309,7 @@ impl TicketPricing {
             ));
         } else if price_points.len() == 0 {
             if get_default_pricing == false {
-                return TicketPricing::get_current_ticket_pricing(
-                    ticket_type_id,
-                    box_office_pricing,
-                    true,
-                    &conn,
-                );
+                return TicketPricing::get_current_ticket_pricing(ticket_type_id, box_office_pricing, true, &conn);
             } else {
                 return Err(DatabaseError::new(
                     ErrorCode::NoResults,
@@ -391,11 +359,7 @@ impl NewTicketPricing {
         Ok(validation_errors?)
     }
 
-    pub fn commit(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<TicketPricing, DatabaseError> {
+    pub fn commit(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
         self.validate_record()?;
         let result: TicketPricing = diesel::insert_into(ticket_pricing::table)
             .values(self)

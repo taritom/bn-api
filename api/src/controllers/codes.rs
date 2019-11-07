@@ -73,29 +73,18 @@ impl From<UpdateCodeRequest> for UpdateCodeAttributes {
             redemption_code,
             max_uses: attributes.max_uses.map(|m| m as i64),
             discount_in_cents: attributes.discount_in_cents.map(|d| d.map(|d2| d2 as i64)),
-            discount_as_percentage: attributes
-                .discount_as_percentage
-                .map(|d| d.map(|d2| d2 as i64)),
+            discount_as_percentage: attributes.discount_as_percentage.map(|d| d.map(|d2| d2 as i64)),
             start_date,
             end_date,
-            max_tickets_per_user: attributes
-                .max_tickets_per_user
-                .map(|m| m.map(|m2| m2 as i64)),
+            max_tickets_per_user: attributes.max_tickets_per_user.map(|m| m.map(|m2| m2 as i64)),
         }
     }
 }
 
-pub fn show(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let code = Code::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeRead,
-        &code.organization(conn)?,
-        &code.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeRead, &code.organization(conn)?, &code.event(conn)?, conn)?;
 
     Ok(HttpResponse::Ok().json(code.for_display(conn)?))
 }
@@ -106,12 +95,7 @@ pub fn link(
     let conn = conn.get();
     let code = Code::find(path.id, conn)?;
     let event = code.event(conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeRead,
-        &code.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeRead, &code.organization(conn)?, &event, conn)?;
     let linker = state.service_locator.create_deep_linker()?;
     let raw_url = format!(
         "{}/events/{}/tickets?code={}",
@@ -130,21 +114,11 @@ pub fn link(
 }
 
 pub fn create(
-    (conn, req, path, user): (
-        Connection,
-        Json<CreateCodeRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<CreateCodeRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeWrite,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeWrite, &event.organization(conn)?, &event, conn)?;
 
     if req.redemption_codes.len() != 1 {
         return application::unprocessable("Only one code allowed at this time");
@@ -174,22 +148,12 @@ pub fn create(
 }
 
 pub fn update(
-    (conn, req, path, user): (
-        Connection,
-        Json<UpdateCodeRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<UpdateCodeRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
 
     let code = Code::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeWrite,
-        &code.organization(conn)?,
-        &code.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeWrite, &code.organization(conn)?, &code.event(conn)?, conn)?;
 
     let code = code.update(req.clone().into(), Some(user.id()), conn)?;
 
@@ -200,17 +164,10 @@ pub fn update(
     Ok(HttpResponse::Ok().json(code.for_display(conn)?))
 }
 
-pub fn destroy(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn destroy((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let code = Code::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeWrite,
-        &code.organization(conn)?,
-        &code.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeWrite, &code.organization(conn)?, &code.event(conn)?, conn)?;
 
     code.destroy(Some(user.id()), &*conn)?;
     Ok(HttpResponse::Ok().json(json!({})))

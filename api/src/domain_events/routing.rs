@@ -17,9 +17,7 @@ pub struct DomainActionRouter {
 }
 impl DomainActionRouter {
     pub fn new() -> DomainActionRouter {
-        DomainActionRouter {
-            routes: HashMap::new(),
-        }
+        DomainActionRouter { routes: HashMap::new() }
     }
 
     pub fn add_executor(
@@ -35,10 +33,7 @@ impl DomainActionRouter {
         }
     }
 
-    pub fn get_executor_for(
-        &self,
-        action_type: DomainActionTypes,
-    ) -> Option<&dyn DomainActionExecutor> {
+    pub fn get_executor_for(&self, action_type: DomainActionTypes) -> Option<&dyn DomainActionExecutor> {
         self.routes.get(&action_type).map(|o| (*o).borrow())
     }
 
@@ -52,46 +47,34 @@ impl DomainActionRouter {
             let conf = conf.clone();
             match action_type {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
-                BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new(
-                    conf.email_templates.custom_broadcast.clone(),
-                )),
+                BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new(&conf)),
 
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
                 RegenerateDripActions => Box::new(RegenerateDripActionsExecutor::new(conf)),
-                SendPurchaseCompletedCommunication => {
-                    Box::new(SendOrderCompleteExecutor::new(conf))
-                }
+                SendPurchaseCompletedCommunication => Box::new(SendOrderCompleteExecutor::new(conf)),
                 UpdateGenres => Box::new(UpdateGenresExecutor::new()),
                 ProcessSettlementReport => Box::new(ProcessSettlementReportExecutor::new(conf)),
                 ProcessTransferDrip => Box::new(ProcessTransferDripEventExecutor::new(conf)),
-                SubmitSitemapToSearchEngines => {
-                    Box::new(SubmitSitemapToSearchEnginesExecutor::new(
-                        conf.api_base_url.clone(),
-                        conf.block_external_comms,
-                    ))
-                } //
-                  // DO NOT add
-                  // _ =>
+                SubmitSitemapToSearchEngines => Box::new(SubmitSitemapToSearchEnginesExecutor::new(
+                    conf.api_base_url.clone(),
+                    conf.block_external_comms,
+                )), //
+                    // DO NOT add
+                    // _ =>
             }
         };
 
         self.add_executor(Communication, find_executor(Communication))
             .expect("Configuration error");
 
-        self.add_executor(
-            BroadcastPushNotification,
-            find_executor(BroadcastPushNotification),
-        )
-        .expect("Configuration error");
+        self.add_executor(BroadcastPushNotification, find_executor(BroadcastPushNotification))
+            .expect("Configuration error");
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))
             .expect("Configuration error");
 
-        self.add_executor(
-            ProcessSettlementReport,
-            find_executor(ProcessSettlementReport),
-        )
-        .expect("Configuration error");
+        self.add_executor(ProcessSettlementReport, find_executor(ProcessSettlementReport))
+            .expect("Configuration error");
 
         self.add_executor(ProcessTransferDrip, find_executor(ProcessTransferDrip))
             .expect("Configuration error");

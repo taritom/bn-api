@@ -134,16 +134,13 @@ const SENDGRID_TEMPLATE_BN_REFUND: &str = "SENDGRID_TEMPLATE_BN_REFUND";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
-const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE: &str =
-    "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION: &str =
     "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION";
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
     "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT";
-const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str =
-    "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
-const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str =
-    "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT";
+const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
@@ -185,10 +182,10 @@ impl Config {
         let app_name = env::var(&APP_NAME).unwrap_or_else(|_| "Big Neon".to_string());
 
         let database_url = match environment {
-            Environment::Test => env::var(&TEST_DATABASE_URL)
-                .unwrap_or_else(|_| panic!("{} must be defined.", TEST_DATABASE_URL)),
-            _ => env::var(&DATABASE_URL)
-                .unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
+            Environment::Test => {
+                env::var(&TEST_DATABASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", TEST_DATABASE_URL))
+            }
+            _ => env::var(&DATABASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
         };
 
         let readonly_database_url = match environment {
@@ -198,10 +195,7 @@ impl Config {
         };
 
         let actix_workers: Option<usize> = env::var(&ACTIX_WORKERS)
-            .map(|r| {
-                r.parse()
-                    .expect(&format!("{} is not a valid usize", ACTIX_WORKERS))
-            })
+            .map(|r| r.parse().expect(&format!("{} is not a valid usize", ACTIX_WORKERS)))
             .ok();
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
 
@@ -210,28 +204,21 @@ impl Config {
         let api_port = env::var(&API_PORT).unwrap_or_else(|_| "8088".to_string());
 
         let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or_else(|_| "usd".to_string());
-        let stripe_secret_key =
-            env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
-        let token_secret =
-            env::var(&TOKEN_SECRET).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_SECRET));
+        let stripe_secret_key = env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
+        let token_secret = env::var(&TOKEN_SECRET).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_SECRET));
 
-        let token_issuer =
-            env::var(&TOKEN_ISSUER).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_ISSUER));
+        let token_issuer = env::var(&TOKEN_ISSUER).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_ISSUER));
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
 
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
 
-        let front_end_url =
-            env::var(&FRONT_END_URL).unwrap_or_else(|_| panic!("Front end url must be defined"));
+        let front_end_url = env::var(&FRONT_END_URL).unwrap_or_else(|_| panic!("Front end url must be defined"));
 
-        let tari_uri =
-            env::var(&TARI_URL).unwrap_or_else(|_| panic!("{} must be defined.", TARI_URL));
+        let tari_uri = env::var(&TARI_URL).unwrap_or_else(|_| panic!("{} must be defined.", TARI_URL));
 
         let tari_client = match environment {
-            Environment::Test => {
-                Box::new(TariTestClient::new(tari_uri)) as Box<dyn TariClient + Send + Sync>
-            }
+            Environment::Test => Box::new(TariTestClient::new(tari_uri)) as Box<dyn TariClient + Send + Sync>,
             _ => {
                 if tari_uri == "TEST" {
                     Box::new(TariTestClient::new(tari_uri)) as Box<dyn TariClient + Send + Sync>
@@ -241,20 +228,17 @@ impl Config {
             }
         };
 
-        let globee_api_key =
-            env::var(&GLOBEE_API_KEY).expect(&format!("{} must be defined", GLOBEE_API_KEY));
+        let globee_api_key = env::var(&GLOBEE_API_KEY).expect(&format!("{} must be defined", GLOBEE_API_KEY));
         let globee_base_url = env::var(&GLOBEE_BASE_URL).unwrap_or_else(|_| match environment {
             Environment::Production => "https://globee.com/payment-api/v1/".to_string(),
             _ => "https://test.globee.com/payment-api/v1/".to_string(),
         });
 
-        let branch_io_base_url =
-            env::var(&BRANCH_IO_BASE_URL).unwrap_or("https://api2.branch.io/v1".to_string());
-        let branch_io_branch_key = env::var(&BRANCH_IO_BRANCH_KEY)
-            .expect(&format!("{} must be defined", BRANCH_IO_BRANCH_KEY));
+        let branch_io_base_url = env::var(&BRANCH_IO_BASE_URL).unwrap_or("https://api2.branch.io/v1".to_string());
+        let branch_io_branch_key =
+            env::var(&BRANCH_IO_BRANCH_KEY).expect(&format!("{} must be defined", BRANCH_IO_BRANCH_KEY));
 
-        let api_base_url =
-            env::var(&API_BASE_URL).expect(&format!("{} must be defined", API_BASE_URL));
+        let api_base_url = env::var(&API_BASE_URL).expect(&format!("{} must be defined", API_BASE_URL));
 
         let validate_ipns = env::var(&VALIDATE_IPNS)
             .unwrap_or("true".to_string())
@@ -296,57 +280,34 @@ impl Config {
             site_id: customer_io_site_id,
         };
 
+        let sendgrid_api_key =
+            env::var(&SENDGRID_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
         let sendgrid_template_bn_refund = env::var(&SENDGRID_TEMPLATE_BN_REFUND)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_REFUND));
 
         let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
-            .unwrap_or_else(|_| {
-                panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED)
-            });
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED));
 
-        let sendgrid_template_bn_purchase_completed =
-            env::var(&SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED).unwrap_or_else(|_| {
-                panic!(
-                    "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED
-                )
-            });
+        let sendgrid_template_bn_purchase_completed = env::var(&SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED));
         let sendgrid_template_bn_org_invite = env::var(&SENDGRID_TEMPLATE_BN_ORG_INVITE)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_ORG_INVITE));
-        let sendgrid_template_bn_transfer_tickets =
-            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS).unwrap_or_else(|_| {
-                panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
-            });
-        let sendgrid_template_bn_transfer_tickets_receipt =
-            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT).unwrap_or_else(|_| {
+        let sendgrid_template_bn_transfer_tickets = env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS));
+        let sendgrid_template_bn_transfer_tickets_receipt = env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT));
+        let sendgrid_template_bn_transfer_tickets_drip_destination =
+            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION).unwrap_or_else(|_| {
                 panic!(
                     "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT
+                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION
                 )
             });
-        let sendgrid_template_bn_transfer_tickets_drip_destination = env::var(
-            &SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION,
-        )
-        .unwrap_or_else(|_| {
-            panic!(
-                "{} must be defined.",
-                SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION
-            )
-        });
         let sendgrid_template_bn_transfer_tickets_drip_source =
-            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE).unwrap_or_else(|_| {
-                panic!(
-                    "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE
-                )
-            });
-        let sendgrid_template_bn_cancel_transfer_tickets =
-            env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS).unwrap_or_else(|_| {
-                panic!(
-                    "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS
-                )
-            });
+            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE)
+                .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE));
+        let sendgrid_template_bn_cancel_transfer_tickets = env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS));
         let sendgrid_template_bn_cancel_transfer_tickets_receipt =
             env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT).unwrap_or_else(|_| {
                 panic!(
@@ -359,18 +320,17 @@ impl Config {
         let sendgrid_template_bn_user_invite = env::var(&SENDGRID_TEMPLATE_BN_USER_INVITE)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_INVITE));
 
-        let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS).ok().map(|s| {
-            s.parse()
-                .expect("Not a valid integer for settlement period in days")
-        });
+        let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS)
+            .ok()
+            .map(|s| s.parse().expect("Not a valid integer for settlement period in days"));
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 
-        let twilio_api_key = env::var(&TWILIO_API_KEY)
-            .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_API_KEY));
+        let twilio_api_key =
+            env::var(&TWILIO_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_API_KEY));
 
-        let twilio_account_id = env::var(&TWILIO_ACCOUNT_ID)
-            .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_ACCOUNT_ID));
+        let twilio_account_id =
+            env::var(&TWILIO_ACCOUNT_ID).unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_ACCOUNT_ID));
 
         let api_keys_encryption_key = env::var(&API_KEYS_ENCRYPTION_KEY)
             .unwrap_or_else(|_| panic!("{} must be defined.", API_KEYS_ENCRYPTION_KEY));
@@ -383,15 +343,9 @@ impl Config {
             _ => true,
         };
 
-        let http_keep_alive = env::var(&HTTP_KEEP_ALIVE)
-            .unwrap_or("75".to_string())
-            .parse()
-            .unwrap();
+        let http_keep_alive = env::var(&HTTP_KEEP_ALIVE).unwrap_or("75".to_string()).parse().unwrap();
 
-        let jwt_expiry_time = env::var(&JWT_EXPIRY_TIME)
-            .unwrap_or("15".to_string())
-            .parse()
-            .unwrap();
+        let jwt_expiry_time = env::var(&JWT_EXPIRY_TIME).unwrap_or("15".to_string()).parse().unwrap();
 
         let max_instances_per_ticket_type = env::var(&MAX_INSTANCES_PER_TICKET_TYPE)
             .map(|s| {
@@ -401,16 +355,10 @@ impl Config {
             .unwrap_or(10000);
         let connection_pool = ConnectionPoolConfig {
             min: env::var(CONNECTION_POOL_MIN)
-                .map(|s| {
-                    s.parse()
-                        .expect("Not a valid integer for CONNECTION_POOL_MIN")
-                })
+                .map(|s| s.parse().expect("Not a valid integer for CONNECTION_POOL_MIN"))
                 .unwrap_or(1),
             max: env::var(CONNECTION_POOL_MAX)
-                .map(|s| {
-                    s.parse()
-                        .expect("Not a valid integer for CONNECTION_POOL_MAX")
-                })
+                .map(|s| s.parse().expect("Not a valid integer for CONNECTION_POOL_MAX"))
                 .unwrap_or(20),
         };
 

@@ -218,8 +218,7 @@ pub fn accept_invite_for_other_email_succeeds() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
     database.create_user().finish();
 
     let email = "different@email.com".to_string();
@@ -231,8 +230,7 @@ pub fn accept_invite_for_other_email_succeeds() {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
-        .unwrap();
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get()).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
@@ -243,12 +241,9 @@ pub fn accept_invite_for_other_email_succeeds() {
     );
     let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = organization_invites::accept_request((
-        database.connection.into(),
-        parameters,
-        OptionalUser(Some(auth_user)),
-    ))
-    .into();
+    let response: HttpResponse =
+        organization_invites::accept_request((database.connection.into(), parameters, OptionalUser(Some(auth_user))))
+            .into();
     assert_eq!(response.status(), StatusCode::OK);
 }
 
@@ -258,8 +253,7 @@ pub fn accept_invite_for_user_id_succeeds() {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
     database.create_user().finish();
 
     let invite = database
@@ -270,8 +264,7 @@ pub fn accept_invite_for_user_id_succeeds() {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
-        .unwrap();
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get()).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
@@ -282,12 +275,9 @@ pub fn accept_invite_for_user_id_succeeds() {
     );
     let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = organization_invites::accept_request((
-        database.connection.into(),
-        parameters,
-        OptionalUser(Some(auth_user)),
-    ))
-    .into();
+    let response: HttpResponse =
+        organization_invites::accept_request((database.connection.into(), parameters, OptionalUser(Some(auth_user))))
+            .into();
     assert_eq!(response.status(), StatusCode::OK);
 }
 
@@ -297,8 +287,7 @@ pub fn accept_invite_for_other_user_id_fails() {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
     database.create_user().finish();
 
     let invite = database
@@ -309,8 +298,7 @@ pub fn accept_invite_for_other_user_id_fails() {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
-        .unwrap();
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get()).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
@@ -321,12 +309,9 @@ pub fn accept_invite_for_other_user_id_fails() {
     );
     let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = organization_invites::accept_request((
-        database.connection.into(),
-        parameters,
-        OptionalUser(Some(auth_user)),
-    ))
-    .into();
+    let response: HttpResponse =
+        organization_invites::accept_request((database.connection.into(), parameters, OptionalUser(Some(auth_user))))
+            .into();
     support::expects_unauthorized(&response);
 }
 
@@ -335,8 +320,7 @@ fn destroy_owner_role_invite_as_organization_member_fails() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
 
     let invite = database
         .create_organization_invite()
@@ -346,8 +330,7 @@ fn destroy_owner_role_invite_as_organization_member_fails() {
         .finish();
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "invite_id"]);
-    let mut path =
-        Path::<OrganizationInvitePathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<OrganizationInvitePathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     path.invite_id = invite.id;
 

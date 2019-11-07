@@ -95,8 +95,7 @@ pub fn show(
                 connection,
             )?;
 
-            let events =
-                EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
+            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
             SlugResponse::Organization {
                 organization: organization.for_display(connection)?,
                 events,
@@ -124,8 +123,7 @@ pub fn show(
                 connection,
             )?;
 
-            let events =
-                EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
+            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
             SlugResponse::Venue {
                 venue: venue.for_display(connection)?,
                 events,
@@ -162,8 +160,7 @@ pub fn show(
                 connection,
             )?;
 
-            let events =
-                EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
+            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
             SlugResponse::City { city, events }
         }
     };

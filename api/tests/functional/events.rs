@@ -180,12 +180,7 @@ pub fn index_with_draft_for_organization_user() {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, Some(&organization), &database);
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -267,13 +262,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .finish();
 
-    let expected_results = vec![event_venue_entry(
-        &event,
-        &venue,
-        &vec![],
-        None,
-        &*connection,
-    )];
+    let expected_results = vec![event_venue_entry(&event, &venue, &vec![], None, &*connection)];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
@@ -351,9 +340,7 @@ pub fn index_search_with_filter() {
         external_url: None,
         user_is_interested: false,
         localized_times,
-        tracking_keys: TrackingKeys {
-            ..Default::default()
-        },
+        tracking_keys: TrackingKeys { ..Default::default() },
         event_type: EventTypes::Music,
         url: format!("{}/tickets/{}", env::var("FRONT_END_URL").unwrap(), &slug),
         slug,
@@ -416,17 +403,8 @@ fn show() {
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
-    let event_expected_json = base::events::expected_show_json(
-        Roles::User,
-        event,
-        organization,
-        venue,
-        false,
-        None,
-        None,
-        conn,
-        1,
-    );
+    let event_expected_json =
+        base::events::expected_show_json(Roles::User, event, organization, venue, false, None, None, conn, 1);
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -496,7 +474,7 @@ fn show_from_slug() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event1.id, user.id).commit(conn);
-    let slug1 = "newevent1-at-name-san-francisco";
+    let slug1 = "newevent1-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
@@ -596,12 +574,7 @@ fn show_future_published_with_preview() {
     let connection = database.connection.get();
     let organization = database.create_organization().finish();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, Some(&organization), &database);
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -624,9 +597,7 @@ fn show_future_published_with_preview() {
         1,
     );
 
-    EventInterest::create(event_id, user.id)
-        .commit(connection)
-        .unwrap();
+    EventInterest::create(event_id, user.id).commit(connection).unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event_id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     path.id = event_id.to_string();
@@ -692,12 +663,8 @@ fn show_private() {
     let organization = database.create_organization().finish();
 
     let org_user = database.create_user().finish();
-    let auth_org_user = support::create_auth_user_from_user(
-        &org_user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_org_user =
+        support::create_auth_user_from_user(&org_user, Roles::OrgMember, Some(&organization), &database);
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -871,22 +838,11 @@ fn show_with_cancelled_ticket_type() {
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
     ticket_type.cancel(conn).unwrap();
 
-    EventInterest::create(event.id, user.id)
-        .commit(conn)
-        .unwrap();
+    EventInterest::create(event.id, user.id).commit(conn).unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
-    let event_expected_json = base::events::expected_show_json(
-        Roles::User,
-        event,
-        organization,
-        venue,
-        false,
-        None,
-        None,
-        conn,
-        1,
-    );
+    let event_expected_json =
+        base::events::expected_show_json(Roles::User, event, organization, venue, false, None, None, conn, 1);
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -1968,11 +1924,7 @@ mod export_event_data_tests {
 
     #[test]
     fn export_event_data_event_data_exporter_upcoming() {
-        base::events::export_event_data(
-            Roles::PrismIntegration,
-            true,
-            Some(PastOrUpcoming::Upcoming),
-        );
+        base::events::export_event_data(Roles::PrismIntegration, true, Some(PastOrUpcoming::Upcoming));
     }
 }
 
@@ -1989,8 +1941,7 @@ pub fn delete_fails_has_ticket_in_cart() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
 
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     let mut cart = Order::find_or_create_cart(&user2, connection).unwrap();
@@ -2011,8 +1962,7 @@ pub fn delete_fails_has_ticket_in_cart() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::delete((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = events::delete((database.connection.clone().into(), path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 }
@@ -2023,12 +1973,8 @@ fn update_promoter_fails_lacks_event_id() {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::Promoter, Some(&organization), &database);
+    let event = database.create_event().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Promoter, Some(&organization), &database);
 
     // Remove event access
     EventUser::find_by_event_id_user_id(event.id, user.id, connection)
@@ -2046,13 +1992,8 @@ fn update_promoter_fails_lacks_event_id() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::update((
-        database.connection.clone().into(),
-        path,
-        json,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        events::update((database.connection.clone().into(), path, json, auth_user.clone())).into();
     support::expects_unauthorized(&response);
 }
 
@@ -2062,12 +2003,7 @@ fn dashboard_with_default_range() {
     let connection = database.connection.get();
     let org_admin = database.create_user().finish();
     let organization = database.create_organization().with_fees().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &org_admin,
-        Roles::OrgOwner,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&org_admin, Roles::OrgOwner, Some(&organization), &database);
     let event_start = Utc::now().naive_utc() - Duration::days(1);
     let event_end = Utc::now().naive_utc() + Duration::hours(1);
     let event = database
@@ -2140,37 +2076,20 @@ pub fn show_from_organizations_past() {
     let event = database
         .create_event()
         .with_name("NewEvent".to_string())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
     let _event2 = database
         .create_event()
         .with_name("NewEvent2".to_string())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
 
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, Some(&organization), &database);
 
     let expected_events = vec![event.id];
 
@@ -2179,23 +2098,13 @@ pub fn show_from_organizations_past() {
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Past"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = events::show_from_organizations((
-        database.connection.into(),
-        path,
-        query_parameters,
-        auth_user,
-    ))
-    .unwrap();
+    let response =
+        events::show_from_organizations((database.connection.into(), path, query_parameters, auth_user)).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         expected_events,
-        response
-            .payload()
-            .data
-            .iter()
-            .map(|i| i.id)
-            .collect::<Vec<Uuid>>()
+        response.payload().data.iter().map(|i| i.id).collect::<Vec<Uuid>>()
     );
 }
 
@@ -2207,37 +2116,20 @@ pub fn show_from_organizations_upcoming() {
     let _event = database
         .create_event()
         .with_name("NewEvent".to_string())
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_organization(&organization)
         .finish();
     let event2 = database
         .create_event()
-        .with_event_start(
-            NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
-        .with_event_end(
-            NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
-                .unwrap(),
-        )
+        .with_event_start(NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .finish();
 
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, Some(&organization), &database);
 
     let expected_events = vec![event2.id];
     let test_request = TestRequest::create();
@@ -2245,22 +2137,12 @@ pub fn show_from_organizations_upcoming() {
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Upcoming"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = events::show_from_organizations((
-        database.connection.into(),
-        path,
-        query_parameters,
-        auth_user,
-    ))
-    .unwrap();
+    let response =
+        events::show_from_organizations((database.connection.into(), path, query_parameters, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         expected_events,
-        response
-            .payload()
-            .data
-            .iter()
-            .map(|i| i.id)
-            .collect::<Vec<Uuid>>()
+        response.payload().data.iter().map(|i| i.id).collect::<Vec<Uuid>>()
     );
 }
 
@@ -2272,9 +2154,7 @@ pub fn event_venue_entry(
     connection: &PgConnection,
 ) -> EventVenueEntry {
     let localized_times = event.get_all_localized_time_strings(Some(venue));
-    let (min_ticket_price, max_ticket_price) = event
-        .current_ticket_pricing_range(false, connection)
-        .unwrap();
+    let (min_ticket_price, max_ticket_price) = event.current_ticket_pricing_range(false, connection).unwrap();
     let slug = event.slug(connection).unwrap();
     EventVenueEntry {
         id: event.id,
@@ -2303,9 +2183,7 @@ pub fn event_venue_entry(
             .map(|u| EventInterest::user_interest(event.id, u.id, connection).unwrap())
             .unwrap_or(false),
         localized_times,
-        tracking_keys: TrackingKeys {
-            ..Default::default()
-        },
+        tracking_keys: TrackingKeys { ..Default::default() },
         event_type: event.event_type,
         url: format!("{}/tickets/{}", env::var("FRONT_END_URL").unwrap(), &slug),
         slug,

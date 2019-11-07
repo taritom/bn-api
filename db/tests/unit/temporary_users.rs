@@ -46,9 +46,7 @@ fn associate_user() {
     let temporary_user = TemporaryUser::create(Uuid::new_v4(), None, None)
         .commit(user.id, connection)
         .unwrap();
-    assert!(TemporaryUser::find_by_user_id(user.id, connection)
-        .unwrap()
-        .is_empty());
+    assert!(TemporaryUser::find_by_user_id(user.id, connection).unwrap().is_empty());
 
     // Results appear once linked
     temporary_user.associate_user(user.id, connection).unwrap();
@@ -154,21 +152,15 @@ fn find_by_user_id() {
     let temporary_user = TemporaryUser::create(Uuid::new_v4(), None, None)
         .commit(user.id, connection)
         .unwrap();
-    assert!(TemporaryUser::find_by_user_id(user.id, connection)
-        .unwrap()
-        .is_empty());
-    assert!(TemporaryUser::find_by_user_id(user2.id, connection)
-        .unwrap()
-        .is_empty());
+    assert!(TemporaryUser::find_by_user_id(user.id, connection).unwrap().is_empty());
+    assert!(TemporaryUser::find_by_user_id(user2.id, connection).unwrap().is_empty());
 
     temporary_user.associate_user(user.id, connection).unwrap();
     assert_eq!(
         TemporaryUser::find_by_user_id(user.id, connection).unwrap(),
         vec![temporary_user]
     );
-    assert!(TemporaryUser::find_by_user_id(user2.id, connection)
-        .unwrap()
-        .is_empty());
+    assert!(TemporaryUser::find_by_user_id(user2.id, connection).unwrap().is_empty());
 }
 
 #[test]

@@ -14,11 +14,8 @@ fn find_by_password_reset_token() {
         .create_password_reset_token(project.get_connection())
         .expect("Failed to create reset token");
 
-    let found_user = User::find_by_password_reset_token(
-        &user.password_reset_token.unwrap(),
-        project.get_connection(),
-    )
-    .expect("User was not found");
+    let found_user = User::find_by_password_reset_token(&user.password_reset_token.unwrap(), project.get_connection())
+        .expect("User was not found");
     assert_eq!(found_user.id, user.id);
     assert_eq!(
         found_user.password_reset_token.unwrap(),
@@ -48,12 +45,9 @@ fn consume_password_reset_token() {
     assert!(!user.check_password(&password));
 
     // Consumes password reset as token was not expired and valid
-    let user = User::consume_password_reset_token(
-        &user.password_reset_token.unwrap(),
-        &password,
-        project.get_connection(),
-    )
-    .unwrap();
+    let user =
+        User::consume_password_reset_token(&user.password_reset_token.unwrap(), &password, project.get_connection())
+            .unwrap();
     assert!(user.check_password(&password));
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
@@ -69,11 +63,7 @@ fn consume_password_reset_token() {
         .unwrap();
     let pw_modified_at = user.password_modified_at;
     let password = "newPassword2";
-    match User::consume_password_reset_token(
-        &user.password_reset_token.unwrap(),
-        &password,
-        project.get_connection(),
-    ) {
+    match User::consume_password_reset_token(&user.password_reset_token.unwrap(), &password, project.get_connection()) {
         Ok(_v) => panic!("Expected failure to consume expired password reset token"),
         Err(e) => assert_eq!(
             format!("{}", e),
@@ -101,9 +91,7 @@ fn create_password_reset_token() {
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
 
-    let user = user
-        .create_password_reset_token(project.get_connection())
-        .unwrap();
+    let user = user.create_password_reset_token(project.get_connection()).unwrap();
     assert!(user.password_reset_token.is_some());
     assert!(user.password_reset_requested_at.is_some());
 }
@@ -115,21 +103,13 @@ fn has_valid_password_reset_token() {
 
     // Expired token
     user.password_reset_token = Some(Uuid::new_v4());
-    user.password_reset_requested_at =
-        Some(Utc::now().naive_utc() - Duration::days(1) - Duration::seconds(10));
-    assert!(
-        !user.has_valid_password_reset_token(),
-        "Token should be expired"
-    );
+    user.password_reset_requested_at = Some(Utc::now().naive_utc() - Duration::days(1) - Duration::seconds(10));
+    assert!(!user.has_valid_password_reset_token(), "Token should be expired");
 
     // Token not yet expired
     user.password_reset_token = Some(Uuid::new_v4());
-    user.password_reset_requested_at =
-        Some(Utc::now().naive_utc() - Duration::days(1) + Duration::seconds(10));
-    assert!(
-        user.has_valid_password_reset_token(),
-        "Token should not be expired"
-    );
+    user.password_reset_requested_at = Some(Utc::now().naive_utc() - Duration::days(1) + Duration::seconds(10));
+    assert!(user.has_valid_password_reset_token(), "Token should not be expired");
 
     // Token does not exist
     user.password_reset_token = None;

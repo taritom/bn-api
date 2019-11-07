@@ -18,10 +18,7 @@ impl AccountsEndpoint {
 
         let mut resp = client
             .get(&format!("{}/me/accounts", &self.client.base_url))
-            .header(
-                "Authorization",
-                format!("Bearer {}", &self.client.app_access_token),
-            )
+            .header("Authorization", format!("Bearer {}", &self.client.app_access_token))
             .send()?;
         //        let status = resp.status();
         let value: serde_json::Value = resp.json()?;
