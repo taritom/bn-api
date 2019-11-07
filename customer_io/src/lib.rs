@@ -1,4 +1,4 @@
-use serde::{Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 use url::{ParseError, Url};
 use uuid::Uuid;

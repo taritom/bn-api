@@ -28,7 +28,9 @@ impl DomainActionExecutor for BroadcastPushNotificationExecutor {
 
 impl BroadcastPushNotificationExecutor {
     pub fn new(config: &Config) -> BroadcastPushNotificationExecutor {
-        BroadcastPushNotificationExecutor {template_id: Some(config.email_templates.custom_broadcast.template_id.clone())}
+        BroadcastPushNotificationExecutor {
+            template_id: Some(config.email_templates.custom_broadcast.template_id.clone()),
+        }
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
@@ -54,7 +56,10 @@ impl BroadcastPushNotificationExecutor {
 
         let audience = match audience_type {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
-            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn.get())?.iter().map(|th| th.0.clone()).collect(),
+            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn.get())?
+                .iter()
+                .map(|th| th.0.clone())
+                .collect(),
         };
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
@@ -89,7 +94,7 @@ impl BroadcastPushNotificationExecutor {
                             .cloned()
                             .collect(),
                         ),
-                        None
+                        None,
                     ))?,
                     Some(Tables::Events),
                     Some(action_data.event_id),

@@ -43,7 +43,7 @@ pub fn send_tickets(
         Some(vec![template_data]),
         Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]),
         Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
-        None
+        None,
     )
     .queue(conn)?;
 
