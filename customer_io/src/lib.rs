@@ -1,12 +1,3 @@
-//extern crate reqwest;
-//extern crate serde;
-//extern crate serde_derive;
-//extern crate serde_json;
-//extern crate url;
-//extern crate uuid;
-//#[macro_use]
-//extern crate derive_error;
-
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

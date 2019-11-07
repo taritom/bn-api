@@ -10,7 +10,11 @@ use tokio::prelude::*;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
-use utils::{customer_io_comm, expo};
+use utils::expo;
+use std::collections::HashMap;
+use customer_io;
+use uuid::Uuid;
+use bigneon_db::schema::venues::dsl::venues;
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -59,12 +63,11 @@ pub fn send_async(
                                             serde_json::from_str(template_id).unwrap();
                                         match template.provider {
                                             EmailProvider::CustomerIo => {
-                                                customer_io_comm::send_email_async(
+                                                customer_io_send_email_async(
                                                     config,
                                                     communication.destinations.addresses,
                                                     communication.title,
                                                     communication.body,
-                                                    communication.categories,
                                                     communication.extra_data,
                                                 )
                                             }
@@ -132,4 +135,60 @@ pub fn send_async(
             res
         }
     }
+}
+
+pub fn customer_io_send_email_async(
+    config: &Config,
+    dest_email_addresses: Vec<String>,
+    title: String,
+    body: Option<String>,
+    template_data: Option<HashMap<String, String>>,
+    event_id: Uuid,
+    conn: &PgConnection,
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
+    // new() try's to parse base url to URL
+    let client = match customer_io::CustomerIoClient::new(
+        config.customer_io.api_key.clone(),
+        config.customer_io.site_id.clone(),
+        &config.customer_io.base_url,
+    ) {
+        Ok(t) => t,
+        Err(err) => return Box::new(future::err(err.into())),
+    };
+
+    template_data.insert("subject".to_string(), "Test subject".to_string());
+    template_data.insert("message".to_string(), "Test Message".to_string());
+
+    let event = Event::find(event_id, conn)?;
+    // parse the venue address if venue
+    let venue_id = event.venue_id?;
+    let venue= Venue::find(venue_id, conn)?;
+
+    template_data.insert("show_venue_name".to_string(), json!(venue.name).to_string());
+    if start_datetime = venue.event_start?;
+
+    template_data.insert("show_start_date".to_string(), json!(start_datetime.date()).to_string());
+    template_data.insert("show_start_time".to_string(), json!(start_datetime.time()).to_string());
+
+    template_data.insert("show_venue_address".to_string(), json!(venue.address).to_string());
+    template_data.insert("show_venue_city".to_string(), json!(venue.city).to_string());
+    template_data.insert("show_venue_state".to_string(), json!(venue.state).to_string());
+    template_data.insert(
+        "show_venue_postal_code".to_string(),
+        json!(venue.postal_code).to_string(),
+    );
+
+    // loop dest_email_addresses, each email will be sent different email address
+    for email_address in dest_email_addresses {
+        let event = customer_io::Event {
+            name: "general_event_email".to_string(),
+            data: customer_io::EventData {
+                recipient: Some(email_address),
+                extra: template_data,
+            },
+        };
+        client.create_anonymous_event(event).unwrap();
+    }
+
+    Box::new(future::ok(()))
 }
