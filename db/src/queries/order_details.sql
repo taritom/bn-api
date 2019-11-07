@@ -24,11 +24,12 @@ FROM (
                 t.order_item_id                    AS order_item_id,
                 CASE
                     WHEN oi.item_type = 'EventFees' THEN 'Event Fees - ' || e.name
+                  WHEN oi.item_type = 'CreditCardFees' THEN 'Credit Card Fees'
                     ELSE e.name || ' - ' || tt.name
                     END                            AS description,
                 CASE
-                    WHEN oi.item_type = 'EventFees' THEN 0
-                    ELSE oi.unit_price_in_cents
+                    WHEN oi.item_type  = 'Tickets'
+                    THEN oi.unit_price_in_cents ELSE 0
                     END                            AS ticket_price_in_cents,
                 CASE
                     WHEN fi.unit_price_in_cents IS NULL THEN oi.company_fee_in_cents + oi.client_fee_in_cents
@@ -58,7 +59,7 @@ FROM (
                            SELECT NULL AS ticket_instance_id, oi.id AS order_item_id
                            FROM order_items oi
                            WHERE oi.order_id = $1
-                             AND oi.item_type = 'EventFees'
+                             AND oi.item_type in ('EventFees', 'CreditCardFees')
                            UNION
                            SELECT rt.ticket_instance_id, rt.order_item_id
                            FROM refunded_tickets rt
