@@ -25,7 +25,6 @@ AND o.settlement_id IS NULL
 AND o.status = 'Paid'
 AND oi.parent_id IS NULL
 AND (oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0)) > 0
-AND oi.quantity <> oi.refunded_quantity
 AND o.box_office_pricing IS FALSE;
 
 -- Add refund items to the order items temp table
@@ -35,15 +34,14 @@ FROM refunds r
 INNER JOIN refund_items ri ON ri.refund_id = r.id
 INNER JOIN order_items oi ON oi.id = ri.order_item_id
 INNER JOIN orders o on oi.order_id = o.id
-LEFT JOIN order_item_ids oids ON oi.id = oids.id
+LEFT JOIN order_item_ids oids ON oi.id = oids.id OR oi.parent_id = oids.id
 WHERE oi.event_id = $2
 AND (oi.item_type <> 'EventFees' OR oi.client_fee_in_cents > 0)
 AND oi.item_type <> 'CreditCardFees'
 AND r.created_at >= $3
 AND r.created_at <= $4
-AND o.settlement_id <> $1
+AND o.settlement_id is distinct from $1
 AND ri.amount > 0
-AND o.settlement_id IS NOT NULL
 AND r.settlement_id IS NULL
 AND oids.id IS NULL
 AND o.box_office_pricing IS FALSE;

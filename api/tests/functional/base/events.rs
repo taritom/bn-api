@@ -61,7 +61,7 @@ pub fn export_event_data(role: Roles, should_test_succeed: bool, past_or_upcomin
     if should_test_succeed {
         let response = response.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
+        assert_equiv!(
             expected_events,
             response.payload().data.iter().map(|i| i.id).collect::<Vec<Uuid>>()
         );
@@ -841,6 +841,7 @@ pub fn expected_show_json(
         slug: String,
         facebook_pixel_key: Option<String>,
         extra_admin_data: Option<Value>,
+        facebook_event_id: Option<String>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -944,6 +945,7 @@ pub fn expected_show_json(
         slug,
         facebook_pixel_key: None,
         extra_admin_data: None,
+        facebook_event_id: None,
     })
     .unwrap()
 }
