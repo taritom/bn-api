@@ -29,20 +29,18 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let organization = Organization::find_for_event(path.id, connection)?;
-
     let channel = json.channel.unwrap_or(BroadcastChannel::PushNotification);
-;
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
 
     let broadcast = Broadcast::create(
         path.id,
         json.notification_type.clone(),
-        json.channel.clone().unwrap_or(BroadcastChannel::PushNotification),
-        json.name.clone().unwrap_or(json.notification_type.to_string()),
+        channel,
         json.message.clone(),
         json.send_at,
         None,
+        json.subject.clone(),
         BroadcastAudience::PeopleAtTheEvent,
     )
     .commit(connection)?;

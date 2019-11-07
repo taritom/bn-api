@@ -1,7 +1,7 @@
-use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use actix_web::{http::StatusCode, HttpResponse, Path};
 use bigneon_api::controllers::broadcasts;
 use bigneon_api::models::PathParameters;
+use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use bigneon_db::models::*;
 use bigneon_db::prelude::Broadcast;
 use serde_json::Value;

@@ -43,6 +43,7 @@ pub fn send_tickets(
         Some(vec![template_data]),
         Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]),
         Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
+        None
     )
     .queue(conn)?;
 
@@ -94,6 +95,7 @@ pub fn transfer_drip_reminder(
         Some(vec![template_data]),
         Some(vec!["transfer", "transfer_receiver", "transfer_drip"]),
         None,
+        None,
     )
     .queue(conn)?;
 
@@ -133,6 +135,7 @@ pub fn transfer_sent_receipt(
             Some(vec![template_data]),
             Some(vec!["transfer", "transfer_sender", "transfer_confirmation"]),
             None,
+            None,
         )
         .queue(conn)?;
     }
@@ -167,6 +170,7 @@ pub fn transfer_cancelled_receipt(
         Some(vec![template_data]),
         Some(vec!["transfer", "transfer_receiver", "transfer_cancellation"]),
         None,
+        None,
     )
     .queue(conn)?;
 
@@ -200,6 +204,7 @@ pub fn transfer_cancelled(
         Some(template_id),
         Some(vec![template_data]),
         Some(vec!["transfer", "transfer_receiver", "transfer_cancellation"]),
+        None,
         None,
     )
     .queue(conn)?;

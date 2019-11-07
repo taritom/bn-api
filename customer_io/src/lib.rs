@@ -1,6 +1,4 @@
-use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::{Serialize};
 use std::collections::HashMap;
 use url::{ParseError, Url};
 use uuid::Uuid;
@@ -29,9 +27,7 @@ impl CustomerIoClient {
     }
 
     pub fn create_event(&self, event: Event, customer_id: Uuid) -> Result<(), CustomerIoError> {
-        let url = self
-            .base_url
-            .join(&format!("customers/{}/events", customer_id))?;
+        let url = self.base_url.join(&format!("customers/{}/events", customer_id))?;
         let response = reqwest::Client::new()
             .post(&url.to_string())
             .basic_auth(&self.site_id, Some(&self.api_key))
@@ -85,19 +81,13 @@ mod test {
         extra_data.insert("subject".to_string(), "Test subject".to_string());
         extra_data.insert("message".to_string(), "Test Message".to_string());
         extra_data.insert("show_event_name".to_string(), "Test Message".to_string());
-        extra_data.insert(
-            "show_start_date".to_string(),
-            "2019-11-15T12:21:11Z".to_string(),
-        );
+        extra_data.insert("show_start_date".to_string(), "2019-11-15T12:21:11Z".to_string());
         extra_data.insert("show_start_time".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_name".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_address".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_city".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_state".to_string(), "Test Message".to_string());
-        extra_data.insert(
-            "show_venue_postal_code".to_string(),
-            "Test Message".to_string(),
-        );
+        extra_data.insert("show_venue_postal_code".to_string(), "Test Message".to_string());
         //        if let Some(venue) = event.venue(conn)? {
         //            data.insert("show_venue_address".to_string(), json!(venue.address));
         //            data.insert("show_venue_city".to_string(), json!(venue.city));

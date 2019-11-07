@@ -73,7 +73,7 @@ impl Communication {
         template_data: Option<Vec<TemplateData>>,
         categories: Option<Vec<S>>,
         extra_data: Option<HashMap<String, String>>,
-        event_id: Option<Uuid>
+        event_id: Option<Uuid>,
     ) -> Communication {
         Communication {
             comm_type,
@@ -87,7 +87,7 @@ impl Communication {
             extra_data,
             main_table_id: None,
             main_table: None,
-            event_id
+            event_id,
         }
     }
 

@@ -1,18 +1,18 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
 use config::{Config, EmailTemplate};
+use customer_io;
 use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
-use log::Level::{Trace};
+use log::Level::Trace;
+use std::collections::HashMap;
 use tokio::prelude::*;
+use utils::expo;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
-use utils::expo;
-use std::collections::HashMap;
-use customer_io;
 use uuid::Uuid;
 
 pub fn send_async(
@@ -41,7 +41,13 @@ pub fn send_async(
                     let future = match communication.comm_type {
                         CommunicationType::EmailTemplate => {
                             if communication.template_id.is_none() {
-                                Box::new(future::err(ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string()).into()))
+                                Box::new(future::err(
+                                    ApplicationError::new(
+                                        "Template ID must be specified when communication type is EmailTemplate"
+                                            .to_string(),
+                                    )
+                                    .into(),
+                                ))
                             } else {
                                 let template_id = communication.template_id.as_ref().unwrap();
 
@@ -56,8 +62,7 @@ pub fn send_async(
 
                                     if template_id.contains("{") {
                                         // TODO: sort out this unwrap
-                                        let template: EmailTemplate =
-                                            serde_json::from_str(template_id).unwrap();
+                                        let template: EmailTemplate = serde_json::from_str(template_id).unwrap();
                                         match template.provider {
                                             EmailProvider::CustomerIo => {
                                                 match customer_io_send_email_async(
@@ -65,43 +70,30 @@ pub fn send_async(
                                                     communication.destinations.addresses,
                                                     communication.title,
                                                     communication.body,
-                                                    communication.extra_data,
-                                                    communication.event_id,
-                                                    conn
-                                                )
-                                                    {
-                                                        Ok(t) => t,
-                                                        Err(e) => return Either::A(future::err(e.into())),
-                                                        };
+                                                    communication.extra_data.unwrap(),
+                                                    communication.event_id.unwrap(),
+                                                    conn,
+                                                ) {
+                                                    Ok(_t) => Box::new(future::ok(())),
+                                                    Err(e) => return Either::A(future::err(e.into())),
                                                 }
-                                            EmailProvider::Sendgrid => {
-                                                sendgrid::send_email_template_async(
-                                                    &config.sendgrid_api_key,
-                                                    communication
-                                                        .source
-                                                        .as_ref()
-                                                        .unwrap()
-                                                        .get_first()
-                                                        .unwrap(),
-                                                    &destination_addresses,
-                                                    template_id.to_string(),
-                                                    communication.template_data.as_ref().unwrap(),
-                                                    communication.categories.clone(),
-                                                    communication.extra_data.clone(),
-                                                )
                                             }
+                                            EmailProvider::Sendgrid => sendgrid::send_email_template_async(
+                                                &config.sendgrid_api_key,
+                                                communication.source.as_ref().unwrap().get_first().unwrap(),
+                                                &destination_addresses,
+                                                template_id.to_string(),
+                                                communication.template_data.as_ref().unwrap(),
+                                                communication.categories.clone(),
+                                                communication.extra_data.clone(),
+                                            ),
                                         }
                                     } else {
                                         // Not json, assume sendgrid
 
                                         sendgrid::send_email_template_async(
                                             &config.sendgrid_api_key,
-                                            communication
-                                                .source
-                                                .as_ref()
-                                                .unwrap()
-                                                .get_first()
-                                                .unwrap(),
+                                            communication.source.as_ref().unwrap().get_first().unwrap(),
                                             &destination_addresses,
                                             communication.template_id.clone().unwrap(),
                                             communication.template_data.as_ref().unwrap(),
@@ -148,7 +140,7 @@ pub fn customer_io_send_email_async(
     mut template_data: HashMap<String, String>,
     event_id: Uuid,
     conn: &PgConnection,
-) -> Result<(), BigNeonError>{
+) -> Result<(), BigNeonError> {
     // new() try's to parse base url to URL
     let client = customer_io::CustomerIoClient::new(
         config.customer_io.api_key.clone(),
@@ -156,35 +148,34 @@ pub fn customer_io_send_email_async(
         &config.customer_io.base_url,
     )?;
 
-    template_data.insert("subject".to_string(), "Test subject".to_string());
-    template_data.insert("message".to_string(), "Test Message".to_string());
+    template_data.insert("subject".to_string(), title);
+
+    if let Some(b) = body {
+        template_data.insert("message".to_string(), b);
+    }
 
     let event = Event::find(event_id, conn)?;
     // parse the venue address if venue
-    let venue_id =  match event.venue_id {
+    let venue_id = match event.venue_id {
         Some(t) => t,
-        None => return Err(BigNeonError::from(ApplicationError::new_with_type(
-            ApplicationErrorType::ServerConfigError,
-            "event start date is not available".to_owned(),
-        ))),
-        _ => return Err(BigNeonError::from(ApplicationError::new_with_type(
-            ApplicationErrorType::ServerConfigError,
-            "event start date is not available".to_owned(),
-        ))),
+        None => {
+            return Err(BigNeonError::from(ApplicationError::new_with_type(
+                ApplicationErrorType::ServerConfigError,
+                "event start date is not available".to_owned(),
+            )))
+        }
     };
     let venue = Venue::find(venue_id, conn)?;
 
     template_data.insert("show_venue_name".to_string(), json!(venue.name).to_string());
-    let start_datetime = match event.event_start{
-            Some(t) => t,
-            None => return Err(BigNeonError::from(ApplicationError::new_with_type(
+    let start_datetime = match event.event_start {
+        Some(t) => t,
+        None => {
+            return Err(BigNeonError::from(ApplicationError::new_with_type(
                 ApplicationErrorType::ServerConfigError,
                 "event start date is not available".to_owned(),
-            ))),
-        _ => return Err(BigNeonError::from(ApplicationError::new_with_type(
-            ApplicationErrorType::ServerConfigError,
-            "event start date is not available".to_owned(),
-        ))),
+            )))
+        }
     };
 
     template_data.insert("show_start_date".to_string(), json!(start_datetime.date()).to_string());
@@ -204,7 +195,7 @@ pub fn customer_io_send_email_async(
             name: "general_event_email".to_string(),
             data: customer_io::EventData {
                 recipient: Some(email_address),
-                extra: template_data,
+                extra: template_data.clone(),
             },
         };
         client.create_anonymous_event(event).unwrap();

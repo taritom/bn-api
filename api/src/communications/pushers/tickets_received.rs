@@ -23,6 +23,7 @@ pub fn tickets_received(to_user: &User, from_user: &User, conn: &PgConnection) -
             None,
             Some(vec!["transfers"]),
             None,
+            None,
         )
         .queue(conn)?;
     }

@@ -1,4 +1,6 @@
 use bigneon_db::prelude::*;
+use config::Config;
+use controllers::broadcasts::BroadcastPushNotificationAction;
 use db::Connection;
 use domain_events::executor_future::ExecutorFuture;
 use domain_events::routing::DomainActionExecutor;
@@ -7,10 +9,10 @@ use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
 use validator::HasLen;
-use config::Config;
-use controllers::broadcasts::BroadcastPushNotificationAction;
 
-pub struct BroadcastPushNotificationExecutor {}
+pub struct BroadcastPushNotificationExecutor {
+    template_id: Option<String>,
+}
 
 impl DomainActionExecutor for BroadcastPushNotificationExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
@@ -26,7 +28,7 @@ impl DomainActionExecutor for BroadcastPushNotificationExecutor {
 
 impl BroadcastPushNotificationExecutor {
     pub fn new(config: &Config) -> BroadcastPushNotificationExecutor {
-        BroadcastPushNotificationExecutor {}
+        BroadcastPushNotificationExecutor {template_id: Some(config.email_templates.custom_broadcast.template_id.clone())}
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
@@ -52,6 +54,7 @@ impl BroadcastPushNotificationExecutor {
 
         let audience = match audience_type {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
+            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn.get())?.iter().map(|th| th.0.clone()).collect(),
         };
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
@@ -74,7 +77,7 @@ impl BroadcastPushNotificationExecutor {
                         None,
                         None,
                         CommAddress::from_vec(tokens),
-                        None,
+                        self.template_id.clone(),
                         None,
                         Some(vec!["broadcast"]),
                         Some(
@@ -82,15 +85,16 @@ impl BroadcastPushNotificationExecutor {
                                 ("broadcast_id".to_string(), broadcast.id.to_string()),
                                 ("event_id".to_string(), broadcast.event_id.to_string()),
                             ]
-                                .iter()
-                                .cloned()
-                                .collect(),
+                            .iter()
+                            .cloned()
+                            .collect(),
                         ),
+                        None
                     ))?,
                     Some(Tables::Events),
                     Some(action_data.event_id),
                 )
-                    .commit(conn.get())?;
+                .commit(conn.get())?;
             }
         }
 

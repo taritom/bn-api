@@ -251,9 +251,6 @@ impl Config {
         let communication_default_source_phone = env::var(&COMMUNICATION_DEFAULT_SOURCE_PHONE)
             .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_PHONE));
 
-        let sendgrid_api_key = env::var(&SENDGRID_API_KEY)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
-
         let val = env::var(&EMAIL_TEMPLATES_CUSTOM_BROADCAST)
             .unwrap_or_else(|_| panic!("{} must be defined", EMAIL_TEMPLATES_CUSTOM_BROADCAST));
         let custom_broadcast: Vec<&str> = val.as_str().split(':').collect_vec();
@@ -265,14 +262,14 @@ impl Config {
 
         let email_templates = EmailTemplates { custom_broadcast };
 
-        let customer_io_base_url = env::var(&CUSTOMER_IO_BASE_URL)
-            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_BASE_URL));
+        let customer_io_base_url =
+            env::var(&CUSTOMER_IO_BASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_BASE_URL));
 
-        let customer_io_api_key = env::var(&CUSTOMER_IO_API_KEY)
-            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_API_KEY));
+        let customer_io_api_key =
+            env::var(&CUSTOMER_IO_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_API_KEY));
 
-        let customer_io_site_id = env::var(&CUSTOMER_IO_SITE_ID)
-            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_SITE_ID));
+        let customer_io_site_id =
+            env::var(&CUSTOMER_IO_SITE_ID).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_SITE_ID));
 
         let customer_io = CustomerIoSettings {
             base_url: customer_io_base_url,
@@ -366,9 +363,7 @@ impl Config {
         let ssr_trigger_value = env::var(&SSR_TRIGGER_VALUE).unwrap_or("facebook".to_string());
 
         Config {
-            actix: Actix {
-                workers: actix_workers,
-            },
+            actix: Actix { workers: actix_workers },
             customer_io,
             allowed_origins,
             app_name,
