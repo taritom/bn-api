@@ -25,7 +25,6 @@ pub fn user_registered(
         Some(vec![template_data]),
         Some(vec!["user_registered", "account"]),
         None,
-        None,
     )
     .queue(conn)?;
 
@@ -56,7 +55,6 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
         Some(vec![template_data]),
         Some(vec!["password_reset", "account"]),
         None,
-        None,
     )
 }
 
@@ -84,7 +82,6 @@ pub fn invite_user_email(config: &Config, user: &User, conn: &PgConnection) -> R
         Some(template_id),
         Some(vec![template_data]),
         Some(vec!["user_invite", "account"]),
-        None,
         None,
     )
     .queue(conn)?;

@@ -14,7 +14,6 @@ use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
 pub struct NewBroadcastData {
-    // TODO: Should this change to subject?
     pub notification_type: BroadcastType,
     //None is now
     pub send_at: Option<NaiveDateTime>,
@@ -41,7 +40,7 @@ pub fn create(
         json.send_at,
         None,
         json.subject.clone(),
-        BroadcastAudience::PeopleAtTheEvent,
+        json.audience.clone(),
     )
     .commit(connection)?;
     Ok(HttpResponse::Created().json(json!(broadcast)))

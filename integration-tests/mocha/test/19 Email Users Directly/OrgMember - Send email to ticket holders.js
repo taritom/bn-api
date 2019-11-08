@@ -1,5 +1,6 @@
-
-const baseUrl = supertest(pm.environment.get("server"));
+const supertest = require('supertest');
+const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');
+const baseUrl = supertest(pm.environment.get('server'));
 const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
 var response;
 var responseBody;

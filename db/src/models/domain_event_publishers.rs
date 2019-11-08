@@ -231,7 +231,6 @@ impl DomainEventPublisher {
                 None,
                 Some(vec!["webhooks"]),
                 None,
-                None,
             );
             comms.main_table = Some(Tables::DomainEventPublishers);
             comms.main_table_id = Some(self.id);

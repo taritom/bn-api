@@ -44,7 +44,6 @@ pub struct Broadcast {
     pub opened_quantity: i64,
     pub subject: Option<String>,
     pub audience: BroadcastAudience,
-    // TODO: Make mocha test work
 }
 
 #[derive(AsChangeset, Default, Deserialize)]

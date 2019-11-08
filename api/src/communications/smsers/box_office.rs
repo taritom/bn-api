@@ -29,7 +29,6 @@ pub fn checkin_instructions(
         None,
         Some(vec!["box-office"]),
         None,
-        None,
     )
     .queue(conn)?;
 

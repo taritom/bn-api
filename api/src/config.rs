@@ -92,8 +92,8 @@ pub struct CustomerIoSettings {
     pub site_id: String,
 }
 
-const CUSTOMER_IO_API_KEY: &str = "";
-const CUSTOMER_IO_SITE_ID: &str = "";
+const CUSTOMER_IO_API_KEY: &str = "CUSTOMER_IO_API_KEY";
+const CUSTOMER_IO_SITE_ID: &str = "CUSTOMER_IO_SITE_ID";
 const CUSTOMER_IO_BASE_URL: &str = "CUSTOMER_IO_BASE_URL";
 const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";

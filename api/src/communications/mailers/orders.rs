@@ -125,7 +125,6 @@ pub fn confirmation_email(
         Some(vec![template_data]),
         Some(vec!["purchase".to_string()]),
         None,
-        None,
     ))
 }
 
@@ -237,7 +236,6 @@ pub fn refund_email(
         Some(template_id),
         Some(vec![template_data]),
         Some(vec!["refund"]),
-        None,
         None,
     )
     .queue(conn)?;

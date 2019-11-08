@@ -94,7 +94,6 @@ impl BroadcastPushNotificationExecutor {
                             .cloned()
                             .collect(),
                         ),
-                        None,
                     ))?,
                     Some(Tables::Events),
                     Some(action_data.event_id),

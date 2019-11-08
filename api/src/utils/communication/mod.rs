@@ -62,16 +62,19 @@ pub fn send_async(
 
                                     if template_id.contains("{") {
                                         // TODO: sort out this unwrap
+                                        let extra_data = communication.extra_data;
                                         let template: EmailTemplate = serde_json::from_str(template_id).unwrap();
                                         match template.provider {
                                             EmailProvider::CustomerIo => {
+                                                let extra_data = extra_data.unwrap();
+                                                let event_id = Uuid::parse_str(&extra_data["event_id"]).unwrap();
                                                 match customer_io_send_email_async(
                                                     config,
                                                     communication.destinations.addresses,
                                                     communication.title,
                                                     communication.body,
-                                                    communication.extra_data.unwrap(),
-                                                    communication.event_id.unwrap(),
+                                                    extra_data,
+                                                    event_id,
                                                     conn,
                                                 ) {
                                                     Ok(_t) => Box::new(future::ok(())),
@@ -85,7 +88,7 @@ pub fn send_async(
                                                 template_id.to_string(),
                                                 communication.template_data.as_ref().unwrap(),
                                                 communication.categories.clone(),
-                                                communication.extra_data.clone(),
+                                                extra_data,
                                             ),
                                         }
                                     } else {

@@ -67,16 +67,11 @@ pub struct EventData {
 #[cfg(test)]
 mod test {
     use super::*;
-    use uuid::UuidVersion;
 
     #[test]
     fn create_event() {
-        let client = CustomerIoClient::new(
-            "00b2b4c04c75c464136a".to_string(),
-            "3a5a4371136980a53bc3".to_string(),
-            "https://track.customer.io/api/v1/",
-        )
-        .unwrap();
+        let client =
+            CustomerIoClient::new("".to_string(), "".to_string(), "https://track.customer.io/api/v1/").unwrap();
         let mut extra_data = HashMap::new();
         extra_data.insert("subject".to_string(), "Test subject".to_string());
         extra_data.insert("message".to_string(), "Test Message".to_string());
@@ -88,22 +83,6 @@ mod test {
         extra_data.insert("show_venue_city".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_state".to_string(), "Test Message".to_string());
         extra_data.insert("show_venue_postal_code".to_string(), "Test Message".to_string());
-        //        if let Some(venue) = event.venue(conn)? {
-        //            data.insert("show_venue_address".to_string(), json!(venue.address));
-        //            data.insert("show_venue_city".to_string(), json!(venue.city));
-        //            data.insert("show_venue_state".to_string(), json!(venue.state));
-        //            data.insert("show_venue_country".to_string(), json!(venue.country));
-        //            data.insert(
-        //                "show_venue_postal_code".to_string(),
-        //                json!(venue.postal_code),
-        //            );
-        //            data.insert(
-        //                "show_venue_phone".to_string(),
-        //                json!(venue.phone.unwrap_or("".to_string())),
-        //            );
-        //            data.insert("show_venue_name".to_string(), json!(venue.name));
-        //            data.insert("show_timezone".to_string(), json!(venue.timezone));
-        //        }
 
         client
             .create_event(
@@ -122,12 +101,8 @@ mod test {
 
     #[test]
     fn create_anonymous_event() {
-        let client = CustomerIoClient::new(
-            "x".to_string(),
-            "x".to_string(),
-            "https://track.customer.io/api/v1/",
-        )
-        .unwrap();
+        let client =
+            CustomerIoClient::new("x".to_string(), "x".to_string(), "https://track.customer.io/api/v1/").unwrap();
         //                client.create_anonymous_event(Event { name: "general_event_email".to_string(),  }).unwrap();
         panic!("Asdf");
     }
