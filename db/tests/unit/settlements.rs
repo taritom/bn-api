@@ -249,7 +249,7 @@ fn create_post_event_entries() {
         dates::now().add_days(-14).finish(),
         dates::now().add_days(-7).finish(),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         true,
     )
     .commit(None, connection)
@@ -263,7 +263,7 @@ fn create_post_event_entries() {
         dates::now().add_days(-7).finish(),
         dates::now().finish(),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         true,
     )
     .commit(None, connection)
@@ -350,6 +350,180 @@ fn create_post_event_entries() {
     assert_eq!(event_fee_entry.online_sold_quantity, 0);
     assert_eq!(event_fee_entry.fee_sold_quantity, 5);
     assert_eq!(event_fee_entry.total_sales_in_cents, 750);
+}
+
+#[test]
+// Note this logic is only needed for a transitional period of time
+// Currently in production we're manually peforming settlement reports so order exist that have been
+// included in a settlement but not marked as such. The logic acts as though the orders prior to the
+// first rolling settlement are ignored as they are assumed to be already settled. If the organization
+// switches to post event settlements the logic sees there was a rolling previously and uses that date.
+fn rolling_to_post_event_settlement_hack_behavior() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_cc_fee(5f32)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .with_event_start(dates::now().add_days(-14).finish())
+        .with_event_end(dates::now().add_days(-1).finish())
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    // First order is from before the settlement period
+    let ancient_order = project.create_order().for_event(&event).is_paid().finish();
+    diesel::update(orders::table.filter(orders::id.eq(ancient_order.id)))
+        .set((orders::paid_at.eq(dates::now().add_days(-14).finish()),))
+        .execute(connection)
+        .unwrap();
+
+    // Second order is included in the first settlement period
+    let first_settlement_order = project.create_order().for_event(&event).is_paid().finish();
+    diesel::update(orders::table.filter(orders::id.eq(first_settlement_order.id)))
+        .set((orders::paid_at.eq(dates::now().add_days(-7).finish()),))
+        .execute(connection)
+        .unwrap();
+
+    // Third order is after the first settlement period
+    let mut second_settlement_order = project.create_order().for_event(&event).is_paid().finish();
+    diesel::update(orders::table.filter(orders::id.eq(second_settlement_order.id)))
+        .set((orders::paid_at.eq(dates::now().add_days(-2).finish()),))
+        .execute(connection)
+        .unwrap();
+
+    let items = second_settlement_order.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    let (refund, _) = second_settlement_order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
+        .set((refunds::created_at.eq(dates::now().add_days(-2).finish()),))
+        .execute(connection)
+        .unwrap();
+
+    // First settlement run as rolling
+    let settlement = Settlement::create(
+        organization.id,
+        dates::now().add_days(-10).finish(),
+        dates::now().add_days(-3).finish(),
+        SettlementStatus::PendingSettlement,
+        None,
+        false,
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let display_settlement = settlement.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    let event_entries_data = &display_settlement.event_entries[0];
+    let event_entries = &event_entries_data.entries;
+    assert_eq!(event_entries.len(), 2);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::TicketType && e.ticket_type_id == Some(ticket_type.id)
+        })
+        .unwrap();
+    assert_eq!(ticket_type_entry.settlement_id, settlement.id);
+    assert_eq!(ticket_type_entry.event_id, event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 150);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 30);
+    assert_eq!(ticket_type_entry.online_sold_quantity, 10);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, 10);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents
+            + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+    );
+    let event_fee_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::EventFees)
+        .unwrap();
+    assert_eq!(event_fee_entry.settlement_id, settlement.id);
+    assert_eq!(event_fee_entry.event_id, event.id);
+    assert_eq!(event_fee_entry.ticket_type_id, None);
+    assert_eq!(event_fee_entry.face_value_in_cents, 0);
+    assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 1);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 150);
+
+    // Then a post event settlement is run and only includes the third order and its refund
+    let settlement2 = Settlement::create(
+        organization.id,
+        dates::now().add_days(-3).finish(),
+        dates::now().finish(),
+        SettlementStatus::PendingSettlement,
+        None,
+        true,
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let display_settlement = settlement2.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    let event_entries_data = &display_settlement.event_entries[0];
+    let event_entries = &event_entries_data.entries;
+    assert_eq!(event_entries.len(), 2);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::TicketType && e.ticket_type_id == Some(ticket_type.id)
+        })
+        .unwrap();
+    assert_eq!(ticket_type_entry.settlement_id, settlement2.id);
+    assert_eq!(ticket_type_entry.event_id, event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 150);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 30);
+    assert_eq!(ticket_type_entry.online_sold_quantity, 9);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, 9);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents
+            + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+    );
+    let event_fee_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::EventFees)
+        .unwrap();
+    assert_eq!(event_fee_entry.settlement_id, settlement2.id);
+    assert_eq!(event_fee_entry.event_id, event.id);
+    assert_eq!(event_fee_entry.ticket_type_id, None);
+    assert_eq!(event_fee_entry.face_value_in_cents, 0);
+    assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 1);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 150);
+
+    // Reload orders and refunds to confirm correct settlement ids set
+    let ancient_order = Order::find(ancient_order.id, connection).unwrap();
+    assert_eq!(ancient_order.settlement_id, None);
+    let first_settlement_order = Order::find(first_settlement_order.id, connection).unwrap();
+    assert_eq!(first_settlement_order.settlement_id, Some(settlement.id));
+    let second_settlement_order = Order::find(second_settlement_order.id, connection).unwrap();
+    assert_eq!(second_settlement_order.settlement_id, Some(settlement2.id));
+    let refund = Refund::find(refund.id, connection).unwrap();
+    assert_eq!(refund.settlement_id, Some(settlement2.id));
 }
 
 #[test]
@@ -500,7 +674,7 @@ fn create_rolling_entries() {
         dates::now().add_days(-7).finish(),
         dates::now().finish(),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         false,
     )
     .commit(None, connection)
@@ -644,7 +818,7 @@ fn create_rolling_entries() {
         dates::now().finish(),
         dates::now().add_days(7).finish(),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         false,
     )
     .commit(None, connection)
@@ -715,7 +889,7 @@ fn create_rolling_entries() {
         dates::now().add_days(7).finish(),
         dates::now().add_days(14).finish(),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         false,
     )
     .commit(None, connection)
@@ -817,7 +991,7 @@ fn create_with_validation_errors() {
         NaiveDate::from_ymd(2020, 7, 8).and_hms(4, 10, 11),
         NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11),
         SettlementStatus::PendingSettlement,
-        Some("test comment".to_string()),
+        None,
         true,
     )
     .commit(None, connection);
