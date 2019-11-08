@@ -418,8 +418,7 @@ impl Organization {
     ) -> Result<Vec<Organization>, DatabaseError> {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
-            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
+            .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
             .filter(order_items::id.eq_any(order_item_ids))
             .select(organizations::all_columns)
             .order_by(organizations::name.asc())
