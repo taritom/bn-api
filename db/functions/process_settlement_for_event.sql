@@ -3,7 +3,17 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS process_settlement_for_event(settlement_id UUID, event_id UUID, start TIMESTAMP, "end" TIMESTAMP);
 CREATE OR REPLACE FUNCTION process_settlement_for_event(settlement_id UUID, event_id UUID, start TIMESTAMP, "end" TIMESTAMP) RETURNS void AS $$
+DECLARE
+  -- Override to handle swapping from rolling to post event in scenarios where settlements were manually processed prior (initial launch)
+  start_override timestamp;
 BEGIN
+
+SELECT CASE WHEN s.only_finished_events = true THEN NULL ELSE s.start_time END
+FROM settlements s
+JOIN organizations o ON o.id = (SELECT organization_id FROM settlements WHERE id = $1)
+ORDER BY s.created_at
+LIMIT 1
+INTO start_override;
 
 CREATE TEMP TABLE order_item_ids (
    id UUID,
@@ -17,6 +27,7 @@ INNER JOIN orders o on oi.order_id = o.id
 LEFT JOIN holds h ON oi.hold_id = h.id
 LEFT JOIN order_items oi_promo_code ON (oi_promo_code.item_type = 'Discount' AND oi.id = oi_promo_code.parent_id)
 WHERE ($3 IS NULL OR o.paid_at >= $3)
+AND (start_override IS NULL OR o.paid_at >= start_override)
 AND ($4 IS NULL OR o.paid_at <= $4)
 AND oi.event_id = $2
 AND (oi.item_type <> 'EventFees' OR oi.client_fee_in_cents > 0)
@@ -34,16 +45,15 @@ FROM refunds r
 INNER JOIN refund_items ri ON ri.refund_id = r.id
 INNER JOIN order_items oi ON oi.id = ri.order_item_id
 INNER JOIN orders o on oi.order_id = o.id
-LEFT JOIN order_item_ids oids ON oi.id = oids.id OR oi.parent_id = oids.id
 WHERE oi.event_id = $2
 AND (oi.item_type <> 'EventFees' OR oi.client_fee_in_cents > 0)
 AND oi.item_type <> 'CreditCardFees'
-AND r.created_at >= $3
-AND r.created_at <= $4
+AND (start_override IS NULL OR r.created_at >= start_override)
+AND ($3 IS NULL OR r.created_at >= $3)
+AND ($4 IS NULL OR r.created_at <= $4)
 AND o.settlement_id is distinct from $1
 AND ri.amount > 0
 AND r.settlement_id IS NULL
-AND oids.id IS NULL
 AND o.box_office_pricing IS FALSE;
 
 INSERT INTO settlement_entries (settlement_id, event_id, ticket_type_id, face_value_in_cents, revenue_share_value_in_cents, online_sold_quantity, fee_sold_quantity, total_sales_in_cents, settlement_entry_type)
@@ -72,7 +82,7 @@ FROM (
         CASE WHEN oi_r.quantity IS NOT NULL THEN
           CAST(-SUM(oi_r.quantity) AS BIGINT)
         ELSE
-          CAST(SUM(oi.quantity - oi.refunded_quantity) AS BIGINT)
+          CAST(SUM(oi.quantity) AS BIGINT)
         END
     END as online_sold_quantity,
     CASE oi.item_type
@@ -80,13 +90,13 @@ FROM (
         CASE WHEN oi_r.quantity IS NOT NULL THEN
           CAST(-SUM(oi_r.quantity) AS BIGINT)
         ELSE
-          CAST(SUM(oi.quantity - oi.refunded_quantity) AS BIGINT)
+          CAST(SUM(oi.quantity) AS BIGINT)
         END
       ELSE
         CASE WHEN oi_t_fees_r.quantity IS NOT NULL THEN
           CAST(-SUM(oi_t_fees_r.quantity) AS BIGINT)
         ELSE
-          CAST(SUM(COALESCE(oi_t_fees.quantity - oi_t_fees.refunded_quantity, 0)) AS BIGINT)
+          CAST(SUM(COALESCE(oi_t_fees.quantity, 0)) AS BIGINT)
         END
     END as fee_sold_quantity,
     CASE oi.item_type WHEN 'EventFees' THEN 'EventFees' ELSE 'TicketType' END as settlement_entry_type
@@ -129,7 +139,8 @@ FROM order_item_ids oi_ids
 JOIN order_items oi ON oi.id = oi_ids.id
 JOIN orders o ON oi.order_id = o.id
 WHERE orders.id = o.id
-AND orders.settlement_id IS NULL;
+AND orders.settlement_id IS NULL
+AND oi_ids.refund_id IS NULL;
 
 -- Update refunds that occurred during this settlement for orders in this settlement
 UPDATE refunds SET settlement_id = $1

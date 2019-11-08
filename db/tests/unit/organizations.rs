@@ -410,6 +410,7 @@ fn find_by_order_item_ids() {
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
+        .with_event_fee()
         .with_fees()
         .finish();
     let organization2 = project
@@ -468,6 +469,7 @@ fn find_by_order_item_ids() {
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type2.id))
         .unwrap();
+    let event_fee_order_item = items.iter().find(|i| i.item_type == OrderItemTypes::EventFees).unwrap();
 
     // Ticket belonging to only first event / organization
     let organizations = Organization::find_by_order_item_ids(&vec![order_item.id], connection).unwrap();
@@ -479,7 +481,11 @@ fn find_by_order_item_ids() {
 
     // Ticket belonging to both events / organizations
     let organizations = Organization::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection).unwrap();
-    assert_eq!(organizations, vec![organization, organization2]);
+    assert_eq!(organizations, vec![organization.clone(), organization2]);
+
+    // Event fee
+    let organizations = Organization::find_by_order_item_ids(&vec![event_fee_order_item.id], connection).unwrap();
+    assert_eq!(organizations, vec![organization]);
 }
 
 #[test]
