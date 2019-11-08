@@ -1,8 +1,8 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use models::*;
-use uuid::Uuid;
 use rand::prelude::*;
+use uuid::Uuid;
 
 use test::builders::event_builder::EventBuilder;
 
