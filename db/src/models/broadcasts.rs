@@ -48,7 +48,7 @@ pub struct Broadcast {
     pub audience: BroadcastAudience,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default, Deserialize, Debug)]
 #[table_name = "broadcasts"]
 pub struct BroadcastEditableAttributes {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]

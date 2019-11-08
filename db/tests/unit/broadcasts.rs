@@ -1,5 +1,4 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::Scopes::BoxOfficeTicketRead;
 use bigneon_db::prelude::*;
 use chrono::Utc;
 
@@ -16,6 +15,7 @@ fn new_broadcast_commit() {
         BroadcastType::LastCall,
         BroadcastChannel::PushNotification,
         "myname".to_string(),
+        None,
         Some(send_at),
         None,
         None,
@@ -49,7 +49,8 @@ fn new_custom_broadcast_commit() {
         event.id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
-        Option::from("Custom Name No Message".to_string()),
+        "Custom Name No Message".to_string(),
+        None,
         None,
         None,
         None,
@@ -62,7 +63,8 @@ fn new_custom_broadcast_commit() {
         event.id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
-        Option::from("Custom Name".to_string()),
+        "Custom Name".to_string(),
+        None,
         None,
         None,
         None,
@@ -138,6 +140,7 @@ fn broadcast_update() {
     let attributes = BroadcastEditableAttributes {
         notification_type: None,
         channel: None,
+        name: None,
         message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),
@@ -163,6 +166,7 @@ fn broadcast_update_if_cancelled() {
     let attributes = BroadcastEditableAttributes {
         notification_type: None,
         channel: None,
+        name: None,
         message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),
