@@ -15,7 +15,7 @@ fn new_broadcast_commit() {
         event.id,
         BroadcastType::LastCall,
         BroadcastChannel::PushNotification,
-        None,
+        "myname".to_string(),
         Some(send_at),
         None,
         None,

@@ -17,6 +17,7 @@ pub struct NewBroadcast {
     pub event_id: Uuid,
     pub notification_type: BroadcastType,
     pub channel: BroadcastChannel,
+    pub name: String,
     pub message: Option<String>,
     pub send_at: Option<NaiveDateTime>,
     pub status: BroadcastStatus,
@@ -34,6 +35,7 @@ pub struct Broadcast {
     pub event_id: Uuid,
     pub notification_type: BroadcastType,
     pub channel: BroadcastChannel,
+    pub name: String,
     pub message: Option<String>,
     pub send_at: Option<NaiveDateTime>,
     pub status: BroadcastStatus,
@@ -53,6 +55,8 @@ pub struct BroadcastEditableAttributes {
     pub notification_type: Option<BroadcastType>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub channel: Option<BroadcastChannel>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub name: Option<String>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub message: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
@@ -66,6 +70,7 @@ impl Broadcast {
         event_id: Uuid,
         notification_type: BroadcastType,
         channel: BroadcastChannel,
+        name: String,
         message: Option<String>,
         send_at: Option<NaiveDateTime>,
         status: Option<BroadcastStatus>,
@@ -76,6 +81,7 @@ impl Broadcast {
             event_id,
             notification_type,
             channel,
+            name,
             message,
             send_at,
             status: status.unwrap_or(BroadcastStatus::Pending),
@@ -146,6 +152,7 @@ impl Broadcast {
         let attributes: BroadcastEditableAttributes = BroadcastEditableAttributes {
             notification_type: None,
             channel: None,
+            name: None,
             message: None,
             send_at: None,
             status: Some(BroadcastStatus::Cancelled),

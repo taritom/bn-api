@@ -3,5 +3,3 @@ alter table broadcasts
     add audience varchar(100) not null default 'PeopleAtTheEvent';
 
 
-alter table broadcasts
-    drop name;

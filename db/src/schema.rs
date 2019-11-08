@@ -71,6 +71,7 @@ table! {
         event_id -> Uuid,
         notification_type -> Varchar,
         channel -> Varchar,
+        name -> Text,
         message -> Nullable<Text>,
         send_at -> Nullable<Timestamp>,
         status -> Varchar,

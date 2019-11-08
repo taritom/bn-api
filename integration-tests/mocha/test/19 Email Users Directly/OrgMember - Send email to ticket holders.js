@@ -19,7 +19,7 @@ let requestBody = {
     "message": "Dear [ticket_holder], Show has been cancelled",
     "audience": "TicketHolders",
     "channel": "Email",
-    "notification_type": "Custom"
+    "notification_type": "Custom",
 };
 
 
