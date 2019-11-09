@@ -130,6 +130,49 @@ impl DomainEvent {
                     DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
                 }
                 data.insert("webhook_event_type".to_string(), json!("purchase_ticket"));
+                data.insert("order_number".to_string(), json!(order.order_number()));
+                let user = order.user(conn)?;
+                data.insert("customer_email".to_string(), json!(user.email));
+                data.insert("customer_first_name".to_string(), json!(user.first_name));
+                data.insert("customer_last_name".to_string(), json!(user.last_name));
+
+                #[derive(Serialize)]
+                struct R {
+                    ticket_type: Option<String>,
+                    price: i64,
+                    quantity: i64,
+                    total: i64,
+                };
+
+                let mut count = 0;
+                let mut sub_total = 0;
+                let mut fees_total = 0;
+                let mut discount_total = 0;
+                let mut j_items = Vec::<R>::new();
+                for item in order.items(conn)? {
+                    let item_total = item.unit_price_in_cents * (item.quantity - item.refunded_quantity);
+                    j_items.push(R {
+                        ticket_type: item.ticket_type(conn)?.map(|tt| tt.name),
+                        price: item.unit_price_in_cents,
+                        quantity: item.quantity - item.refunded_quantity,
+                        total: item_total,
+                    });
+                    count = count + item.quantity - item.refunded_quantity;
+                    match item.item_type {
+                        OrderItemTypes::Tickets => sub_total = sub_total + item_total,
+                        OrderItemTypes::Discount => discount_total = discount_total + item_total,
+                        OrderItemTypes::PerUnitFees | OrderItemTypes::EventFees | OrderItemTypes::CreditCardFees => {
+                            fees_total = fees_total + item_total
+                        }
+                    }
+                }
+
+                data.insert("items".to_string(), json!(j_items));
+                data.insert("ticket_count".to_string(), json!(count));
+                data.insert("subtotal".to_string(), json!(sub_total));
+                data.insert("fees_total".to_string(), json!(fees_total));
+                data.insert("discount_total".to_string(), json!(discount_total));
+
                 data.insert(
                     "user_id".to_string(),
                     json!(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
