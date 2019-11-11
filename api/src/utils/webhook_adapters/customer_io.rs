@@ -37,25 +37,18 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
         let client = match payload.get("user_id").and_then(|u| u.as_str()) {
             Some(user_id) => {
                 if let Some(webhook_event_type) = payload.get("webhook_event_type").and_then(|w| w.as_str()) {
-                    let res = match webhook_event_type {
-                        "temporary_user_created" | "user_created" => client
-                            .put(&format!("https://track.customer.io/api/v1/customers/{}", user_id))
-                            .json(&payload),
+                    // For user created messages, send a pre event to create the user in customer.io
 
-                        _ => {
-                            //                            if !payload.has_element("name") {
-                            //                                payload.insert("name".to_string(), webhook_event_type.clone());
-                            //                            }
-                            client
-                                .post(&format!(
-                                    "https://track.customer.io/api/v1/customers/{}/events",
-                                    user_id
-                                ))
-                                .json(&json!({"name": webhook_event_type, "data": payload}))
-                        }
+                    if webhook_event_type == "temporary_user_created" || webhook_event_type == "user_created" {
+                        self.send_user_created_message(&payload, &user_id)?;
                     };
 
-                    res
+                    client
+                        .post(&format!(
+                            "https://track.customer.io/api/v1/customers/{}/events",
+                            user_id
+                        ))
+                        .json(&json!({"name": webhook_event_type, "data": payload}))
                 } else {
                     return Err(
                         ApplicationError::new("Cannot determine event to send to Customer.io".to_string()).into(),
@@ -65,25 +58,45 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
             None => client.post("https://track.customer.io/api/v1/events").json(&payload),
         };
 
+        self.send_request(client, &payload)?;
+
+        Ok(())
+    }
+}
+
+impl CustomerIoWebhookAdapter {
+    fn send_request(
+        &self,
+        client: reqwest::RequestBuilder,
+        payload: &HashMap<String, Value, RandomState>,
+    ) -> Result<(), BigNeonError> {
         jlog!(
             Debug,
             "bigneon::domain_actions",
             "Sending event/customer to customer.io",
             { "payload": &payload }
         );
-
         let mut resp = client
             .basic_auth(&self.site_id, Some(&self.api_key))
             .send()
             .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
-
         let text = resp
             .text()
             .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
-
         jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"text": text, "status": resp.status().to_string()});
         resp.error_for_status()?;
-
         Ok(())
+    }
+
+    fn send_user_created_message(
+        &self,
+        payload: &HashMap<String, Value, RandomState>,
+        user_id: &str,
+    ) -> Result<(), BigNeonError> {
+        let client = reqwest::Client::new();
+        let client = client
+            .put(&format!("https://track.customer.io/api/v1/customers/{}", user_id))
+            .json(&payload);
+        self.send_request(client, payload)
     }
 }
