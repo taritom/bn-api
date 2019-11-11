@@ -1,4 +1,5 @@
 use actix_web::error;
+use actix_web::http::header;
 use actix_web::http::StatusCode;
 use actix_web::middleware::Finished;
 use actix_web::middleware::Logger;
@@ -30,6 +31,12 @@ impl Middleware<AppState> for BigNeonLogger {
         let ip_address = req.connection_info().remote().map(|i| i.to_string());
         let uri = req.uri().to_string();
         let method = req.method().to_string();
+        let user_agent = if let Some(ua) = req.headers().get(header::USER_AGENT) {
+            let s = ua.to_str().unwrap_or("");
+            Some(s.to_string())
+        } else {
+            None
+        };
         if uri != "/status" {
             jlog!(
                 Level::Info,
@@ -40,6 +47,7 @@ impl Middleware<AppState> for BigNeonLogger {
                     "ip_address": ip_address,
                     "uri": uri,
                     "method": method,
+                    "user_agent": user_agent,
                     "api_version": env!("CARGO_PKG_VERSION")
             });
         }
@@ -61,6 +69,12 @@ impl Middleware<AppState> for BigNeonLogger {
                 } else {
                     Level::Error
                 };
+                let user_agent = if let Some(ua) = req.headers().get(header::USER_AGENT) {
+                    let s = ua.to_str().unwrap_or("");
+                    Some(s.to_string())
+                } else {
+                    None
+                };
 
                 jlog!(
                     level,
@@ -71,7 +85,8 @@ impl Middleware<AppState> for BigNeonLogger {
                         "ip_address": ip_address,
                         "uri": uri,
                         "method": method,
-                        "api_version": env!("CARGO_PKG_VERSION")
+                        "api_version": env!("CARGO_PKG_VERSION"),
+                        "user_agent": user_agent
                 });
 
                 Finished::Done

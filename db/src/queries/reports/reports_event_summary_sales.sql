@@ -34,11 +34,11 @@ FROM (
                                   FILTER (WHERE orders.on_behalf_of_user_id IS NULL and
                                                 (h.hold_type is null or h.hold_type != 'Comp')),
                               0) AS BIGINT)            AS online_count,
-                CAST(AVG(oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0)
-                              ) AS BIGINT) AS price_in_cents, -- face price
-                CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.company_fee_in_cents),
+                CAST(oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents,
+                              0) AS BIGINT) AS price_in_cents, -- face price
+                CAST(COALESCE(SUM((oi_fees.quantity - oi_fees.refunded_quantity) * oi_fees.company_fee_in_cents),
                               0) AS BIGINT)            AS total_company_fee_in_cents,
-                CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.client_fee_in_cents),
+                CAST(COALESCE(SUM((oi_fees.quantity - oi_fees.refunded_quantity) * oi_fees.client_fee_in_cents),
                               0) AS BIGINT)            AS total_client_fee_in_cents,
                 CAST(COALESCE(SUM(((oi.quantity - oi.refunded_quantity) * oi.unit_price_in_cents)) + SUM(
                     ((COALESCE(oi_promo_code.quantity, 0) - COALESCE(oi_promo_code.refunded_quantity, 0)) *
