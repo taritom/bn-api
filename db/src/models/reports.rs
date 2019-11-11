@@ -36,6 +36,8 @@ pub struct TicketSalesRow {
     pub ticket_pricing_name: Option<String>,
     #[sql_type = "Nullable<BigInt>"]
     pub ticket_pricing_price_in_cents: Option<i64>,
+    #[sql_type = "BigInt"]
+    pub client_online_fees_in_cents: i64,
     #[sql_type = "Nullable<BigInt>"]
     pub promo_code_discounted_ticket_price: Option<i64>,
     #[sql_type = "BigInt"]
@@ -60,6 +62,8 @@ pub struct TicketSalesRow {
     #[sql_type = "BigInt"]
     pub online_sale_count: i64,
     #[sql_type = "BigInt"]
+    pub online_fee_count: i64,
+    #[sql_type = "BigInt"]
     pub comp_sale_count: i64,
     #[sql_type = "BigInt"]
     pub total_box_office_fees_in_cents: i64,
@@ -71,8 +75,6 @@ pub struct TicketSalesRow {
     pub client_box_office_fees_in_cents: i64,
     #[sql_type = "BigInt"]
     pub company_online_fees_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub client_online_fees_in_cents: i64,
     #[sql_type = "BigInt"]
     pub per_order_company_online_fees: i64,
     #[sql_type = "BigInt"]
