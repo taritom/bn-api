@@ -1,6 +1,6 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
-use config::{Config, EmailTemplate};
+use config::{Config};
 use customer_io;
 use diesel::PgConnection;
 use errors::*;
@@ -58,30 +58,32 @@ pub fn send_async(
                                     });
                                     Box::new(future::ok(()))
                                 } else {
-                                    // Check for provider. If no provider, then assume the old setting of Sendgrid
+                                    let extra_data = communication.extra_data;
+                                    // Check for provider. Sendgrid templates start with "d-".
+                                    // TODO: Make a better distinguisher.
 
-                                    if template_id.contains("{") {
-                                        // TODO: sort out this unwrap
-                                        let extra_data = communication.extra_data;
-                                        let template: EmailTemplate = serde_json::from_str(template_id).unwrap();
-                                        match template.provider {
-                                            EmailProvider::CustomerIo => {
-                                                let extra_data = extra_data.unwrap();
-                                                let event_id = Uuid::parse_str(&extra_data["event_id"]).unwrap();
-                                                match customer_io_send_email_async(
-                                                    config,
-                                                    communication.destinations.addresses,
-                                                    communication.title,
-                                                    communication.body,
-                                                    extra_data,
-                                                    event_id,
-                                                    conn,
-                                                ) {
-                                                    Ok(_t) => Box::new(future::ok(())),
-                                                    Err(e) => return Either::A(future::err(e.into())),
-                                                }
+                                    if !template_id.starts_with("d-") {
+
+                                            // Customer IO
+                                            let extra_data = extra_data.unwrap();
+
+                                            let event_id = domain_action.main_table_id.unwrap();
+                                            match customer_io_send_email_async(
+                                                config,
+                                                communication.destinations.addresses,
+                                                communication.title,
+                                                communication.body,
+                                                extra_data,
+                                                event_id,
+                                                conn,
+                                            ) {
+                                                Ok(_t) => Box::new(future::ok(())),
+                                                Err(e) => return Either::A(future::err(e.into())),
                                             }
-                                            EmailProvider::Sendgrid => sendgrid::send_email_template_async(
+                                    }
+                                        else {
+                                            // sendgrid
+                                            sendgrid::send_email_template_async(
                                                 &config.sendgrid_api_key,
                                                 communication.source.as_ref().unwrap().get_first().unwrap(),
                                                 &destination_addresses,
@@ -89,21 +91,9 @@ pub fn send_async(
                                                 communication.template_data.as_ref().unwrap(),
                                                 communication.categories.clone(),
                                                 extra_data,
-                                            ),
+                                            )
                                         }
-                                    } else {
-                                        // Not json, assume sendgrid
 
-                                        sendgrid::send_email_template_async(
-                                            &config.sendgrid_api_key,
-                                            communication.source.as_ref().unwrap().get_first().unwrap(),
-                                            &destination_addresses,
-                                            communication.template_id.clone().unwrap(),
-                                            communication.template_data.as_ref().unwrap(),
-                                            communication.categories.clone(),
-                                            communication.extra_data.clone(),
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -170,7 +160,8 @@ pub fn customer_io_send_email_async(
     };
     let venue = Venue::find(venue_id, conn)?;
 
-    template_data.insert("show_venue_name".to_string(), json!(venue.name).to_string());
+    template_data.insert("show_name".to_string(), event.name.clone());
+    template_data.insert("show_venue_name".to_string(), venue.name.clone());
     let start_datetime = match event.event_start {
         Some(t) => t,
         None => {
@@ -181,15 +172,15 @@ pub fn customer_io_send_email_async(
         }
     };
 
-    template_data.insert("show_start_date".to_string(), json!(start_datetime.date()).to_string());
-    template_data.insert("show_start_time".to_string(), json!(start_datetime.time()).to_string());
+    template_data.insert("show_start_date".to_string(), start_datetime.date().to_string());
+    template_data.insert("show_start_time".to_string(), start_datetime.time().to_string());
 
-    template_data.insert("show_venue_address".to_string(), json!(venue.address).to_string());
-    template_data.insert("show_venue_city".to_string(), json!(venue.city).to_string());
-    template_data.insert("show_venue_state".to_string(), json!(venue.state).to_string());
+    template_data.insert("show_venue_address".to_string(), venue.address.to_string());
+    template_data.insert("show_venue_city".to_string(), venue.city.to_string());
+    template_data.insert("show_venue_state".to_string(), venue.state.to_string());
     template_data.insert(
         "show_venue_postal_code".to_string(),
-        json!(venue.postal_code).to_string(),
+        venue.postal_code.to_string(),
     );
 
     // loop dest_email_addresses, each email will be sent different email address

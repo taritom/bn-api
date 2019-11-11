@@ -1,7 +1,7 @@
 use bigneon_db::prelude::*;
 use config::Config;
-use controllers::broadcasts::BroadcastPushNotificationAction;
 use db::Connection;
+use diesel::PgConnection;
 use domain_events::executor_future::ExecutorFuture;
 use domain_events::routing::DomainActionExecutor;
 use errors::*;
@@ -34,17 +34,17 @@ impl BroadcastPushNotificationExecutor {
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
-        let action_data: BroadcastPushNotificationAction = serde_json::from_value(action.payload.clone())?;
+        let conn = conn.get();
         let broadcast_id = action.main_table_id.ok_or(ApplicationError::new(
             "No broadcast id attached to domain action".to_string(),
         ))?;
-        let broadcast = Broadcast::find(broadcast_id, conn.get())?;
+        let broadcast = Broadcast::find(broadcast_id, conn)?;
         if broadcast.status == BroadcastStatus::Cancelled {
             return Ok(());
         }
 
-        let broadcast = broadcast.set_in_progress(conn.get())?;
-        let message = broadcast.message;
+        let broadcast = broadcast.set_in_progress(conn)?;
+        let message = broadcast.message.clone();
         let message = message.unwrap_or("".to_string());
         let (audience_type, message) = match broadcast.notification_type {
             BroadcastType::LastCall => (
@@ -55,53 +55,109 @@ impl BroadcastPushNotificationExecutor {
         };
 
         let audience = match audience_type {
-            BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
-            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn.get())?
-                .iter()
-                .map(|th| th.0.clone())
-                .collect(),
+            BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn)?
+                .into_iter()
+                .map(|u| (u, Vec::new(), None))
+                .collect_vec(),
+            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn)?,
         };
 
-        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
+        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
-        for user in audience {
-            let tokens = user
-                .push_notification_tokens(conn.get())?
-                .into_iter()
-                .map(|pt| pt.token)
-                .collect_vec();
-
-            if tokens.len() > 0 {
-                DomainAction::create(
-                    None,
-                    DomainActionTypes::Communication,
-                    Some(CommunicationChannelType::Push),
-                    serde_json::to_value(Communication::new(
-                        CommunicationType::Push,
-                        message.to_string(),
-                        None,
-                        None,
-                        CommAddress::from_vec(tokens),
-                        self.template_id.clone(),
-                        None,
-                        Some(vec!["broadcast"]),
-                        Some(
-                            [
-                                ("broadcast_id".to_string(), broadcast.id.to_string()),
-                                ("event_id".to_string(), broadcast.event_id.to_string()),
-                            ]
-                            .iter()
-                            .cloned()
-                            .collect(),
-                        ),
-                    ))?,
-                    Some(Tables::Events),
-                    Some(action_data.event_id),
-                )
-                .commit(conn.get())?;
+        for (user, _tickets, _order_no) in audience {
+            match broadcast.channel {
+                BroadcastChannel::PushNotification => {
+                    queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
+                }
+                BroadcastChannel::Email => queue_email_notification(
+                    &broadcast,
+                    conn,
+                    self.template_id.clone(),
+                    message.to_string(),
+                    &user,
+                )?,
             }
         }
 
         Ok(())
     }
+}
+fn queue_push_notification(
+    broadcast: &Broadcast,
+    message: String,
+    user: &User,
+    conn: &PgConnection,
+) -> Result<(), BigNeonError> {
+    let tokens = user
+        .push_notification_tokens(conn)?
+        .into_iter()
+        .map(|pt| pt.token)
+        .collect_vec();
+
+    if tokens.len() > 0 {
+        DomainAction::create(
+            None,
+            DomainActionTypes::Communication,
+            Some(CommunicationChannelType::Push),
+            serde_json::to_value(Communication::new(
+                CommunicationType::Push,
+                message,
+                None,
+                None,
+                CommAddress::from_vec(tokens),
+                None,
+                None,
+                Some(vec!["broadcast"]),
+                Some(
+                    [("broadcast_id".to_string(), broadcast.id.to_string())]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                ),
+            ))?,
+            Some(Tables::Events),
+            Some(broadcast.event_id),
+        )
+        .commit(conn)?;
+    }
+
+    Ok(())
+}
+
+fn queue_email_notification(
+    broadcast: &Broadcast,
+    conn: &PgConnection,
+    template_id: Option<String>,
+    message: String,
+    user: &User,
+) -> Result<(), BigNeonError> {
+    if user.email.is_none() {
+        return Ok(());
+    }
+
+    DomainAction::create(
+        None,
+        DomainActionTypes::Communication,
+        Some(CommunicationChannelType::Email),
+        serde_json::to_value(Communication::new(
+            CommunicationType::EmailTemplate,
+            broadcast.subject.as_ref().unwrap_or(&broadcast.name).to_string(),
+            Some(message),
+            None,
+            CommAddress::from(user.email.clone().unwrap()),
+            template_id,
+            None,
+            Some(vec!["broadcast"]),
+            Some(
+                [("broadcast_id".to_string(), broadcast.id.to_string()), ("event_id".to_string(), broadcast.event_id.to_string())]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            ),
+        ))?,
+        Some(Tables::Events),
+        Some(broadcast.event_id),
+    )
+    .commit(conn)?;
+    Ok(())
 }
