@@ -2344,7 +2344,7 @@ fn find_all_events_for_organization() {
         connection,
     )
     .unwrap();
-    assert_equiv!(events.data, vec![past_event.summary(connection).unwrap()]);
+    assert_eq!(events.data, vec![past_event.summary(connection).unwrap()]);
     assert_eq!(events.paging.total, 1);
 
     // Upcoming (current, future) events
