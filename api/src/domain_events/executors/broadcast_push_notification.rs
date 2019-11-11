@@ -69,13 +69,9 @@ impl BroadcastPushNotificationExecutor {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
                 }
-                BroadcastChannel::Email => queue_email_notification(
-                    &broadcast,
-                    conn,
-                    self.template_id.clone(),
-                    message.to_string(),
-                    &user,
-                )?,
+                BroadcastChannel::Email => {
+                    queue_email_notification(&broadcast, conn, self.template_id.clone(), message.to_string(), &user)?
+                }
             }
         }
 
@@ -149,10 +145,13 @@ fn queue_email_notification(
             None,
             Some(vec!["broadcast"]),
             Some(
-                [("broadcast_id".to_string(), broadcast.id.to_string()), ("event_id".to_string(), broadcast.event_id.to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                [
+                    ("broadcast_id".to_string(), broadcast.id.to_string()),
+                    ("event_id".to_string(), broadcast.event_id.to_string()),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
             ),
         ))?,
         Some(Tables::Events),
