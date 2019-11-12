@@ -23,7 +23,7 @@ fn broadcast_counter() {
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
         "Name".to_string(),
-        None,
+        Option::from("message".to_string()),
         None,
         None,
         None,
