@@ -1,6 +1,6 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
-use config::Config;
+use config::{Config, EmailTemplate};
 use customer_io;
 use diesel::PgConnection;
 use errors::*;
@@ -19,7 +19,7 @@ pub fn send_async(
     domain_action: &DomainAction,
     config: &Config,
     conn: &PgConnection,
-) -> impl Future<Item = (), Error = BigNeonError> {
+) -> impl Future<Item=(), Error=BigNeonError> {
     let communication: Communication = match serde_json::from_value(domain_action.payload.clone()) {
         Ok(v) => v,
         Err(e) => return Either::A(future::err(e.into())),
@@ -70,57 +70,61 @@ fn send_email_template(
     conn: &PgConnection,
     communication: Communication,
     destination_addresses: &Vec<String>,
-) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item=(), Error=BigNeonError>> {
     if communication.template_id.is_none() {
-        Box::new(future::err(
+        return Box::new(future::err(
             ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string())
                 .into(),
-        ))
-    } else {
-        let template_id = communication.template_id.as_ref().unwrap();
+        ));
+    }
+    let template_id = communication.template_id.as_ref().unwrap();
 
-        // Short circuit logic if communication template and template is blank
-        if template_id == "" {
-            jlog!(Trace, "Blocked communication, blank template ID", {
+    // Short circuit logic if communication template and template is blank
+    if template_id == "" {
+        jlog!(Trace, "Blocked communication, blank template ID", {
                 "communication": communication
             });
-            Box::new(future::ok(()))
-        } else {
-            let extra_data = communication.extra_data;
-            // Check for provider. Sendgrid templates start with "d-".
-            // TODO: Make a better distinguisher.
-
-            if !template_id.starts_with("d-") {
-                // Customer IO
-                let extra_data = extra_data.unwrap();
-
-                let event_id = domain_action.main_table_id.unwrap();
-                match customer_io_send_email_async(
-                    config,
-                    communication.destinations.addresses,
-                    communication.title,
-                    communication.body,
-                    extra_data,
-                    event_id,
-                    conn,
-                ) {
-                    Ok(_t) => Box::new(future::ok(())),
-                    Err(e) => return Box::new(future::err(e.into())),
-                }
-            } else {
-                // sendgrid
-                sendgrid::send_email_template_async(
-                    &config.sendgrid_api_key,
-                    communication.source.as_ref().unwrap().get_first().unwrap(),
-                    &destination_addresses,
-                    template_id.to_string(),
-                    communication.template_data.as_ref().unwrap(),
-                    communication.categories.clone(),
-                    extra_data,
-                )
-            }
-        }
+        return Box::new(future::ok(()));
     }
+    let extra_data = communication.extra_data;
+    // Check for provider. Sendgrid templates start with "d-".
+
+    let template  = if !template_id.starts_with("d-") { EmailTemplate { provider:
+        EmailProvider::Sendgrid, template_id: template_id.clone() } else {
+
+        template_id.parse()?
+    };
+
+        match template.provider {
+            EmailProviders::CustomerIo => let extra_data = extra_data.unwrap();
+
+            let event_id = domain_action.main_table_id.unwrap();
+            match customer_io_send_email_async(
+                config,
+                communication.destinations.addresses,
+                communication.title,
+                communication.body,
+                extra_data,
+                event_id,
+                conn,
+            ) {
+            Ok(_t) => Box::new(future::ok(())),
+            Err(e) => return Box::new(future::err(e.into())),
+        }},
+        EmailProvider::Sendgrid => {
+            // sendgrid
+            sendgrid::send_email_template_async(
+                &config.sendgrid_api_key,
+                communication.source.as_ref().unwrap().get_first().unwrap(),
+                &destination_addresses,
+                template_id.to_string(),
+                communication.template_data.as_ref().unwrap(),
+                communication.categories.clone(),
+                extra_data,
+            )
+        }
+        // Customer IO
+
 }
 
 pub fn customer_io_send_email_async(
