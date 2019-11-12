@@ -106,4 +106,4 @@ pub struct EventData {
 //        //                client.create_anonymous_event(Event { name: "general_event_email".to_string(),  }).unwrap();
 //        panic!("Asdf");
 //    }
-}
+//}
