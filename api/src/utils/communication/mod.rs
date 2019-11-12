@@ -25,99 +25,100 @@ pub fn send_async(
         Err(e) => return Either::A(future::err(e.into())),
     };
 
-    match config.environment {
-        //TODO Maybe remove this environment check and just rely on the BLOCK_EXTERNAL_COMMS .env
-        Environment::Test => Either::A(future::ok(())), //Disable communication system when testing
-        _ => {
-            let res = match config.block_external_comms {
-                true => {
-                    jlog!(Trace, "Blocked communication", { "communication": communication });
+    if config.environment == Environment::Test {
+        return Either::A(future::ok(()));
+    }
 
-                    Either::A(future::ok(()))
+    if config.block_external_comms {
+        jlog!(Trace, "Blocked communication", { "communication": communication });
+
+        return Either::A(future::ok(()));
+    };
+
+    let destination_addresses = communication.destinations.get();
+
+    let future = match communication.comm_type {
+        CommunicationType::EmailTemplate => {
+            send_email_template(domain_action, &config, conn, communication, &destination_addresses)
+        }
+        CommunicationType::Sms => twilio::send_sms_async(
+            &config.twilio_account_id,
+            &config.twilio_api_key,
+            communication.source.as_ref().unwrap().get_first().unwrap(),
+            destination_addresses,
+            &communication.body.unwrap_or(communication.title),
+        ),
+        CommunicationType::Push => expo::send_push_notification_async(
+            &destination_addresses,
+            &communication.body.unwrap_or(communication.title),
+            Some(json!(communication.extra_data.clone())),
+        ),
+        CommunicationType::Webhook => webhook::send_webhook_async(
+            &destination_addresses,
+            &communication.body.unwrap_or(communication.title),
+            domain_action.main_table_id,
+            conn,
+            &config,
+        ),
+    };
+    Either::B(future)
+}
+
+fn send_email_template(
+    domain_action: &DomainAction,
+    config: &Config,
+    conn: &PgConnection,
+    communication: Communication,
+    destination_addresses: &Vec<String>,
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
+    if communication.template_id.is_none() {
+        Box::new(future::err(
+            ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string())
+                .into(),
+        ))
+    } else {
+        let template_id = communication.template_id.as_ref().unwrap();
+
+        // Short circuit logic if communication template and template is blank
+        if template_id == "" {
+            jlog!(Trace, "Blocked communication, blank template ID", {
+                "communication": communication
+            });
+            Box::new(future::ok(()))
+        } else {
+            let extra_data = communication.extra_data;
+            // Check for provider. Sendgrid templates start with "d-".
+            // TODO: Make a better distinguisher.
+
+            if !template_id.starts_with("d-") {
+                // Customer IO
+                let extra_data = extra_data.unwrap();
+
+                let event_id = domain_action.main_table_id.unwrap();
+                match customer_io_send_email_async(
+                    config,
+                    communication.destinations.addresses,
+                    communication.title,
+                    communication.body,
+                    extra_data,
+                    event_id,
+                    conn,
+                ) {
+                    Ok(_t) => Box::new(future::ok(())),
+                    Err(e) => return Box::new(future::err(e.into())),
                 }
-                _ => {
-                    let destination_addresses = communication.destinations.get();
-
-                    let future = match communication.comm_type {
-                        CommunicationType::EmailTemplate => {
-                            if communication.template_id.is_none() {
-                                Box::new(future::err(
-                                    ApplicationError::new(
-                                        "Template ID must be specified when communication type is EmailTemplate"
-                                            .to_string(),
-                                    )
-                                    .into(),
-                                ))
-                            } else {
-                                let template_id = communication.template_id.as_ref().unwrap();
-
-                                // Short circuit logic if communication template and template is blank
-                                if template_id == "" {
-                                    jlog!(Trace, "Blocked communication, blank template ID", {
-                                        "communication": communication
-                                    });
-                                    Box::new(future::ok(()))
-                                } else {
-                                    let extra_data = communication.extra_data;
-                                    // Check for provider. Sendgrid templates start with "d-".
-                                    // TODO: Make a better distinguisher.
-
-                                    if !template_id.starts_with("d-") {
-                                        // Customer IO
-                                        let extra_data = extra_data.unwrap();
-
-                                        let event_id = domain_action.main_table_id.unwrap();
-                                        match customer_io_send_email_async(
-                                            config,
-                                            communication.destinations.addresses,
-                                            communication.title,
-                                            communication.body,
-                                            extra_data,
-                                            event_id,
-                                            conn,
-                                        ) {
-                                            Ok(_t) => Box::new(future::ok(())),
-                                            Err(e) => return Either::A(future::err(e.into())),
-                                        }
-                                    } else {
-                                        // sendgrid
-                                        sendgrid::send_email_template_async(
-                                            &config.sendgrid_api_key,
-                                            communication.source.as_ref().unwrap().get_first().unwrap(),
-                                            &destination_addresses,
-                                            template_id.to_string(),
-                                            communication.template_data.as_ref().unwrap(),
-                                            communication.categories.clone(),
-                                            extra_data,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        CommunicationType::Sms => twilio::send_sms_async(
-                            &config.twilio_account_id,
-                            &config.twilio_api_key,
-                            communication.source.as_ref().unwrap().get_first().unwrap(),
-                            destination_addresses,
-                            &communication.body.unwrap_or(communication.title),
-                        ),
-                        CommunicationType::Push => expo::send_push_notification_async(
-                            &destination_addresses,
-                            &communication.body.unwrap_or(communication.title),
-                            Some(json!(communication.extra_data.clone())),
-                        ),
-                        CommunicationType::Webhook => webhook::send_webhook_async(
-                            &destination_addresses,
-                            &communication.body.unwrap_or(communication.title),
-                            domain_action.main_table_id,
-                            conn,
-                            &config,
-                        ),
-                    };
-                    Either::B(future)
-                }
-            };
-            res
+            } else {
+                // sendgrid
+                sendgrid::send_email_template_async(
+                    &config.sendgrid_api_key,
+                    communication.source.as_ref().unwrap().get_first().unwrap(),
+                    &destination_addresses,
+                    template_id.to_string(),
+                    communication.template_data.as_ref().unwrap(),
+                    communication.categories.clone(),
+                    extra_data,
+                )
+            }
         }
     }
 }
@@ -152,7 +153,7 @@ pub fn customer_io_send_email_async(
             return Err(BigNeonError::from(ApplicationError::new_with_type(
                 ApplicationErrorType::ServerConfigError,
                 "event start date is not available".to_owned(),
-            )))
+            )));
         }
     };
     let venue = Venue::find(venue_id, conn)?;
@@ -165,7 +166,7 @@ pub fn customer_io_send_email_async(
             return Err(BigNeonError::from(ApplicationError::new_with_type(
                 ApplicationErrorType::ServerConfigError,
                 "event start date is not available".to_owned(),
-            )))
+            )));
         }
     };
 
