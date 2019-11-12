@@ -45,26 +45,12 @@ fn new_custom_broadcast_commit() {
     let conn = project.get_connection();
     let event = project.create_event().finish();
 
-    let broadcast_err = Broadcast::create(
-        event.id,
-        BroadcastType::Custom,
-        BroadcastChannel::PushNotification,
-        "Custom Name No Message".to_string(),
-        Some("message".to_string()),
-        None,
-        None,
-        None,
-        BroadcastAudience::PeopleAtTheEvent,
-    )
-    .commit(conn);
-    assert!(broadcast_err.is_err());
-
     let broadcast = Broadcast::create(
         event.id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
         "Custom Name".to_string(),
-        None,
+        Some("Custom Message".to_string()),
         None,
         None,
         None,
