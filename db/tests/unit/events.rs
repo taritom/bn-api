@@ -2184,7 +2184,7 @@ fn find_all_events_for_organization() {
     assert_eq!(
         events.data,
         vec![
-            future_event.summary(connection).unwrap(),
+            past_event.summary(connection).unwrap(),
             current_event.summary(connection).unwrap(),
             past_event.summary(connection).unwrap(),
         ]
