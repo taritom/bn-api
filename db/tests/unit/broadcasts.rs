@@ -50,7 +50,7 @@ fn new_custom_broadcast_commit() {
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
         "Custom Name No Message".to_string(),
-        None,
+        Some("message".to_string()),
         None,
         None,
         None,
