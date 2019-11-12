@@ -1,4 +1,6 @@
 const supertest = require('supertest');
+
+const expect = require('chai').expect;
 const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');
 const baseUrl = supertest(pm.environment.get('server'));
 const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
@@ -10,7 +12,7 @@ const post = async function (request_body) {
         .post(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
         .send(pm.substitute(request_body));
 };
 
