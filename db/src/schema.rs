@@ -80,6 +80,8 @@ table! {
         updated_at -> Timestamp,
         sent_quantity -> Int8,
         opened_quantity -> Int8,
+        subject -> Nullable<Text>,
+        audience -> Varchar,
     }
 }
 

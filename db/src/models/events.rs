@@ -8,11 +8,12 @@ use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
+use itertools::Itertools;
 use log::Level;
 use models::*;
 use schema::{
     artists, assets, event_artists, event_genres, events, genres, order_items, orders, organization_users,
-    organizations, payments, ticket_instances, ticket_types, transfer_tickets, transfers, venues,
+    organizations, payments, ticket_instances, ticket_types, transfer_tickets, transfers, users, venues, wallets,
 };
 use serde_json::Value;
 use serde_with::rust::double_option;
@@ -953,6 +954,33 @@ impl Event {
             return Some(dt);
         }
         None
+    }
+
+    pub fn find_all_ticket_holders(
+        event_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
+        let result: Vec<(TicketInstance, User, Uuid)> = events::table
+            .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(assets::table.on(ticket_types::id.eq(ticket_types::id)))
+            .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+            .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
+            .filter(events::id.eq(event_id))
+            .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
+            .order_by(users::id)
+            .select((ticket_instances::all_columns, users::all_columns, order_items::order_id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load event transfers")?;
+
+        // Group by
+        let mut res = vec![];
+        for (group, values) in &result.into_iter().group_by(|f| (f.1.clone(), f.2)) {
+            res.push((group.0, values.map(|s| s.0).collect_vec(), Some(group.1)));
+        }
+
+        Ok(res)
     }
 
     pub fn find_all_active_events_for_venue(venue_id: &Uuid, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {

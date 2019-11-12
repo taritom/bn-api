@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use bigneon_db::utils::errors::*;
 use branch_rs::BranchError;
 use chrono;
+use customer_io::CustomerIoError;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
@@ -34,6 +35,7 @@ macro_rules! error_conversion {
 
 error_conversion!(ApplicationError);
 error_conversion!(AuthError);
+error_conversion!(CustomerIoError);
 error_conversion!(DatabaseError);
 error_conversion!(r2d2::Error);
 error_conversion!(DieselError);

@@ -93,7 +93,6 @@ impl Communication {
             None,
             DomainActionTypes::Communication,
             match self.comm_type {
-                CommunicationType::Email => Some(CommunicationChannelType::Email),
                 CommunicationType::EmailTemplate => Some(CommunicationChannelType::Email),
                 CommunicationType::Sms => Some(CommunicationChannelType::Sms),
                 CommunicationType::Push => Some(CommunicationChannelType::Push),

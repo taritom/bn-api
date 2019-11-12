@@ -24,6 +24,8 @@ pub struct NewBroadcast {
     pub progress: i32,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
 }
 
 #[derive(Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -42,9 +44,11 @@ pub struct Broadcast {
     pub updated_at: NaiveDateTime,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default, Deserialize, Debug)]
 #[table_name = "broadcasts"]
 pub struct BroadcastEditableAttributes {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -70,6 +74,8 @@ impl Broadcast {
         message: Option<String>,
         send_at: Option<NaiveDateTime>,
         status: Option<BroadcastStatus>,
+        subject: Option<String>,
+        audience: BroadcastAudience,
     ) -> NewBroadcast {
         NewBroadcast {
             event_id,
@@ -82,6 +88,8 @@ impl Broadcast {
             progress: 0,
             sent_quantity: 0,
             opened_quantity: 0,
+            subject,
+            audience,
         }
     }
 
@@ -241,9 +249,7 @@ impl NewBroadcast {
             None,
             DomainActionTypes::BroadcastPushNotification,
             None,
-            json!(BroadcastPushNotificationAction {
-                event_id: self.event_id,
-            }),
+            json!(""),
             Some(Tables::Broadcasts),
             Some(result.id),
         );
@@ -264,9 +270,4 @@ impl NewBroadcast {
         );
         Ok(validation_errors?)
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct BroadcastPushNotificationAction {
-    pub event_id: Uuid,
 }

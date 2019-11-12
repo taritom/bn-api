@@ -50,8 +50,8 @@ impl DomainActionMonitor {
 
             let mut runtime = current_thread::Runtime::new().unwrap();
 
-            for f in futures {
-                let timeout = Timeout::new(f.0.execute(f.1, f.2), Duration::from_secs(55));
+            for (executor, domain_action, connection) in futures {
+                let timeout = Timeout::new(executor.execute(domain_action, connection), Duration::from_secs(55));
 
                 runtime
                     .block_on(timeout.or_else(|err| {

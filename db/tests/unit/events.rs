@@ -2186,7 +2186,7 @@ fn find_all_events_for_organization() {
         vec![
             past_event.summary(connection).unwrap(),
             current_event.summary(connection).unwrap(),
-            future_event.summary(connection).unwrap()
+            future_event.summary(connection).unwrap(),
         ]
     );
     assert_eq!(events.paging.total, 3);
