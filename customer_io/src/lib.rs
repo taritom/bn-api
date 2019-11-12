@@ -64,46 +64,46 @@ pub struct EventData {
     pub extra: HashMap<String, String>,
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn create_event() {
-        let client =
-            CustomerIoClient::new("".to_string(), "".to_string(), "https://track.customer.io/api/v1/").unwrap();
-        let mut extra_data = HashMap::new();
-        extra_data.insert("subject".to_string(), "Test subject".to_string());
-        extra_data.insert("message".to_string(), "Test Message".to_string());
-        extra_data.insert("show_event_name".to_string(), "Test Message".to_string());
-        extra_data.insert("show_start_date".to_string(), "2019-11-15T12:21:11Z".to_string());
-        extra_data.insert("show_start_time".to_string(), "Test Message".to_string());
-        extra_data.insert("show_venue_name".to_string(), "Test Message".to_string());
-        extra_data.insert("show_venue_address".to_string(), "Test Message".to_string());
-        extra_data.insert("show_venue_city".to_string(), "Test Message".to_string());
-        extra_data.insert("show_venue_state".to_string(), "Test Message".to_string());
-        extra_data.insert("show_venue_postal_code".to_string(), "Test Message".to_string());
-
-        client
-            .create_event(
-                Event {
-                    name: "general_event_email".to_string(),
-                    data: EventData {
-                        recipient: Some("icecool@tari.com".to_string()),
-                        extra: extra_data,
-                    },
-                },
-                Uuid::new_v4(),
-            )
-            .unwrap();
-        panic!("Asdf");
-    }
-
-    #[test]
-    fn create_anonymous_event() {
-        let client =
-            CustomerIoClient::new("x".to_string(), "x".to_string(), "https://track.customer.io/api/v1/").unwrap();
-        //                client.create_anonymous_event(Event { name: "general_event_email".to_string(),  }).unwrap();
-        panic!("Asdf");
-    }
+//#[cfg(test)]
+//mod test {
+//    use super::*;
+//
+//    #[test]
+//    fn create_event() {
+//        let client =
+//            CustomerIoClient::new("".to_string(), "".to_string(), "https://track.customer.io/api/v1/").unwrap();
+//        let mut extra_data = HashMap::new();
+//        extra_data.insert("subject".to_string(), "Test subject".to_string());
+//        extra_data.insert("message".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_event_name".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_start_date".to_string(), "2019-11-15T12:21:11Z".to_string());
+//        extra_data.insert("show_start_time".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_venue_name".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_venue_address".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_venue_city".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_venue_state".to_string(), "Test Message".to_string());
+//        extra_data.insert("show_venue_postal_code".to_string(), "Test Message".to_string());
+//
+//        client
+//            .create_event(
+//                Event {
+//                    name: "general_event_email".to_string(),
+//                    data: EventData {
+//                        recipient: Some("icecool@tari.com".to_string()),
+//                        extra: extra_data,
+//                    },
+//                },
+//                Uuid::new_v4(),
+//            )
+//            .unwrap();
+//        panic!("Asdf");
+//    }
+//
+//    #[test]
+//    fn create_anonymous_event() {
+//        let client =
+//            CustomerIoClient::new("x".to_string(), "x".to_string(), "https://track.customer.io/api/v1/").unwrap();
+//        //                client.create_anonymous_event(Event { name: "general_event_email".to_string(),  }).unwrap();
+//        panic!("Asdf");
+//    }
 }
