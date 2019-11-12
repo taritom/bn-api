@@ -20,6 +20,7 @@ fn new_broadcast_commit() {
         None,
         None,
         BroadcastAudience::PeopleAtTheEvent,
+        None,
     );
 
     assert_eq!(
@@ -55,6 +56,7 @@ fn new_custom_broadcast_commit() {
         None,
         None,
         BroadcastAudience::PeopleAtTheEvent,
+        None,
     );
 
     assert_eq!(

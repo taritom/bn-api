@@ -1,0 +1,2 @@
+ALTER TABLE broadcasts
+    ADD preview BOOLEAN DEFAULT FALSE;

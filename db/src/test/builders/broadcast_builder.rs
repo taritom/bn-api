@@ -86,6 +86,7 @@ impl<'a> BroadcastBuilder<'a> {
             Some(self.status),
             None,
             BroadcastAudience::PeopleAtTheEvent,
+            Some(false),
         );
 
         broadcast.commit(self.connection).unwrap()
