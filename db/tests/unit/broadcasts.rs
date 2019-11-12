@@ -96,7 +96,7 @@ fn broadcast_find_by_id() {
     let event = project.create_event().finish();
     let broadcast = project.create_broadcast().with_event_id(event.id).finish();
 
-    let found = Broadcast::find_by_event_id(event.id, 0, 1, conn).unwrap();
+    let found = Broadcast::find_by_event_id(event.id, None, None, 0, 1, conn).unwrap();
     assert_eq!(1, found.data.len());
     assert_eq!(broadcast.id, found.data[0].id);
     assert_eq!(0, found.paging.page);
