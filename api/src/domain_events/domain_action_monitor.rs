@@ -80,19 +80,19 @@ impl DomainActionMonitor {
             //            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
             return Ok(0);
         };
-        jlog!(
-            Debug,
-            "bigneon::domain_events",
-            "Event publishers found",
-            {"num_publishers": domain_event_publishers.len()}
-        );
+//        jlog!(
+//            Debug,
+//            "bigneon::domain_events",
+//            "Event publishers found",
+//            {"num_publishers": domain_event_publishers.len()}
+//        );
         let mut events_published = 0;
         let domain_events = DomainEvent::find_after_seq(
             domain_event_publishers[0].last_domain_event_seq.unwrap_or(-1),
             500,
             connection,
         )?;
-        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
+//        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
         for event in domain_events {
             conn.begin_transaction()?;
             //            jlog!(Debug, "bigneon::domain_events", "Checking event for publishers", { "event_type": &event.event_type, "organization_id": event.organization_id});
