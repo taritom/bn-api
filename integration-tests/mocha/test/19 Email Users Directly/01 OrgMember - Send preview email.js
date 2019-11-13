@@ -22,7 +22,7 @@ let requestBody = {
     "audience": "TicketHolders",
     "channel": "Email",
     "notification_type": "Custom",
-    "preview": "preview@test.com"
+    "preview_address": "preview@test.com"
 };
 
 describe("OrgMember - Send preview email", function() {
