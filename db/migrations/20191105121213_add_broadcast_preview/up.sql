@@ -1,2 +1,2 @@
 ALTER TABLE broadcasts
-    ADD preview BOOLEAN DEFAULT FALSE;
+    ADD preview TEXT;

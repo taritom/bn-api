@@ -54,21 +54,19 @@ impl BroadcastPushNotificationExecutor {
             BroadcastType::Custom => (BroadcastAudience::PeopleAtTheEvent, message.as_str()),
         };
 
-        let mut audience = match audience_type {
+        let mut audience: Vec<User> = match audience_type {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn)?
                 .into_iter()
                 .map(|u| (u, Vec::new(), None))
                 .collect_vec(),
             BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn)?,
-        };
+        }.map(|aud| aud.0).collect_vec();
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
-        //        if broadcast is a preview, only use the first contact that is provided
-        if let Some(p) = broadcast.preview {
-            if p && !audience.is_empty() {
-                audience.drain(1..);
-            }
+        //  if broadcast is a preview, only use the first contact that is provided
+        if let Some(preview_address) = broadcast.preview {
+                audience = vec![User::create(None, None, Some(preview_address), None, "")];
         }
         for (user, _tickets, _order_no) in audience {
             match broadcast.channel {

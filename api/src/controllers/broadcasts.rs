@@ -22,7 +22,7 @@ pub struct NewBroadcastData {
     pub channel: Option<BroadcastChannel>,
     pub audience: BroadcastAudience,
     pub subject: Option<String>,
-    pub preview: Option<bool>,
+    pub preview: Option<String>,
 }
 
 pub fn create(
