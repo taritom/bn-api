@@ -13,13 +13,12 @@ use utils::expo;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
-use uuid::Uuid;
 
 pub fn send_async(
     domain_action: &DomainAction,
     config: &Config,
     conn: &PgConnection,
-) -> impl Future<Item=(), Error=BigNeonError> {
+) -> impl Future<Item = (), Error = BigNeonError> {
     let communication: Communication = match serde_json::from_value(domain_action.payload.clone()) {
         Ok(v) => v,
         Err(e) => return Either::A(future::err(e.into())),
@@ -70,7 +69,7 @@ fn send_email_template(
     conn: &PgConnection,
     communication: Communication,
     destination_addresses: &Vec<String>,
-) -> Box<dyn Future<Item=(), Error=BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     if communication.template_id.is_none() {
         return Box::new(future::err(
             ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string())
@@ -82,58 +81,77 @@ fn send_email_template(
     // Short circuit logic if communication template and template is blank
     if template_id == "" {
         jlog!(Trace, "Blocked communication, blank template ID", {
-                "communication": communication
-            });
+            "communication": communication
+        });
         return Box::new(future::ok(()));
     }
     let extra_data = communication.extra_data;
     // Check for provider. Sendgrid templates start with "d-".
 
-    let template  = if !template_id.starts_with("d-") { EmailTemplate { provider:
-        EmailProvider::Sendgrid, template_id: template_id.clone() } else {
-
-        template_id.parse()?
+    let template = if template_id.starts_with("d-") {
+        EmailTemplate {
+            provider: EmailProvider::Sendgrid,
+            template_id: template_id.clone(),
+        }
+    } else {
+        match template_id.parse() {
+            Ok(t) => t,
+            Err(e) => return Box::new(future::err(BigNeonError::from(e))),
+        }
     };
 
-        match template.provider {
-            EmailProviders::CustomerIo => let extra_data = extra_data.unwrap();
+    match template.provider {
+        EmailProvider::CustomerIo => {
+            // At some point there was some confusion and now we have both `extra_data` and
+            // `template_data` which are both the same thing. This is because only emails use
+            // `template data`, but other communications use `extra_data`. In future, `template_data`
+            // should be dropped and only extra data used.
+            let mut extra_data = extra_data.unwrap_or(HashMap::new());
+            if let Some(ref td) = communication.template_data {
+                for map in td {
+                    for (key, value) in map {
+                        extra_data.insert(key.clone(), value.clone());
+                    }
+                }
+            }
 
-            let event_id = domain_action.main_table_id.unwrap();
-            match customer_io_send_email_async(
+            match customer_io_send_email(
                 config,
                 communication.destinations.addresses,
+                template.template_id.clone(),
                 communication.title,
                 communication.body,
                 extra_data,
-                event_id,
+                domain_action,
                 conn,
             ) {
-            Ok(_t) => Box::new(future::ok(())),
-            Err(e) => return Box::new(future::err(e.into())),
-        }},
+                Ok(_t) => Box::new(future::ok(())),
+                Err(e) => return Box::new(future::err(e.into())),
+            }
+        }
         EmailProvider::Sendgrid => {
             // sendgrid
             sendgrid::send_email_template_async(
                 &config.sendgrid_api_key,
                 communication.source.as_ref().unwrap().get_first().unwrap(),
                 &destination_addresses,
-                template_id.to_string(),
+                template.template_id.clone(),
                 communication.template_data.as_ref().unwrap(),
                 communication.categories.clone(),
                 extra_data,
             )
-        }
-        // Customer IO
-
+        } // Customer IO
+    }
 }
 
-pub fn customer_io_send_email_async(
+pub fn customer_io_send_email(
     config: &Config,
     dest_email_addresses: Vec<String>,
+    template_id: String,
     title: String,
     body: Option<String>,
     mut template_data: HashMap<String, String>,
-    event_id: Uuid,
+    domain_action: &DomainAction,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     // new() try's to parse base url to URL
@@ -149,49 +167,38 @@ pub fn customer_io_send_email_async(
         template_data.insert("message".to_string(), b);
     }
 
-    let event = Event::find(event_id, conn)?;
-    // parse the venue address if venue
-    let venue_id = match event.venue_id {
-        Some(t) => t,
-        None => {
-            return Err(BigNeonError::from(ApplicationError::new_with_type(
-                ApplicationErrorType::ServerConfigError,
-                "event start date is not available".to_owned(),
-            )));
+    if domain_action.main_table == Some(Tables::Events) && domain_action.main_table_id.is_some() {
+        let event = Event::find(domain_action.main_table_id.unwrap(), conn)?;
+
+        template_data.insert("show_name".to_string(), event.name.clone());
+
+        if let Some(start_datetime) = event.event_start {
+            template_data.insert("show_start_date".to_string(), start_datetime.date().to_string());
+            template_data.insert("show_start_time".to_string(), start_datetime.time().to_string());
         }
-    };
-    let venue = Venue::find(venue_id, conn)?;
 
-    template_data.insert("show_name".to_string(), event.name.clone());
-    template_data.insert("show_venue_name".to_string(), venue.name.clone());
-    let start_datetime = match event.event_start {
-        Some(t) => t,
-        None => {
-            return Err(BigNeonError::from(ApplicationError::new_with_type(
-                ApplicationErrorType::ServerConfigError,
-                "event start date is not available".to_owned(),
-            )));
+        // parse the venue address if venue
+        if let Some(venue_id) = event.venue_id {
+            let venue = Venue::find(venue_id, conn)?;
+
+            template_data.insert("show_venue_name".to_string(), venue.name.clone());
+
+            template_data.insert("show_venue_address".to_string(), venue.address.to_string());
+            template_data.insert("show_venue_city".to_string(), venue.city.to_string());
+            template_data.insert("show_venue_state".to_string(), venue.state.to_string());
+            template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
         }
-    };
-
-    template_data.insert("show_start_date".to_string(), start_datetime.date().to_string());
-    template_data.insert("show_start_time".to_string(), start_datetime.time().to_string());
-
-    template_data.insert("show_venue_address".to_string(), venue.address.to_string());
-    template_data.insert("show_venue_city".to_string(), venue.city.to_string());
-    template_data.insert("show_venue_state".to_string(), venue.state.to_string());
-    template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
-
+    }
     // loop dest_email_addresses, each email will be sent different email address
     for email_address in dest_email_addresses {
         let event = customer_io::Event {
-            name: "general_event_email".to_string(),
+            name: template_id.clone(),
             data: customer_io::EventData {
                 recipient: Some(email_address),
                 extra: template_data.clone(),
             },
         };
-        client.create_anonymous_event(event).unwrap();
+        client.create_anonymous_event(event)?;
     }
     Ok(())
 }

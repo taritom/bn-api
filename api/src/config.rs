@@ -48,7 +48,6 @@ pub struct Config {
     pub sendgrid_template_bn_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets_drip_source: String,
     pub sendgrid_template_bn_transfer_tickets_drip_destination: String,
-    pub sendgrid_template_bn_password_reset: String,
     pub sendgrid_template_bn_user_invite: String,
     pub settlement_period_in_days: Option<u32>,
     pub spotify_auth_token: Option<String>,
@@ -80,6 +79,7 @@ pub struct ConnectionPoolConfig {
 pub struct EmailTemplates {
     pub custom_broadcast: EmailTemplate,
     pub org_invite: EmailTemplate,
+    pub password_reset: EmailTemplate,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -133,6 +133,7 @@ const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const EMAIL_TEMPLATES_CUSTOM_BROADCAST: &str = "EMAIL_TEMPLATES_CUSTOM_BROADCAST";
 const EMAIL_TEMPLATES_ORG_INVITE: &str = "EMAIL_TEMPLATES_ORG_INVITE";
+const EMAIL_TEMPLATES_PASSWORD_RESET: &str = "EMAIL_TEMPLATES_PASSWORD_RESET";
 const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -170,7 +171,6 @@ const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
-const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
 
 // Settlement period settings
@@ -280,6 +280,7 @@ impl Config {
         let email_templates = EmailTemplates {
             custom_broadcast: get_env_var(EMAIL_TEMPLATES_CUSTOM_BROADCAST).parse().unwrap(),
             org_invite: get_env_var(EMAIL_TEMPLATES_ORG_INVITE).parse().unwrap(),
+            password_reset: get_env_var(EMAIL_TEMPLATES_PASSWORD_RESET).parse().unwrap(),
         };
 
         let customer_io_base_url = get_env_var(CUSTOMER_IO_BASE_URL);
@@ -309,7 +310,6 @@ impl Config {
         let sendgrid_template_bn_cancel_transfer_tickets = get_env_var(SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS);
         let sendgrid_template_bn_cancel_transfer_tickets_receipt =
             get_env_var(SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT);
-        let sendgrid_template_bn_password_reset = get_env_var(SENDGRID_TEMPLATE_BN_PASSWORD_RESET);
         let sendgrid_template_bn_user_invite = get_env_var(SENDGRID_TEMPLATE_BN_USER_INVITE);
 
         let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS)
@@ -394,7 +394,6 @@ impl Config {
             sendgrid_template_bn_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets_drip_destination,
             sendgrid_template_bn_transfer_tickets_drip_source,
-            sendgrid_template_bn_password_reset,
             sendgrid_template_bn_user_invite,
             settlement_period_in_days,
             spotify_auth_token,

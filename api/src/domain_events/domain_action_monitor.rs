@@ -77,7 +77,7 @@ impl DomainActionMonitor {
         let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
-            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
+            //            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
             return Ok(0);
         };
         jlog!(
@@ -130,7 +130,7 @@ impl DomainActionMonitor {
 
             // Domain Monitor main loop
             if DomainActionMonitor::find_and_publish_events(&config, &database)? == 0 {
-                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
+                //                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
                 thread::sleep(Duration::from_secs(interval));
             }
         }
