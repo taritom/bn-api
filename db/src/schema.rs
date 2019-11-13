@@ -82,6 +82,7 @@ table! {
         opened_quantity -> Int8,
         subject -> Nullable<Text>,
         audience -> Varchar,
+        preview_email -> Nullable<Text>,
     }
 }
 

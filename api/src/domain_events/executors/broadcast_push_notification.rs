@@ -54,30 +54,43 @@ impl BroadcastPushNotificationExecutor {
             BroadcastType::Custom => (BroadcastAudience::PeopleAtTheEvent, message.as_str()),
         };
 
-        let audience = match audience_type {
+        let audience: Vec<User> = match audience_type {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn)?
                 .into_iter()
                 .map(|u| (u, Vec::new(), None))
                 .collect_vec(),
             BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn)?,
-        };
+        }
+        .into_iter()
+        .map(|aud| aud.0)
+        .collect_vec();
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
-        for (user, _tickets, _order_no) in audience {
+        for user in audience {
             match broadcast.channel {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
                 }
-                BroadcastChannel::Email => {
-                    queue_email_notification(&broadcast, conn, self.template_id.clone(), message.to_string(), &user)?
-                }
+                BroadcastChannel::Email => queue_email_notification(
+                    &broadcast,
+                    conn,
+                    self.template_id.clone(),
+                    message.to_string(),
+                    &user,
+                    broadcast.preview_email.clone(),
+                )?,
+            }
+            // if preview email, only send 1 email
+            if broadcast.preview_email != None {
+                break;
             }
         }
 
         Ok(())
     }
 }
+
 fn queue_push_notification(
     broadcast: &Broadcast,
     message: String,
@@ -126,10 +139,16 @@ fn queue_email_notification(
     template_id: Option<String>,
     message: String,
     user: &User,
+    preview_email: Option<String>,
 ) -> Result<(), BigNeonError> {
     if user.email.is_none() {
         return Ok(());
     }
+
+    let email = match preview_email {
+        None => CommAddress::from(user.email.clone().unwrap()),
+        Some(e) => CommAddress::from(e),
+    };
 
     DomainAction::create(
         None,
@@ -140,7 +159,7 @@ fn queue_email_notification(
             broadcast.subject.as_ref().unwrap_or(&broadcast.name).to_string(),
             Some(message),
             None,
-            CommAddress::from(user.email.clone().unwrap()),
+            email,
             template_id,
             None,
             Some(vec!["broadcast"]),

@@ -28,6 +28,7 @@ fn broadcast_counter() {
         None,
         None,
         BroadcastAudience::PeopleAtTheEvent,
+        None,
     )
     .commit(connection)
     .unwrap();

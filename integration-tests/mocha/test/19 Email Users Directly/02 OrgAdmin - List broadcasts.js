@@ -61,10 +61,10 @@ describe('OrgAdmin - List broadcasts', function () {
     });
 
 
-    it("data length should be 1", function () {
+    it("data length should be 2", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.data.length).to.equal(1);
+        expect(json.data.length).to.equal(2);
     });
 
 
