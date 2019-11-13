@@ -265,13 +265,15 @@ pub fn create_event(
         data.category.parse()?,
         event.name.clone(),
         data.description.clone(),
-        venue.timezone,
+        venue.timezone.to_string(),
         event.promo_image_url.as_ref().map(|u| CoverPhoto::new(u.to_string())),
         event
+            .get_all_localized_times(Some(&venue))
             .event_start
             .ok_or_else(|| {
                 ApplicationError::unprocessable("Cannot publish this event in Facebook without a start time")
             })?
+            .naive_local()
             .to_string(),
     );
 
@@ -280,11 +282,7 @@ pub fn create_event(
         EventLocationType::CustomAddress => fb_event.address = data.custom_address.clone(),
     }
 
-    fb_event.ticket_uri = Some(format!(
-        "{}/tickets/{}/tickets",
-        state.config.front_end_url,
-        event.slug(conn)?
-    ));
+    fb_event.ticket_uri = Some(format!("{}/tickets/{}", state.config.front_end_url, event.slug(conn)?));
 
     fb_event.admins.push(data.page_id.clone());
 
