@@ -1499,7 +1499,7 @@ fn regenerate_interaction_data() {
 
     // Transfers
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket2.id],
         "nowhere",
         TransferMessageType::Email,
@@ -1511,7 +1511,7 @@ fn regenerate_interaction_data() {
     assert_eq!(interaction_data.interaction_count, 5);
 
     TicketInstance::direct_transfer(
-        user2.id,
+        &user2,
         &vec![ticket2.id],
         "nowhere",
         TransferMessageType::Email,
@@ -1838,7 +1838,7 @@ fn search_fans() {
         .map(|t| t.id)
         .collect();
     TicketInstance::direct_transfer(
-        order_user3.id,
+        &order_user3,
         &vec![ticket_ids.pop().unwrap()],
         "nowhere",
         TransferMessageType::Email,
@@ -1848,7 +1848,7 @@ fn search_fans() {
     .unwrap();
     // Intermediary transfer user transfers out their inventory
     TicketInstance::direct_transfer(
-        order_user3.id,
+        &order_user3,
         &ticket_ids,
         "nowhere",
         TransferMessageType::Email,
@@ -1857,7 +1857,7 @@ fn search_fans() {
     )
     .unwrap();
     TicketInstance::direct_transfer(
-        previous_transfer_user.id,
+        &previous_transfer_user,
         &ticket_ids,
         "nowhere",
         TransferMessageType::Email,
