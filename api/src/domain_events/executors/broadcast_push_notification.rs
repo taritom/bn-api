@@ -9,6 +9,7 @@ use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
 use validator::HasLen;
+use chrono::Utc;
 
 pub struct BroadcastPushNotificationExecutor {
     template_id: Option<String>,
@@ -60,15 +61,41 @@ impl BroadcastPushNotificationExecutor {
                 .map(|u| (u, Vec::new(), None))
                 .collect_vec(),
             BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn)?,
-        }.map(|aud| aud.0).collect_vec();
+        }
+        .into_iter()
+        .map(|aud| aud.0)
+        .collect_vec();
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
-        //  if broadcast is a preview, only use the first contact that is provided
-        if let Some(preview_address) = broadcast.preview {
-                audience = vec![User::create(None, None, Some(preview_address), None, "")];
+        // if broadcast is a preview, use the email that where the preview should be sent to
+        if let Some(preview_address) = broadcast.preview.clone() {
+            let user = User {
+                id: Default::default(),
+                first_name: None,
+                last_name: None,
+                email: Some(preview_address),
+                phone: None,
+                profile_pic_url: None,
+                thumb_profile_pic_url: None,
+                cover_photo_url: None,
+                hashed_pw: "".to_string(),
+                password_modified_at: Utc::now().naive_utc(),
+                created_at: Utc::now().naive_utc(),
+                last_used: None,
+                active: false,
+                role: vec![],
+                password_reset_token: None,
+                password_reset_requested_at: None,
+                updated_at: Utc::now().naive_utc(),
+                last_cart_id: None,
+                accepted_terms_date: None,
+                invited_at: None,
+            };
+            audience = vec![user];
         }
-        for (user, _tickets, _order_no) in audience {
+
+        for user in audience {
             match broadcast.channel {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
@@ -82,6 +109,7 @@ impl BroadcastPushNotificationExecutor {
         Ok(())
     }
 }
+
 fn queue_push_notification(
     broadcast: &Broadcast,
     message: String,

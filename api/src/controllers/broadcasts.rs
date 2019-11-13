@@ -44,7 +44,7 @@ pub fn create(
         None,
         json.subject.clone(),
         json.audience.clone(),
-        json.preview,
+        json.preview.clone(),
     )
     .commit(connection)?;
     Ok(HttpResponse::Created().json(json!(broadcast)))
