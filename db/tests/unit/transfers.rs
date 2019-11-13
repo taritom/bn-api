@@ -1774,28 +1774,7 @@ fn cancel() {
     assert_eq!(0, domain_events.len());
 
     // Pending transfer does not change redeem key when cancelled
-    project.create_order().for_user(&user).quantity(3).is_paid().finish();
-    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
-    // Transferred
-    let ticket = &user_tickets[0];
-    // Transferred
-    let ticket2 = &user_tickets[1];
-
-    // Completed transfer
-    let transfer = TicketInstance::direct_transfer(
-        &user,
-        &vec![ticket.id, ticket2.id],
-        "nowhere",
-        TransferMessageType::Email,
-        user2.id,
-        connection,
-    )
-    .unwrap();
-
-    assert!(!transfer.was_retransferred(connection).unwrap());
-
-    // Pending transfer for first ticket
-    let transfer = TicketInstance::create_transfer(&user2, &[ticket3.id], None, None, false, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(&user, &[ticket3.id], None, None, false, connection).unwrap();
     let ticket3 = TicketInstance::find(ticket3.id, connection).unwrap();
     let pre_cancel_redeem_key = ticket3.redeem_key;
     assert!(transfer.cancel(&user, None, connection).is_ok());
