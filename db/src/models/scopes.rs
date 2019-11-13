@@ -51,6 +51,7 @@ pub enum Scopes {
     SettlementReadEarly,
     SettlementWrite,
     TransferCancel,
+    TransferCancelAccepted,
     TransferCancelOwn,
     TransferRead,
     TransferReadOwn,
@@ -128,6 +129,7 @@ impl fmt::Display for Scopes {
             Scopes::TicketTypeRead => "ticket-type:read",
             Scopes::TicketTypeWrite => "ticket-type:write",
             Scopes::TransferCancel => "transfer:cancel",
+            Scopes::TransferCancelAccepted => "transfer:cancel-accepted",
             Scopes::TransferCancelOwn => "transfer:cancel-own",
             Scopes::TransferRead => "transfer:read",
             Scopes::TransferReadOwn => "transfer:read-own",
@@ -194,6 +196,7 @@ impl FromStr for Scopes {
             "ticket-type:read" => Scopes::TicketTypeRead,
             "ticket-type:write" => Scopes::TicketTypeWrite,
             "transfer:cancel" => Scopes::TransferCancel,
+            "transfer:cancel-accepted" => Scopes::TransferCancelAccepted,
             "transfer:cancel-own" => Scopes::TransferCancelOwn,
             "transfer:read" => Scopes::TransferRead,
             "transfer:read-own" => Scopes::TransferReadOwn,
@@ -372,7 +375,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         Super => {
-            let mut roles = vec![];
+            let mut roles = vec![Scopes::TransferCancelAccepted];
             roles.extend(get_scopes_for_role(Admin));
             roles
         }
@@ -566,6 +569,74 @@ fn get_scopes_test() {
             "ticket:write",
             "ticket:write-own",
             "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
+            "user:read",
+            "venue:write",
+        ],
+        res
+    );
+
+    let mut res = get_scopes(vec![Roles::Super])
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>();
+    res.sort();
+    assert_equiv!(
+        vec![
+            "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "dashboard:read",
+            "event:broadcast",
+            "event:cancel",
+            "event:data-read",
+            "event:delete",
+            "event:financial-reports",
+            "event:interest",
+            "event:reports",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "hold:read",
+            "hold:write",
+            "note:delete",
+            "note:read",
+            "note:write",
+            "order:make-external-payment",
+            "order:read",
+            "order:read-own",
+            "order:refund",
+            "order:resend-confirmation",
+            "org:admin",
+            "org:admin-users",
+            "org:fans",
+            "org:financial-reports",
+            "org:modify-settlement-type",
+            "org:read",
+            "org:read-events",
+            "org:reports",
+            "org:users",
+            "org:write",
+            "redeem:ticket",
+            "region:write",
+            "settlement:read",
+            "settlement:read-early",
+            "settlement:write",
+            "ticket-type:read",
+            "ticket-type:write",
+            "ticket:admin",
+            "ticket:read",
+            "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
+            "transfer:cancel",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",

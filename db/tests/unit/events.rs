@@ -1473,7 +1473,7 @@ fn guest_list() {
             .map(|ti| ti.id)
             .collect();
         TicketInstance::direct_transfer(
-            from_user.id,
+            &from_user,
             &ticket_ids,
             "nowhere",
             TransferMessageType::Email,

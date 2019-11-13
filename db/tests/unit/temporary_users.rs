@@ -85,7 +85,7 @@ fn find_or_build_from_transfer() {
     let phone = "12345678901".to_string();
 
     let transfer = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket.id],
         Some(&email),
         Some(TransferMessageType::Email),
@@ -94,7 +94,7 @@ fn find_or_build_from_transfer() {
     )
     .unwrap();
     let transfer2 = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket2.id],
         Some("testing@tari.com"),
         Some(TransferMessageType::Email),
@@ -103,7 +103,7 @@ fn find_or_build_from_transfer() {
     )
     .unwrap();
     let transfer3 = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket3.id],
         Some(&email),
         Some(TransferMessageType::Email),
@@ -112,7 +112,7 @@ fn find_or_build_from_transfer() {
     )
     .unwrap();
     let transfer4 = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket4.id],
         Some(&phone),
         Some(TransferMessageType::Phone),
