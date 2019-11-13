@@ -1,2 +1,2 @@
 ALTER TABLE broadcasts
-    DROP preview;
+    DROP preview_email;

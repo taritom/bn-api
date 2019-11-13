@@ -27,7 +27,7 @@ pub struct NewBroadcast {
     pub opened_quantity: i64,
     pub subject: Option<String>,
     pub audience: BroadcastAudience,
-    pub preview: Option<String>,
+    pub preview_email: Option<String>,
 }
 
 #[derive(Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -48,7 +48,7 @@ pub struct Broadcast {
     pub opened_quantity: i64,
     pub subject: Option<String>,
     pub audience: BroadcastAudience,
-    pub preview: Option<String>,
+    pub preview_email: Option<String>,
 }
 
 #[derive(AsChangeset, Default, Deserialize, Debug)]
@@ -79,7 +79,7 @@ impl Broadcast {
         status: Option<BroadcastStatus>,
         subject: Option<String>,
         audience: BroadcastAudience,
-        preview: Option<String>,
+        preview_email: Option<String>,
     ) -> NewBroadcast {
         NewBroadcast {
             event_id,
@@ -94,7 +94,7 @@ impl Broadcast {
             opened_quantity: 0,
             subject,
             audience,
-            preview,
+            preview_email,
         }
     }
 

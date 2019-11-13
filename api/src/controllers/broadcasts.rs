@@ -22,7 +22,7 @@ pub struct NewBroadcastData {
     pub channel: Option<BroadcastChannel>,
     pub audience: BroadcastAudience,
     pub subject: Option<String>,
-    pub preview: Option<String>,
+    pub preview_email: Option<String>,
 }
 
 pub fn create(
@@ -44,7 +44,7 @@ pub fn create(
         None,
         json.subject.clone(),
         json.audience.clone(),
-        json.preview.clone(),
+        json.preview_email.clone(),
     )
     .commit(connection)?;
     Ok(HttpResponse::Created().json(json!(broadcast)))

@@ -1,2 +1,2 @@
 ALTER TABLE broadcasts
-    ADD preview TEXT;
+    ADD preview_email TEXT;

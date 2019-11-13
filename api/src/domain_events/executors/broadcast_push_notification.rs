@@ -54,7 +54,7 @@ impl BroadcastPushNotificationExecutor {
             BroadcastType::Custom => (BroadcastAudience::PeopleAtTheEvent, message.as_str()),
         };
 
-        let mut audience: Vec<User> = match audience_type {
+        let audience: Vec<User> = match audience_type {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn)?
                 .into_iter()
                 .map(|u| (u, Vec::new(), None))
@@ -78,11 +78,11 @@ impl BroadcastPushNotificationExecutor {
                     self.template_id.clone(),
                     message.to_string(),
                     &user,
-                    broadcast.preview.clone(),
+                    broadcast.preview_email.clone(),
                 )?,
             }
             // if preview email, only send 1 email
-            if broadcast.preview != None {
+            if broadcast.preview_email != None {
                 break;
             }
         }
