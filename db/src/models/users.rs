@@ -1191,6 +1191,31 @@ impl User {
     pub fn push_notification_tokens(&self, conn: &PgConnection) -> Result<Vec<PushNotificationToken>, DatabaseError> {
         PushNotificationToken::find_by_user_id(self.id, conn)
     }
+
+    pub fn create_temp_user(email: Option<String>) -> User {
+        User {
+            id: Default::default(),
+            first_name: None,
+            last_name: None,
+            email,
+            phone: None,
+            profile_pic_url: None,
+            thumb_profile_pic_url: None,
+            cover_photo_url: None,
+            hashed_pw: "".to_string(),
+            password_modified_at: Utc::now().naive_utc(),
+            created_at: Utc::now().naive_utc(),
+            last_used: None,
+            active: false,
+            role: vec![],
+            password_reset_token: None,
+            password_reset_requested_at: None,
+            updated_at: Utc::now().naive_utc(),
+            last_cart_id: None,
+            accepted_terms_date: None,
+            invited_at: None,
+        }
+    }
 }
 
 impl From<User> for DisplayUser {
