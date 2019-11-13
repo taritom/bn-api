@@ -2,7 +2,7 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
-use bigneon_db::utils::errors::ErrorCode::{self, *};
+use bigneon_db::utils::errors::ErrorCode::*;
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use diesel;
@@ -11,6 +11,166 @@ use diesel::RunQueryDsl;
 use tari_client::*;
 use time::Duration;
 use uuid::Uuid;
+
+#[test]
+fn regenerate_redeem_keys() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &user_tickets[0];
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+
+    let previous_redeem_key = ticket.redeem_key.clone();
+    transfer.regenerate_redeem_keys(connection).unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    let new_redeem_key = ticket.redeem_key.clone();
+    assert_ne!(previous_redeem_key, new_redeem_key);
+
+    let previous_redeem_key = new_redeem_key;
+    transfer.regenerate_redeem_keys(connection).unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    let new_redeem_key = ticket.redeem_key.clone();
+    assert_ne!(previous_redeem_key, new_redeem_key);
+}
+
+#[test]
+fn contains_redeemed_tickets() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &user_tickets[0];
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert!(!transfer.contains_redeemed_tickets(connection).unwrap());
+
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+    assert!(transfer.contains_redeemed_tickets(connection).unwrap());
+}
+
+#[test]
+fn tickets() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    project.create_order().for_user(&user).quantity(2).is_paid().finish();
+    let mut tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = tickets.pop().unwrap();
+    let ticket2 = tickets.pop().unwrap();
+
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
+
+    assert_eq!(vec![ticket], transfer.tickets(connection).unwrap());
+    assert_eq!(vec![ticket2], transfer2.tickets(connection).unwrap());
+}
+
+#[test]
+fn was_retransferred() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    project.create_order().for_user(&user).quantity(3).is_paid().finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    // Transferred
+    let ticket = &user_tickets[0];
+    // Transferred
+    let ticket2 = &user_tickets[1];
+
+    // Completed transfer
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id, ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+
+    assert!(!transfer.was_retransferred(connection).unwrap());
+
+    // Pending transfer for first ticket
+    let transfer2 = TicketInstance::create_transfer(&user2, &[ticket.id], None, None, false, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(10).finish())
+    .bind::<sql_types::Uuid, _>(transfer2.id)
+    .execute(connection)
+    .unwrap();
+
+    assert!(transfer.was_retransferred(connection).unwrap());
+    assert!(!transfer2.was_retransferred(connection).unwrap());
+
+    // Completed transfer for second ticket
+    let transfer3 = TicketInstance::direct_transfer(
+        &user2,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user3.id,
+        connection,
+    )
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(20).finish())
+    .bind::<sql_types::Uuid, _>(transfer3.id)
+    .execute(connection)
+    .unwrap();
+    assert!(transfer.was_retransferred(connection).unwrap());
+    assert!(!transfer2.was_retransferred(connection).unwrap());
+    assert!(!transfer3.was_retransferred(connection).unwrap());
+
+    // Once transfers are cancelled, no longer marked as having been retransferred
+    assert!(transfer2.cancel(&user, None, connection).is_ok());
+    assert!(transfer.was_retransferred(connection).unwrap());
+    assert!(transfer3.cancel(&user, None, connection).is_ok());
+    assert!(!transfer.was_retransferred(connection).unwrap());
+}
 
 #[test]
 fn event_ended() {
@@ -725,10 +885,7 @@ fn update_associated_orders() {
     let transfer2 = Transfer::find(transfer2.id, connection).unwrap();
     assert_eq!(
         transfer2.update_associated_orders(connection),
-        Err(DatabaseError::new(
-            ErrorCode::UpdateError,
-            Some("Transfer cannot be updated as it is no longer pending".to_string()),
-        ))
+        DatabaseError::business_process_error("Transfer cannot be updated as it is no longer pending",)
     );
 }
 
@@ -1443,7 +1600,7 @@ fn cancel_by_ticket_instance_ids() {
         .unwrap();
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
 
-    Transfer::cancel_by_ticket_instance_ids(&vec![ticket.id], user.id, None, connection).unwrap();
+    Transfer::cancel_by_ticket_instance_ids(&vec![ticket.id], &user, None, connection).unwrap();
     let transfer = Transfer::find(transfer.id, connection).unwrap();
     assert_eq!(transfer.status, TransferStatus::Cancelled);
 }
@@ -1452,9 +1609,15 @@ fn cancel_by_ticket_instance_ids() {
 fn cancel() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let user = project.create_user().finish();
-    project.create_order().for_user(&user).quantity(1).is_paid().finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    project.create_order().for_user(&user).quantity(3).is_paid().finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &user_tickets[0];
+    let ticket2 = &user_tickets[1];
+    let ticket3 = &user_tickets[2];
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
@@ -1470,7 +1633,7 @@ fn cancel() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    let transfer = transfer.cancel(user.id, None, connection).unwrap();
+    let transfer = transfer.cancel(&user, None, connection).unwrap();
     assert_eq!(transfer.status, TransferStatus::Cancelled);
     let domain_events = DomainEvent::find(
         Tables::Transfers,
@@ -1482,15 +1645,163 @@ fn cancel() {
     assert_eq!(1, domain_events.len());
 
     // Transfering again triggers error as status is no longer pending
-    let result = transfer.cancel(user.id, None, connection);
+    let result = transfer.cancel(&user, None, connection);
     assert!(result.is_err());
     assert_eq!(
-        result.unwrap_err(),
-        DatabaseError::new(
-            ErrorCode::UpdateError,
-            Some("Transfer cannot be cancelled as it is no longer pending".to_string()),
+        result,
+        DatabaseError::business_process_error("Transfer cannot be cancelled as it is no longer pending",)
+    );
+
+    // Completed transfer that is subsequently retransferred
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(transfer.status, TransferStatus::Completed);
+    let transfer2 = TicketInstance::direct_transfer(
+        &user2,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user3.id,
+        connection,
+    )
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(10).finish())
+    .bind::<sql_types::Uuid, _>(transfer2.id)
+    .execute(connection)
+    .unwrap();
+
+    assert_eq!(transfer2.status, TransferStatus::Completed);
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketCancelled),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    let result = transfer.cancel(&user, None, connection);
+    assert_eq!(
+        result,
+        DatabaseError::business_process_error("Transfer cannot be cancelled as it contains tickets involved in a transfer to another user from the destination user",)
+    );
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
+    assert_eq!(transfer.status, TransferStatus::Completed);
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketCancelled),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    // Once transfer 2 is cancelled transfer can be cancelled as well
+    let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
+    let pre_cancel_redeem_key = ticket2.redeem_key;
+    assert!(transfer2.cancel(&user, None, connection).is_ok());
+    // Redeem key is changed upon cancelling transfer
+    let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
+    assert_ne!(pre_cancel_redeem_key, ticket2.redeem_key);
+
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
+    assert_eq!(transfer.status, TransferStatus::Completed);
+    let transfer2 = Transfer::find(transfer2.id, connection).unwrap();
+    assert_eq!(transfer2.status, TransferStatus::Cancelled);
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer2.id),
+        Some(DomainEventTypes::TransferTicketCancelled),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    assert!(transfer.cancel(&user, None, connection).is_ok());
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
+    assert_eq!(transfer.status, TransferStatus::Cancelled);
+    let transfer2 = Transfer::find(transfer2.id, connection).unwrap();
+    assert_eq!(transfer2.status, TransferStatus::Cancelled);
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketCancelled),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    // Transfers linked to redeemed tickets cannot be cancelled
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+    let result = transfer.cancel(&user, None, connection);
+    assert_eq!(
+        result,
+        DatabaseError::business_process_error(
+            "Transfer cannot be cancelled as it contains tickets that have been redeemed",
         )
     );
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketCancelled),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    // Pending transfer does not change redeem key when cancelled
+    project.create_order().for_user(&user).quantity(3).is_paid().finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    // Transferred
+    let ticket = &user_tickets[0];
+    // Transferred
+    let ticket2 = &user_tickets[1];
+
+    // Completed transfer
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id, ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+
+    assert!(!transfer.was_retransferred(connection).unwrap());
+
+    // Pending transfer for first ticket
+    let transfer = TicketInstance::create_transfer(&user2, &[ticket3.id], None, None, false, connection).unwrap();
+    let ticket3 = TicketInstance::find(ticket3.id, connection).unwrap();
+    let pre_cancel_redeem_key = ticket3.redeem_key;
+    assert!(transfer.cancel(&user, None, connection).is_ok());
+    // Redeem key is not changed upon cancelling pending transfer
+    let ticket3 = TicketInstance::find(ticket3.id, connection).unwrap();
+    assert_eq!(pre_cancel_redeem_key, ticket3.redeem_key);
 }
 
 #[test]
@@ -1516,6 +1827,7 @@ fn complete() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
+    let old_redeem_key = &ticket.redeem_key;
     let transfer = transfer.complete(user2.id, None, connection).unwrap();
     assert_eq!(transfer.status, TransferStatus::Completed);
     assert_eq!(transfer.destination_user_id, Some(user2.id));
@@ -1527,16 +1839,16 @@ fn complete() {
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
+    // Redeem key updated with completion
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_ne!(old_redeem_key, &ticket.redeem_key);
 
     // Transfering again triggers error as status is no longer pending
     let result = transfer.complete(user2.id, None, connection);
     assert!(result.is_err());
     assert_eq!(
-        result.unwrap_err(),
-        DatabaseError::new(
-            ErrorCode::UpdateError,
-            Some("Transfer cannot be completed as it is no longer pending".to_string()),
-        )
+        result,
+        DatabaseError::business_process_error("Transfer cannot be completed as it is no longer pending",)
     );
 }
 

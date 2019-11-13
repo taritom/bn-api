@@ -159,7 +159,7 @@ fn webhook_payloads() {
 
     // With main ID
     let transfer = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket.id],
         Some("test@tari.com"),
         Some(TransferMessageType::Email),

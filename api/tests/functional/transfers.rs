@@ -90,6 +90,51 @@ mod index_tests {
 }
 
 #[cfg(test)]
+mod cancel_completed_transfer_tests {
+    use super::*;
+    #[test]
+    fn cancel_completed_transfer_org_member() {
+        base::transfers::cancel_completed_transfer(Roles::OrgMember, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_admin() {
+        base::transfers::cancel_completed_transfer(Roles::Admin, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_super() {
+        base::transfers::cancel_completed_transfer(Roles::Super, true);
+    }
+    #[test]
+    fn cancel_completed_transfer_user() {
+        base::transfers::cancel_completed_transfer(Roles::User, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_org_owner() {
+        base::transfers::cancel_completed_transfer(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_door_person() {
+        base::transfers::cancel_completed_transfer(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_promoter() {
+        base::transfers::cancel_completed_transfer(Roles::Promoter, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_promoter_read_only() {
+        base::transfers::cancel_completed_transfer(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_org_admin() {
+        base::transfers::cancel_completed_transfer(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn cancel_completed_transfer_box_office() {
+        base::transfers::cancel_completed_transfer(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod cancel_tests {
     use super::*;
     #[test]
@@ -194,7 +239,7 @@ pub fn activity() {
     )
     .unwrap();
 
-    let transfer = TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(&user, &[ticket.id], None, None, false, connection).unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, Some(&organization), &database);
     let test_request = TestRequest::create_with_uri("/transfers/activity?past_or_upcoming=Upcoming");
