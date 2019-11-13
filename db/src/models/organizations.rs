@@ -306,13 +306,19 @@ impl Organization {
         let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
         let today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
 
+        let start_hour = if self.settlement_type == SettlementTypes::PostEvent {
+            3
+        } else {
+            0
+        };
+
         // If this is a normal week long settlement period, set it to start on the following Monday
         // Else set as number of days from today
         if let Some(settlement_period) = settlement_period_in_days {
             let next_period = today.naive_local() + Duration::days(settlement_period as i64);
             let next_date = timezone
                 .ymd(next_period.year(), next_period.month(), next_period.day())
-                .and_hms(0, 0, 0)
+                .and_hms(start_hour, 0, 0)
                 .naive_utc();
 
             Ok(next_date)
@@ -320,7 +326,8 @@ impl Organization {
             let next_date = today.naive_utc()
                 + Duration::days(
                     DEFAULT_SETTLEMENT_PERIOD_IN_DAYS - today.naive_local().weekday().num_days_from_monday() as i64,
-                );
+                )
+                + Duration::hours(start_hour as i64);
 
             Ok(next_date)
         }
