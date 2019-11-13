@@ -1,9 +1,12 @@
 use bigneon_db::models::{EmailProvider, Environment};
 use bigneon_db::utils::errors::EnumParseError;
 use dotenv::dotenv;
+use errors::{ApplicationError, BigNeonError};
 use itertools::Itertools;
 use std::env;
+use std::fmt;
 use std::str;
+use std::str::FromStr;
 use tari_client::{HttpTariClient, TariClient, TariTestClient};
 
 #[derive(Clone)]
@@ -39,14 +42,12 @@ pub struct Config {
     pub sendgrid_template_bn_refund: String,
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
-    pub sendgrid_template_bn_org_invite: String,
     pub sendgrid_template_bn_cancel_transfer_tickets: String,
     pub sendgrid_template_bn_cancel_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets: String,
     pub sendgrid_template_bn_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets_drip_source: String,
     pub sendgrid_template_bn_transfer_tickets_drip_destination: String,
-    pub sendgrid_template_bn_password_reset: String,
     pub sendgrid_template_bn_user_invite: String,
     pub settlement_period_in_days: Option<u32>,
     pub spotify_auth_token: Option<String>,
@@ -77,12 +78,39 @@ pub struct ConnectionPoolConfig {
 #[derive(Clone)]
 pub struct EmailTemplates {
     pub custom_broadcast: EmailTemplate,
+    pub org_invite: EmailTemplate,
+    pub password_reset: EmailTemplate,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct EmailTemplate {
     pub provider: EmailProvider,
     pub template_id: String,
+}
+
+impl FromStr for EmailTemplate {
+    type Err = BigNeonError;
+
+    fn from_str(val: &str) -> Result<Self, Self::Err> {
+        let split: Vec<&str> = val.split(':').collect_vec();
+        if split.len() < 2 {
+            return Err(ApplicationError::new(
+                "Email template value was not in the correct format: '<provider_name>:<template_id>'".to_string(),
+            )
+            .into());
+        }
+
+        Ok(EmailTemplate {
+            provider: split[0].parse()?,
+            template_id: split[1].to_string(),
+        })
+    }
+}
+
+impl fmt::Display for EmailTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.provider, self.template_id)
+    }
 }
 
 #[derive(Clone)]
@@ -104,6 +132,8 @@ const DATABASE_URL: &str = "DATABASE_URL";
 const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const EMAIL_TEMPLATES_CUSTOM_BROADCAST: &str = "EMAIL_TEMPLATES_CUSTOM_BROADCAST";
+const EMAIL_TEMPLATES_ORG_INVITE: &str = "EMAIL_TEMPLATES_ORG_INVITE";
+const EMAIL_TEMPLATES_PASSWORD_RESET: &str = "EMAIL_TEMPLATES_PASSWORD_RESET";
 const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -133,7 +163,6 @@ const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
 const SENDGRID_TEMPLATE_BN_REFUND: &str = "SENDGRID_TEMPLATE_BN_REFUND";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
-const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION: &str =
     "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION";
@@ -142,7 +171,6 @@ const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
-const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
 
 // Settlement period settings
@@ -167,6 +195,10 @@ const CONNECTION_POOL_MAX: &str = "CONNECTION_POOL_MAX";
 const SSR_TRIGGER_HEADER: &str = "SSR_TRIGGER_HEADER";
 const SSR_TRIGGER_VALUE: &str = "SSR_TRIGGER_VALUE";
 
+fn get_env_var(var: &str) -> String {
+    env::var(var).unwrap_or_else(|_| panic!("{} must be defined", var))
+}
+
 impl Config {
     pub fn parse_environment() -> Result<Environment, EnumParseError> {
         if let Ok(environment_value) = env::var(&ENVIRONMENT) {
@@ -182,15 +214,12 @@ impl Config {
         let app_name = env::var(&APP_NAME).unwrap_or_else(|_| "Big Neon".to_string());
 
         let database_url = match environment {
-            Environment::Test => {
-                env::var(&TEST_DATABASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", TEST_DATABASE_URL))
-            }
-            _ => env::var(&DATABASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
+            Environment::Test => get_env_var(TEST_DATABASE_URL),
+            _ => get_env_var(DATABASE_URL),
         };
 
         let readonly_database_url = match environment {
-            Environment::Test => env::var(&TEST_READONLY_DATABASE_URL)
-                .unwrap_or_else(|_| panic!("{} must be defined.", TEST_READONLY_DATABASE_URL)),
+            Environment::Test => get_env_var(TEST_READONLY_DATABASE_URL),
             _ => env::var(&READONLY_DATABASE_URL).unwrap_or_else(|_| database_url.clone()),
         };
 
@@ -205,17 +234,17 @@ impl Config {
 
         let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or_else(|_| "usd".to_string());
         let stripe_secret_key = env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
-        let token_secret = env::var(&TOKEN_SECRET).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_SECRET));
+        let token_secret = get_env_var(TOKEN_SECRET);
 
-        let token_issuer = env::var(&TOKEN_ISSUER).unwrap_or_else(|_| panic!("{} must be defined.", TOKEN_ISSUER));
+        let token_issuer = get_env_var(TOKEN_ISSUER);
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
 
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
 
-        let front_end_url = env::var(&FRONT_END_URL).unwrap_or_else(|_| panic!("Front end url must be defined"));
+        let front_end_url = get_env_var(FRONT_END_URL);
 
-        let tari_uri = env::var(&TARI_URL).unwrap_or_else(|_| panic!("{} must be defined.", TARI_URL));
+        let tari_uri = get_env_var(TARI_URL);
 
         let tari_client = match environment {
             Environment::Test => Box::new(TariTestClient::new(tari_uri)) as Box<dyn TariClient + Send + Sync>,
@@ -228,17 +257,16 @@ impl Config {
             }
         };
 
-        let globee_api_key = env::var(&GLOBEE_API_KEY).expect(&format!("{} must be defined", GLOBEE_API_KEY));
+        let globee_api_key = get_env_var(GLOBEE_API_KEY);
         let globee_base_url = env::var(&GLOBEE_BASE_URL).unwrap_or_else(|_| match environment {
             Environment::Production => "https://globee.com/payment-api/v1/".to_string(),
             _ => "https://test.globee.com/payment-api/v1/".to_string(),
         });
 
         let branch_io_base_url = env::var(&BRANCH_IO_BASE_URL).unwrap_or("https://api2.branch.io/v1".to_string());
-        let branch_io_branch_key =
-            env::var(&BRANCH_IO_BRANCH_KEY).expect(&format!("{} must be defined", BRANCH_IO_BRANCH_KEY));
+        let branch_io_branch_key = get_env_var(BRANCH_IO_BRANCH_KEY);
 
-        let api_base_url = env::var(&API_BASE_URL).expect(&format!("{} must be defined", API_BASE_URL));
+        let api_base_url = get_env_var(API_BASE_URL);
 
         let validate_ipns = env::var(&VALIDATE_IPNS)
             .unwrap_or("true".to_string())
@@ -246,30 +274,20 @@ impl Config {
             .expect(&format!("{} is not a valid boolean value", VALIDATE_IPNS));
         let google_recaptcha_secret_key = env::var(&GOOGLE_RECAPTCHA_SECRET_KEY).ok();
 
-        let communication_default_source_email = env::var(&COMMUNICATION_DEFAULT_SOURCE_EMAIL)
-            .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_EMAIL));
-        let communication_default_source_phone = env::var(&COMMUNICATION_DEFAULT_SOURCE_PHONE)
-            .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_PHONE));
+        let communication_default_source_email = get_env_var(COMMUNICATION_DEFAULT_SOURCE_EMAIL);
+        let communication_default_source_phone = get_env_var(COMMUNICATION_DEFAULT_SOURCE_PHONE);
 
-        let val = env::var(&EMAIL_TEMPLATES_CUSTOM_BROADCAST)
-            .unwrap_or_else(|_| panic!("{} must be defined", EMAIL_TEMPLATES_CUSTOM_BROADCAST));
-        let custom_broadcast: Vec<&str> = val.as_str().split(':').collect_vec();
-
-        let custom_broadcast = EmailTemplate {
-            provider: custom_broadcast[0].parse().unwrap(),
-            template_id: custom_broadcast[1].to_string(),
+        let email_templates = EmailTemplates {
+            custom_broadcast: get_env_var(EMAIL_TEMPLATES_CUSTOM_BROADCAST).parse().unwrap(),
+            org_invite: get_env_var(EMAIL_TEMPLATES_ORG_INVITE).parse().unwrap(),
+            password_reset: get_env_var(EMAIL_TEMPLATES_PASSWORD_RESET).parse().unwrap(),
         };
 
-        let email_templates = EmailTemplates { custom_broadcast };
+        let customer_io_base_url = get_env_var(CUSTOMER_IO_BASE_URL);
 
-        let customer_io_base_url =
-            env::var(&CUSTOMER_IO_BASE_URL).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_BASE_URL));
+        let customer_io_api_key = get_env_var(CUSTOMER_IO_API_KEY);
 
-        let customer_io_api_key =
-            env::var(&CUSTOMER_IO_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_API_KEY));
-
-        let customer_io_site_id =
-            env::var(&CUSTOMER_IO_SITE_ID).unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_SITE_ID));
+        let customer_io_site_id = get_env_var(CUSTOMER_IO_SITE_ID);
 
         let customer_io = CustomerIoSettings {
             base_url: customer_io_base_url,
@@ -277,45 +295,22 @@ impl Config {
             site_id: customer_io_site_id,
         };
 
-        let sendgrid_api_key =
-            env::var(&SENDGRID_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
-        let sendgrid_template_bn_refund = env::var(&SENDGRID_TEMPLATE_BN_REFUND)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_REFUND));
+        let sendgrid_api_key = get_env_var(SENDGRID_API_KEY);
+        let sendgrid_template_bn_refund = get_env_var(SENDGRID_TEMPLATE_BN_REFUND);
 
-        let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED));
+        let sendgrid_template_bn_user_registered = get_env_var(SENDGRID_TEMPLATE_BN_USER_REGISTERED);
 
-        let sendgrid_template_bn_purchase_completed = env::var(&SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED));
-        let sendgrid_template_bn_org_invite = env::var(&SENDGRID_TEMPLATE_BN_ORG_INVITE)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_ORG_INVITE));
-        let sendgrid_template_bn_transfer_tickets = env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS));
-        let sendgrid_template_bn_transfer_tickets_receipt = env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT));
+        let sendgrid_template_bn_purchase_completed = get_env_var(SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED);
+        let sendgrid_template_bn_transfer_tickets = get_env_var(SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS);
+        let sendgrid_template_bn_transfer_tickets_receipt = get_env_var(SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT);
         let sendgrid_template_bn_transfer_tickets_drip_destination =
-            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION).unwrap_or_else(|_| {
-                panic!(
-                    "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION
-                )
-            });
+            get_env_var(SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION);
         let sendgrid_template_bn_transfer_tickets_drip_source =
-            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE)
-                .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE));
-        let sendgrid_template_bn_cancel_transfer_tickets = env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS));
+            get_env_var(SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE);
+        let sendgrid_template_bn_cancel_transfer_tickets = get_env_var(SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS);
         let sendgrid_template_bn_cancel_transfer_tickets_receipt =
-            env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT).unwrap_or_else(|_| {
-                panic!(
-                    "{} must be defined.",
-                    SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT
-                )
-            });
-        let sendgrid_template_bn_password_reset = env::var(&SENDGRID_TEMPLATE_BN_PASSWORD_RESET)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
-        let sendgrid_template_bn_user_invite = env::var(&SENDGRID_TEMPLATE_BN_USER_INVITE)
-            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_INVITE));
+            get_env_var(SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT);
+        let sendgrid_template_bn_user_invite = get_env_var(SENDGRID_TEMPLATE_BN_USER_INVITE);
 
         let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS)
             .ok()
@@ -323,14 +318,11 @@ impl Config {
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 
-        let twilio_api_key =
-            env::var(&TWILIO_API_KEY).unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_API_KEY));
+        let twilio_api_key = get_env_var(TWILIO_API_KEY);
 
-        let twilio_account_id =
-            env::var(&TWILIO_ACCOUNT_ID).unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_ACCOUNT_ID));
+        let twilio_account_id = get_env_var(TWILIO_ACCOUNT_ID);
 
-        let api_keys_encryption_key = env::var(&API_KEYS_ENCRYPTION_KEY)
-            .unwrap_or_else(|_| panic!("{} must be defined.", API_KEYS_ENCRYPTION_KEY));
+        let api_keys_encryption_key = get_env_var(API_KEYS_ENCRYPTION_KEY);
 
         let block_external_comms = match env::var(&BLOCK_EXTERNAL_COMMS)
             .unwrap_or_else(|_| "0".to_string())
@@ -396,14 +388,12 @@ impl Config {
             sendgrid_template_bn_refund,
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
-            sendgrid_template_bn_org_invite,
             sendgrid_template_bn_cancel_transfer_tickets,
             sendgrid_template_bn_cancel_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets,
             sendgrid_template_bn_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets_drip_destination,
             sendgrid_template_bn_transfer_tickets_drip_source,
-            sendgrid_template_bn_password_reset,
             sendgrid_template_bn_user_invite,
             settlement_period_in_days,
             spotify_auth_token,
