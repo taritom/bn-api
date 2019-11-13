@@ -91,11 +91,11 @@ FROM (
                   LEFT JOIN order_items fi ON fi.parent_id = oi.id AND fi.item_type = 'PerUnitFees'
                   LEFT JOIN order_items dis ON dis.parent_id = oi.id AND dis.item_type = 'Discount'
                   LEFT JOIN (
-             SELECT tfs.id, tfst.ticket_instance_id
-             FROM transfer_tickets tfst
-                      INNER JOIN transfers tfs ON tfst.transfer_id = tfs.id
-             WHERE tfs.status = 'Pending'
-         ) tfs ON tfs.ticket_instance_id = t.ticket_instance_id
+                     SELECT tfs.id, tfst.ticket_instance_id
+                     FROM transfer_tickets tfst
+                              INNER JOIN transfers tfs ON tfst.transfer_id = tfs.id
+                     WHERE tfs.status = 'Pending'
+                 ) tfs ON tfs.ticket_instance_id = t.ticket_instance_id
          WHERE e.organization_id = ANY ($2)
            AND o.status IN ('Paid', 'PartiallyPaid', 'Cancelled')
            AND (

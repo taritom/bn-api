@@ -3,10 +3,12 @@ use auth::user::User;
 use bigneon_db::models::{User as DbUser, *};
 use chrono::prelude::*;
 use communications::{mailers, smsers};
+use controllers::tickets::transfer_tickets_on_blockchain;
 use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
+use itertools::Itertools;
 use models::*;
 use server::AppState;
 
@@ -121,8 +123,31 @@ pub fn cancel(
     let transfer = Transfer::find(path.id, connection)?;
     check_transfer_cancel_access(&transfer, &auth_user, connection)?;
 
-    let transfer = transfer.cancel(auth_user.id(), None, connection)?;
+    let previous_status = transfer.status;
     let source_user = DbUser::find(transfer.source_user_id, connection)?;
+
+    // Transfer tickets back to the original wallet
+    if previous_status != TransferStatus::Pending {
+        let source_user_wallet = source_user.default_wallet(connection)?;
+        for (destination_user_wallet_id, tickets) in &transfer
+            .tickets(connection)?
+            .into_iter()
+            .sorted_by_key(|ti| ti.wallet_id)
+            .into_iter()
+            .group_by(|ti| ti.wallet_id)
+        {
+            let destination_user_wallet = Wallet::find(destination_user_wallet_id, connection)?;
+            transfer_tickets_on_blockchain(
+                &tickets.collect_vec(),
+                connection,
+                &*state.config.tari_client,
+                &destination_user_wallet,
+                &source_user_wallet,
+            )?;
+        }
+    }
+
+    let transfer = transfer.cancel(&auth_user.user, None, connection)?;
 
     if let Some(transfer_message_type) = transfer.transfer_message_type {
         if let Some(transfer_address) = &transfer.transfer_address {
@@ -160,7 +185,13 @@ fn check_transfer_cancel_access(
     user: &User,
     connection: &PgConnection,
 ) -> Result<(), BigNeonError> {
-    if transfer.source_user_id != user.id() {
+    if transfer.status == TransferStatus::Completed {
+        if !user.has_scope(Scopes::TransferCancelAccepted)? {
+            application::forbidden::<HttpResponse>(
+                "You do not have access to cancel this transfer as it is completed",
+            )?;
+        }
+    } else if transfer.source_user_id != user.id() {
         let mut valid = true;
         let events = transfer.events(connection)?;
         for event in events {

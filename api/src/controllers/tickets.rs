@@ -145,7 +145,7 @@ pub fn send_via_email_or_phone(
         let ticket_instances = TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
 
         TicketInstance::direct_transfer(
-            auth_user.id(),
+            &auth_user.user,
             &send_tickets_request.ticket_ids,
             &send_tickets_request.email_or_phone,
             TransferMessageType::Email,
@@ -176,7 +176,7 @@ pub fn send_via_email_or_phone(
     } else {
         let transfer = if send_tickets_request.email_or_phone.contains("@") {
             let transfer = TicketInstance::create_transfer(
-                auth_user.id(),
+                &auth_user.user,
                 &send_tickets_request.ticket_ids,
                 Some(&send_tickets_request.email_or_phone),
                 Some(TransferMessageType::Email),
@@ -194,7 +194,7 @@ pub fn send_via_email_or_phone(
             transfer
         } else if numbers_only.len() > 7 {
             let transfer = TicketInstance::create_transfer(
-                auth_user.id(),
+                &auth_user.user,
                 &send_tickets_request.ticket_ids,
                 Some(&send_tickets_request.email_or_phone),
                 Some(TransferMessageType::Phone),
@@ -238,7 +238,7 @@ pub fn transfer_authorization(
     let connection = connection.get();
 
     let transfer_authorization: TransferAuthorization = TicketInstance::create_transfer(
-        auth_user.id(),
+        &auth_user.user,
         &transfer_tickets_request.ticket_ids,
         None,
         None,
@@ -283,7 +283,7 @@ pub fn receive_transfer(
     Ok(HttpResponse::Ok().finish())
 }
 
-fn transfer_tickets_on_blockchain(
+pub(crate) fn transfer_tickets_on_blockchain(
     tickets: &[TicketInstance],
     connection: &PgConnection,
     tari_client: &dyn TariClient,

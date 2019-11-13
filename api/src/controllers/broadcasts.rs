@@ -56,7 +56,20 @@ pub fn index(
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
 
-    let push_notifications = Broadcast::find_by_event_id(path.id, query.page(), query.limit(), connection)?;
+    let push_notifications = Broadcast::find_by_event_id(
+        path.id,
+        match query.get_tag_as_str("channel") {
+            Some(s) => Some(s.parse()?),
+            None => None,
+        },
+        match query.get_tag_as_str("broadcast_type") {
+            Some(s) => Some(s.parse()?),
+            None => None,
+        },
+        query.page() as i64,
+        query.limit() as i64,
+        connection,
+    )?;
 
     Ok(WebPayload::new(StatusCode::OK, push_notifications))
 }
