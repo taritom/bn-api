@@ -67,20 +67,23 @@ impl BroadcastPushNotificationExecutor {
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
-        // if broadcast is a preview, use the email that where the preview should be sent to
-        if let Some(preview_address) = broadcast.preview.clone() {
-            let user = User::create_temp_user(Some(preview_address));
-            audience = vec![user];
-        }
-
         for user in audience {
             match broadcast.channel {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
                 }
-                BroadcastChannel::Email => {
-                    queue_email_notification(&broadcast, conn, self.template_id.clone(), message.to_string(), &user)?
-                }
+                BroadcastChannel::Email => queue_email_notification(
+                    &broadcast,
+                    conn,
+                    self.template_id.clone(),
+                    message.to_string(),
+                    &user,
+                    broadcast.preview.clone(),
+                )?,
+            }
+            // if preview email, only send 1 email
+            if broadcast.preview != None {
+                break;
             }
         }
 
@@ -136,10 +139,16 @@ fn queue_email_notification(
     template_id: Option<String>,
     message: String,
     user: &User,
+    preview_email: Option<String>,
 ) -> Result<(), BigNeonError> {
     if user.email.is_none() {
         return Ok(());
     }
+
+    let email = match preview_email {
+        None => CommAddress::from(user.email.clone().unwrap()),
+        Some(e) => CommAddress::from(e),
+    };
 
     DomainAction::create(
         None,
@@ -150,7 +159,7 @@ fn queue_email_notification(
             broadcast.subject.as_ref().unwrap_or(&broadcast.name).to_string(),
             Some(message),
             None,
-            CommAddress::from(user.email.clone().unwrap()),
+            email,
             template_id,
             None,
             Some(vec!["broadcast"]),
