@@ -962,7 +962,7 @@ impl Event {
     ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
         let result: Vec<(TicketInstance, User, Uuid)> = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
-            .inner_join(assets::table.on(ticket_types::id.eq(ticket_types::id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
