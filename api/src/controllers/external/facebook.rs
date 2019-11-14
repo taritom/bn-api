@@ -215,6 +215,14 @@ pub fn scopes((connection, user): (Connection, AuthUser)) -> Result<HttpResponse
     Ok(HttpResponse::Ok().json(external_login.scopes))
 }
 
+pub fn disconnect((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
+    let conn = connection.get();
+    let db_user = user.user;
+    let external_login = db_user.find_external_login(FACEBOOK_SITE, conn)?;
+    external_login.delete(Some(db_user.id), conn)?;
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn create_event(
     (connection, user, data, state): (Connection, AuthUser, Json<CreateFacebookEvent>, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
