@@ -46,15 +46,14 @@ impl BroadcastPushNotificationExecutor {
         let broadcast = broadcast.set_in_progress(conn)?;
         let message = broadcast.message.clone();
         let message = message.unwrap_or("".to_string());
-        let (audience_type, message) = match broadcast.notification_type {
-            BroadcastType::LastCall => (
-                BroadcastAudience::PeopleAtTheEvent,
-                "🗣LAST CALL! 🍻The bar is closing soon, grab something now before it's too late!",
-            ),
-            BroadcastType::Custom => (BroadcastAudience::PeopleAtTheEvent, message.as_str()),
+        let message = match broadcast.notification_type {
+            BroadcastType::LastCall => {
+                "🗣LAST CALL! 🍻The bar is closing soon, grab something now before it's too late!"
+            }
+            BroadcastType::Custom => message.as_str(),
         };
 
-        let audience: Vec<User> = match audience_type {
+        let audience: Vec<User> = match broadcast.audience {
             BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn)?
                 .into_iter()
                 .map(|u| (u, Vec::new(), None))
