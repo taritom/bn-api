@@ -29,7 +29,7 @@ impl DomainActionExecutor for BroadcastPushNotificationExecutor {
 impl BroadcastPushNotificationExecutor {
     pub fn new(config: &Config) -> BroadcastPushNotificationExecutor {
         BroadcastPushNotificationExecutor {
-            template_id: Some(config.email_templates.custom_broadcast.template_id.clone()),
+            template_id: Some(config.email_templates.custom_broadcast.to_string()),
         }
     }
 
