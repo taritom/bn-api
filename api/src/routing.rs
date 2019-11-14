@@ -161,6 +161,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/external/facebook/scopes", |r| {
         r.method(Method::GET).with(external::facebook::scopes);
     })
+    .resource("/external/facebook", |r| {
+        r.method(Method::DELETE).with(external::facebook::disconnect);
+    })
     .resource("/genres", |r| {
         r.method(Method::GET).with(genres::index);
     })
