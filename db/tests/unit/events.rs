@@ -2181,7 +2181,7 @@ fn find_all_events_for_organization() {
     // No filter on past or upcoming returns all events
     let events =
         Event::find_all_events_for_organization(organization.id, None, None, false, 0, 100, connection).unwrap();
-    assert_eq!(
+    assert_equiv!(
         events.data,
         vec![
             past_event.summary(connection).unwrap(),
