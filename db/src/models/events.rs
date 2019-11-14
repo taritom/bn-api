@@ -1917,7 +1917,7 @@ pub struct DisplayEvent {
     pub slug: String,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EventSummaryResult {
     pub id: Uuid,
     pub name: String,
@@ -1954,6 +1954,12 @@ pub struct EventSummaryResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eligible_for_deletion: Option<bool>,
     pub extra_admin_data: Option<Value>,
+}
+
+impl PartialOrd for EventSummaryResult {
+    fn partial_cmp(&self, other: &EventSummaryResult) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]
