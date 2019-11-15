@@ -73,25 +73,28 @@ impl BroadcastPushNotificationExecutor {
                 conn,
                 self.template_id.clone(),
                 message.to_string(),
-               "",
-                broadcast.preview_email.clone(), )?;
-            return  Ok(())
+                "",
+                broadcast.preview_email.clone(),
+            )?;
+            return Ok(());
         }
 
         for user in audience {
             match broadcast.channel {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
-                },
-                BroadcastChannel::Email =>
-                if let Some(email_address) = &user.email {
-                    queue_email_notification(
-                    &broadcast,
-                    conn,
-                    self.template_id.clone(),
-                    message.to_string(),
-                    email_address,
-                    broadcast.preview_email.clone(), )?
+                }
+                BroadcastChannel::Email => {
+                    if let Some(email_address) = &user.email {
+                        queue_email_notification(
+                            &broadcast,
+                            conn,
+                            self.template_id.clone(),
+                            message.to_string(),
+                            email_address,
+                            broadcast.preview_email.clone(),
+                        )?
+                    }
                 }
             }
         }
@@ -150,7 +153,6 @@ fn queue_email_notification(
     email_address: &str,
     preview_email: Option<String>,
 ) -> Result<(), BigNeonError> {
-
     let email = match preview_email {
         None => CommAddress::from(email_address.to_string()),
         Some(e) => CommAddress::from(e),
