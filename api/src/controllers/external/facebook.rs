@@ -1,4 +1,3 @@
-use actix_web::Query;
 use actix_web::{HttpResponse, State};
 use auth::user::User as AuthUser;
 use auth::TokenResponse;
@@ -171,68 +170,6 @@ pub struct AuthCallbackPathParameters {
     error_description: Option<String>,
 }
 
-/// Callback for converting an FB code into an access token
-pub fn auth_callback(
-    (query, state, connection): (Query<AuthCallbackPathParameters>, State<AppState>, Connection),
-) -> Result<HttpResponse, BigNeonError> {
-    info!("Auth callback received");
-    if query.error.is_some() {
-        return Err(ApplicationError::new_with_type(
-            ApplicationErrorType::Internal,
-            "Facebook login failed".to_string(),
-        )
-        .into());
-    }
-
-    let app_id = state.config.facebook_app_id.as_ref().ok_or_else(|| {
-        ApplicationError::new_with_type(
-            ApplicationErrorType::ServerConfigError,
-            "Facebook App ID has not been configured".to_string(),
-        )
-    })?;
-
-    let app_secret = state.config.facebook_app_secret.as_ref().ok_or_else(|| {
-        ApplicationError::new_with_type(
-            ApplicationErrorType::ServerConfigError,
-            "Facebook App secret has not been configured".to_string(),
-        )
-    })?;
-
-    let conn = connection.get();
-
-    let _user = match query.state.as_ref() {
-        Some(user_id) => {
-            // TODO check signature of state to make sure it was sent from us
-            User::find(user_id.parse()?, conn)?
-        }
-        _ => {
-            return Err(ApplicationError::new_with_type(
-                ApplicationErrorType::BadRequest,
-                "State was not provided from Facebook".to_string(),
-            )
-            .into());
-        }
-    };
-
-    // Note this must be the same as the redirect url used to in the original call.
-    let redirect_url = None;
-
-    let _access_token = FacebookClient::get_access_token(
-        app_id,
-        app_secret,
-        redirect_url,
-        query.code.as_ref().ok_or_else(|| {
-            ApplicationError::new_with_type(
-                ApplicationErrorType::Internal,
-                "Code was not provided from Facebook".to_string(),
-            )
-        })?,
-    )?;
-
-    unimplemented!()
-    //user.add_external_login()
-}
-
 /// Returns a list of pages that a user has access to manage
 pub fn pages((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
@@ -243,7 +180,7 @@ pub fn pages((connection, user): (Connection, AuthUser)) -> Result<HttpResponse,
     }
     let fb_login = fb_login.unwrap();
 
-    let client = FacebookClient::from_access_token(fb_login.access_token.clone());
+    let client = FacebookClient::from_user_access_token(fb_login.access_token.clone());
     let permissions = client.permissions.list(&fb_login.external_user_id)?;
     let list_pages_permission = permissions.data.iter().find(|p| p.permission == "pages_show_list");
     if list_pages_permission
@@ -278,10 +215,19 @@ pub fn scopes((connection, user): (Connection, AuthUser)) -> Result<HttpResponse
     Ok(HttpResponse::Ok().json(external_login.scopes))
 }
 
+pub fn disconnect((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
+    let conn = connection.get();
+    let db_user = user.user;
+    let external_login = db_user.find_external_login(FACEBOOK_SITE, conn)?;
+    external_login.delete(Some(db_user.id), conn)?;
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn create_event(
     (connection, user, data, state): (Connection, AuthUser, Json<CreateFacebookEvent>, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
+    let config = &state.config;
     let event = Event::find(data.event_id, conn)?;
     if !event.is_published() {
         return Err(
@@ -291,7 +237,14 @@ pub fn create_event(
     let organization = event.organization(conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, conn)?;
 
-    let client = FacebookClient::from_access_token(user.user.find_external_login(FACEBOOK_SITE, conn)?.access_token);
+    if config.facebook_app_id.is_none() || config.facebook_app_secret.is_none() {
+        return Err(ApplicationError::unprocessable("Facebook is not configured for use").into());
+    }
+
+    let client = FacebookClient::from_app_access_token(
+        config.facebook_app_id.as_ref().unwrap(),
+        config.facebook_app_secret.as_ref().unwrap(),
+    )?;
 
     let mut validation_errors: Result<(), ValidationErrors> = Ok(());
 
@@ -320,13 +273,15 @@ pub fn create_event(
         data.category.parse()?,
         event.name.clone(),
         data.description.clone(),
-        venue.timezone,
+        venue.timezone.to_string(),
         event.promo_image_url.as_ref().map(|u| CoverPhoto::new(u.to_string())),
         event
+            .get_all_localized_times(Some(&venue))
             .event_start
             .ok_or_else(|| {
                 ApplicationError::unprocessable("Cannot publish this event in Facebook without a start time")
             })?
+            .naive_local()
             .to_string(),
     );
 
@@ -335,13 +290,11 @@ pub fn create_event(
         EventLocationType::CustomAddress => fb_event.address = data.custom_address.clone(),
     }
 
-    fb_event.ticket_uri = Some(format!(
-        "{}/tickets/{}/tickets",
-        state.config.front_end_url,
-        event.slug(conn)?
-    ));
+    fb_event.ticket_uri = Some(format!("{}/tickets/{}", state.config.front_end_url, event.slug(conn)?));
 
-    let _fb_id = match client.official_events.create(fb_event) {
+    fb_event.admins.push(data.page_id.clone());
+
+    let fb_id = match client.official_events.create(fb_event) {
         Ok(i) => i,
         Err(err) => match err {
             FacebookError::FacebookError(e) => {
@@ -358,8 +311,10 @@ pub fn create_event(
         },
     };
 
-    // Save fb_id onto event
-    // unimplemented!();
+    let mut attr = EventEditableAttributes::default();
+    attr.facebook_event_id = Some(Some(fb_id.to_string()));
+    event.update(Some(user.id()), attr, conn)?;
+
     Ok(HttpResponse::Ok().finish())
 }
 

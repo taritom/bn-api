@@ -41,7 +41,7 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
     let source = CommAddress::from(config.communication_default_source_email.clone());
     let destinations = CommAddress::from(email.to_string());
     let title = "BigNeon Password reset request".to_string();
-    let template_id = config.sendgrid_template_bn_password_reset.clone();
+    let template_id = config.email_templates.password_reset.to_string();
     let mut template_data = TemplateData::new();
     template_data.insert("name".to_string(), user.full_name());
     template_data.insert("password_reset_link".to_string(), password_reset_link);

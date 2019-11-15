@@ -732,12 +732,8 @@ impl TicketInstance {
 
         //Generate redeem codes for the tickets
         for t in &tickets {
-            let key = generate_redeem_key(9);
+            let key = t.associate_redeem_key(conn)?;
 
-            diesel::update(t)
-                .set(ticket_instances::redeem_key.eq(key.clone()))
-                .execute(conn)
-                .to_db_error(ErrorCode::InternalError, "Could not write redeem key")?;
             DomainEvent::create(
                 DomainEventTypes::TicketInstancePurchased,
                 "Ticket purchased".to_string(),
@@ -749,6 +745,17 @@ impl TicketInstance {
             ))).commit(conn)?;
         }
         Ok(())
+    }
+
+    pub fn associate_redeem_key(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        let key = generate_redeem_key(9);
+
+        diesel::update(self)
+            .set(ticket_instances::redeem_key.eq(key.clone()))
+            .execute(conn)
+            .to_db_error(ErrorCode::InternalError, "Could not write redeem key")?;
+
+        Ok(key)
     }
 
     pub fn redeem_ticket(
@@ -810,7 +817,7 @@ impl TicketInstance {
     }
 
     pub fn direct_transfer(
-        from_user_id: Uuid,
+        from_user: &User,
         ticket_ids: &[Uuid],
         address: &str,
         sent_via: TransferMessageType,
@@ -818,8 +825,8 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
         let transfer =
-            TicketInstance::create_transfer(from_user_id, ticket_ids, Some(address), Some(sent_via), true, conn)?;
-        let wallet = Wallet::find_default_for_user(from_user_id, conn)?;
+            TicketInstance::create_transfer(from_user, ticket_ids, Some(address), Some(sent_via), true, conn)?;
+        let wallet = Wallet::find_default_for_user(from_user.id, conn)?;
         let receiver_wallet = Wallet::find_default_for_user(to_user_id, conn)?;
         TicketInstance::receive_ticket_transfer(
             transfer.into_authorization(conn)?,
@@ -878,7 +885,7 @@ impl TicketInstance {
     }
 
     pub fn create_transfer(
-        user_id: Uuid,
+        user: &User,
         ticket_ids: &[Uuid],
         address: Option<&str>,
         sent_via: Option<TransferMessageType>,
@@ -887,13 +894,13 @@ impl TicketInstance {
     ) -> Result<Transfer, DatabaseError> {
         //Confirm that tickets are purchased and owned by user
         let (wallet_id, ticket_ids_and_updated_at) =
-            TicketInstance::verify_tickets_belong_to_user(user_id, ticket_ids, conn)?;
+            TicketInstance::verify_tickets_belong_to_user(user.id, ticket_ids, conn)?;
 
         //Generate transfer_key and store keys and set transfer_expiry date
         let transfer_key = Uuid::new_v4();
 
         let mut update_count = 0;
-        Transfer::cancel_by_ticket_instance_ids(ticket_ids, user_id, Some(transfer_key), conn)?;
+        Transfer::cancel_by_ticket_instance_ids(ticket_ids, &user, Some(transfer_key), conn)?;
 
         let transfer_data = Some(json!({
             "sent_via": sent_via,
@@ -902,7 +909,7 @@ impl TicketInstance {
             "transfer_key": &transfer_key
         }));
         let transfer =
-            Transfer::create(user_id, transfer_key, sent_via, address.map(|a| a.to_string()), direct).commit(conn)?;
+            Transfer::create(user.id, transfer_key, sent_via, address.map(|a| a.to_string()), direct).commit(conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
             transfer.add_transfer_ticket(t_id, conn)?;
             update_count += 1;
@@ -1007,9 +1014,7 @@ impl TicketInstance {
 
         //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
         //being transfered
-        let transfer_tickets = transfer.transfer_tickets(conn)?;
-        let ticket_ids: Vec<Uuid> = transfer_tickets.iter().map(|tt| tt.ticket_instance_id).collect();
-        let tickets = TicketInstance::find_by_ids(&ticket_ids, conn)?;
+        let tickets = transfer.tickets(conn)?;
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
         for t in &tickets {

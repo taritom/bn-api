@@ -144,13 +144,13 @@ pub fn ticket_counts_report() {
     assert_eq!(report.counts[0].hold_nullified_count, 0);
 
     //Sales
-    assert_eq!(report.sales[0].box_office_order_count, 1);
+    assert_eq!(report.sales[0].box_office_order_count, 0);
     assert_eq!(report.sales[0].online_order_count, 1);
     assert_eq!(report.sales[0].box_office_refunded_count, 0);
     assert_eq!(report.sales[0].online_refunded_count, 0);
-    assert_eq!(report.sales[0].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[0].box_office_sales_in_cents, 0);
     assert_eq!(report.sales[0].online_sales_in_cents, 1500);
-    assert_eq!(report.sales[0].box_office_sale_count, 10);
+    assert_eq!(report.sales[0].box_office_sale_count, 0);
     assert_eq!(report.sales[0].online_sale_count, 10);
     assert_eq!(report.sales[0].comp_sale_count, 0);
     assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
@@ -159,6 +159,22 @@ pub fn ticket_counts_report() {
     assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 200);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 300);
+
+    assert_eq!(report.sales[1].box_office_order_count, 1);
+    assert_eq!(report.sales[1].online_order_count, 0);
+    assert_eq!(report.sales[1].box_office_refunded_count, 0);
+    assert_eq!(report.sales[1].online_refunded_count, 0);
+    assert_eq!(report.sales[1].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[1].online_sales_in_cents, 0);
+    assert_eq!(report.sales[1].box_office_sale_count, 10);
+    assert_eq!(report.sales[1].online_sale_count, 0);
+    assert_eq!(report.sales[1].comp_sale_count, 0);
+    assert_eq!(report.sales[1].total_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].total_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_online_fees_in_cents, 0);
 
     //----------Comps
     let redemption_code = HoldBuilder::new(connection)
@@ -222,21 +238,37 @@ pub fn ticket_counts_report() {
     assert_eq!(report.counts[0].hold_nullified_count, 0);
 
     //Sales
-    assert_eq!(report.sales[0].box_office_order_count, 1);
-    assert_eq!(report.sales[0].online_order_count, 2);
+    assert_eq!(report.sales[0].box_office_order_count, 0);
+    assert_eq!(report.sales[0].online_order_count, 1);
     assert_eq!(report.sales[0].box_office_refunded_count, 0);
     assert_eq!(report.sales[0].online_refunded_count, 0);
-    assert_eq!(report.sales[0].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[0].box_office_sales_in_cents, 0);
     assert_eq!(report.sales[0].online_sales_in_cents, 1500);
-    assert_eq!(report.sales[0].box_office_sale_count, 10);
+    assert_eq!(report.sales[0].box_office_sale_count, 0);
     assert_eq!(report.sales[0].online_sale_count, 10);
-    assert_eq!(report.sales[0].comp_sale_count, 5);
+    assert_eq!(report.sales[0].comp_sale_count, 0);
     assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 500);
     assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 200);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 300);
+
+    assert_eq!(report.sales[1].box_office_order_count, 1);
+    assert_eq!(report.sales[1].online_order_count, 1);
+    assert_eq!(report.sales[1].box_office_refunded_count, 0);
+    assert_eq!(report.sales[1].online_refunded_count, 0);
+    assert_eq!(report.sales[1].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[1].online_sales_in_cents, 0);
+    assert_eq!(report.sales[1].box_office_sale_count, 10);
+    assert_eq!(report.sales[1].online_sale_count, 0);
+    assert_eq!(report.sales[1].comp_sale_count, 5);
+    assert_eq!(report.sales[1].total_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].total_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_online_fees_in_cents, 0);
 
     //----------Holds
     let redemption_code = HoldBuilder::new(connection)
@@ -300,21 +332,37 @@ pub fn ticket_counts_report() {
     assert_eq!(report.counts[0].hold_nullified_count, 0);
 
     //Sales
-    assert_eq!(report.sales[0].box_office_order_count, 1);
-    assert_eq!(report.sales[0].online_order_count, 3);
+    assert_eq!(report.sales[0].box_office_order_count, 0);
+    assert_eq!(report.sales[0].online_order_count, 2);
     assert_eq!(report.sales[0].box_office_refunded_count, 0);
     assert_eq!(report.sales[0].online_refunded_count, 0);
-    assert_eq!(report.sales[0].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[0].box_office_sales_in_cents, 0);
     assert_eq!(report.sales[0].online_sales_in_cents, 2200);
-    assert_eq!(report.sales[0].box_office_sale_count, 10);
+    assert_eq!(report.sales[0].box_office_sale_count, 0);
     assert_eq!(report.sales[0].online_sale_count, 15);
-    assert_eq!(report.sales[0].comp_sale_count, 5);
+    assert_eq!(report.sales[0].comp_sale_count, 0);
     assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 750);
     assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 300);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 450);
+
+    assert_eq!(report.sales[1].box_office_order_count, 1);
+    assert_eq!(report.sales[1].online_order_count, 1);
+    assert_eq!(report.sales[1].box_office_refunded_count, 0);
+    assert_eq!(report.sales[1].online_refunded_count, 0);
+    assert_eq!(report.sales[1].box_office_sales_in_cents, 1500);
+    assert_eq!(report.sales[1].online_sales_in_cents, 0);
+    assert_eq!(report.sales[1].box_office_sale_count, 10);
+    assert_eq!(report.sales[1].online_sale_count, 0);
+    assert_eq!(report.sales[1].comp_sale_count, 5);
+    assert_eq!(report.sales[1].total_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].total_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[1].company_online_fees_in_cents, 0);
+    assert_eq!(report.sales[1].client_online_fees_in_cents, 0);
 
     //------Test a refund
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)

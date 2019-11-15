@@ -6,6 +6,7 @@ pub enum FacebookError {
     DeserializationError(serde_json::Error),
     #[error(msg_embedded, no_from, non_std)]
     ParseError(String),
+    Unauthorized,
 }
 
 #[derive(Deserialize, Debug)]

@@ -7,6 +7,7 @@ use schema::broadcasts;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::pagination::Paginate;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
@@ -24,6 +25,9 @@ pub struct NewBroadcast {
     pub progress: i32,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
+    pub preview_email: Option<String>,
 }
 
 #[derive(Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -42,9 +46,12 @@ pub struct Broadcast {
     pub updated_at: NaiveDateTime,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
+    pub preview_email: Option<String>,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default, Deserialize, Debug)]
 #[table_name = "broadcasts"]
 pub struct BroadcastEditableAttributes {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -70,6 +77,9 @@ impl Broadcast {
         message: Option<String>,
         send_at: Option<NaiveDateTime>,
         status: Option<BroadcastStatus>,
+        subject: Option<String>,
+        audience: BroadcastAudience,
+        preview_email: Option<String>,
     ) -> NewBroadcast {
         NewBroadcast {
             event_id,
@@ -82,6 +92,9 @@ impl Broadcast {
             progress: 0,
             sent_quantity: 0,
             opened_quantity: 0,
+            subject,
+            audience,
+            preview_email,
         }
     }
 
@@ -110,34 +123,32 @@ impl Broadcast {
 
     pub fn find_by_event_id(
         event_id: Uuid,
-        page: u32,
-        limit: u32,
+        channel: Option<BroadcastChannel>,
+        broadcast_type: Option<BroadcastType>,
+        page: i64,
+        limit: i64,
         connection: &PgConnection,
     ) -> Result<Payload<Broadcast>, DatabaseError> {
-        let total: i64 = broadcasts::table
-            .filter(broadcasts::event_id.eq(event_id))
-            .count()
-            .first(connection)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not get total push notifications for event",
-            )?;
+        let mut query = broadcasts::table.filter(broadcasts::event_id.eq(event_id)).into_boxed();
 
-        let notifications = broadcasts::table
-            .filter(broadcasts::event_id.eq(event_id))
-            .limit(limit as i64)
-            .offset((limit * page) as i64)
+        if let Some(ch) = channel {
+            query = query.filter(broadcasts::channel.eq(ch));
+        }
+
+        if let Some(t) = broadcast_type {
+            query = query.filter(broadcasts::notification_type.eq(t));
+        }
+
+        let (notifications, total) = query
             .select(broadcasts::all_columns)
-            .order_by(broadcasts::send_at.asc())
-            .load(connection)
+            .order_by(broadcasts::send_at.desc())
+            .paginate(page)
+            .per_page(limit)
+            .load_and_count_pages(connection)
             .to_db_error(ErrorCode::QueryError, "Unable to load push notification by event")?;
-
-        let mut paging = Paging::new(page, limit);
-        paging.total = total as u64;
-        Ok(Payload {
-            paging,
-            data: notifications,
-        })
+        let mut payload = Payload::from_data(notifications, page as u32, limit as u32);
+        payload.paging.total = total as u64;
+        Ok(payload)
     }
 
     pub fn cancel(&self, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
@@ -241,9 +252,7 @@ impl NewBroadcast {
             None,
             DomainActionTypes::BroadcastPushNotification,
             None,
-            json!(BroadcastPushNotificationAction {
-                event_id: self.event_id,
-            }),
+            json!(""),
             Some(Tables::Broadcasts),
             Some(result.id),
         );
@@ -264,9 +273,4 @@ impl NewBroadcast {
         );
         Ok(validation_errors?)
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct BroadcastPushNotificationAction {
-    pub event_id: Uuid,
 }

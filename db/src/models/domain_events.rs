@@ -126,16 +126,16 @@ impl DomainEvent {
             DomainEventTypes::OrderCompleted => {
                 let mut data: HashMap<String, serde_json::Value> = HashMap::new();
                 let order = Order::find(main_id, conn)?;
-                if let Some(event) = order.events(conn)?.pop() {
-                    DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
-                }
-                data.insert("webhook_event_type".to_string(), json!("purchase_ticket"));
-                data.insert(
-                    "user_id".to_string(),
-                    json!(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
-                );
+                DomainEvent::order_payload_data(conn, &mut data, order)?;
                 data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
-
+                result.push(data);
+            }
+            DomainEventTypes::OrderRefund => {
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                let order = Order::find(main_id, conn)?;
+                DomainEvent::order_payload_data(conn, &mut data, order)?;
+                data.insert("webhook_event_type".to_string(), json!("refund_completed"));
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
                 result.push(data);
             }
             DomainEventTypes::TransferTicketStarted
@@ -193,6 +193,84 @@ impl DomainEvent {
         }
 
         Ok(result)
+    }
+
+    fn order_payload_data(
+        conn: &PgConnection,
+        data: &mut HashMap<String, Value>,
+        order: Order,
+    ) -> Result<(), DatabaseError> {
+        if let Some(event) = order.events(conn)?.pop() {
+            DomainEvent::webhook_payload_event_data(&event, data, conn)?;
+        }
+        data.insert("webhook_event_type".to_string(), json!("purchase_ticket"));
+        data.insert("order_number".to_string(), json!(order.order_number()));
+        let user = order.user(conn)?;
+        data.insert("customer_email".to_string(), json!(user.email));
+        data.insert("customer_first_name".to_string(), json!(user.first_name));
+        data.insert("customer_last_name".to_string(), json!(user.last_name));
+
+        #[derive(Serialize)]
+        struct R {
+            ticket_type: Option<String>,
+            price: i64,
+            quantity: i64,
+            total: i64,
+            refunded_quantity: i64,
+            refunded_total: i64,
+        };
+
+        let mut count = 0;
+        let mut sub_total = 0;
+        let mut refunded_sub_total = 0;
+        let mut fees_total = 0;
+        let mut refunded_fees_total = 0;
+        let mut discount_total = 0;
+        let mut refunded_discount_total = 0;
+        let mut j_items = Vec::<R>::new();
+        for item in order.items(conn)? {
+            let item_total = item.unit_price_in_cents * item.quantity;
+            let refunded_total = item.unit_price_in_cents * item.refunded_quantity;
+            j_items.push(R {
+                ticket_type: item.ticket_type(conn)?.map(|tt| tt.name),
+                price: item.unit_price_in_cents,
+                quantity: item.quantity,
+                refunded_quantity: item.refunded_quantity,
+                total: item_total,
+                refunded_total,
+            });
+            count = count + item.quantity - item.refunded_quantity;
+            match item.item_type {
+                OrderItemTypes::Tickets => {
+                    sub_total = sub_total + item_total;
+                    refunded_sub_total = refunded_sub_total + refunded_total;
+                }
+                OrderItemTypes::Discount => {
+                    discount_total = discount_total + item_total;
+                    refunded_discount_total = refunded_discount_total + refunded_total;
+                }
+                OrderItemTypes::PerUnitFees | OrderItemTypes::EventFees | OrderItemTypes::CreditCardFees => {
+                    fees_total = fees_total + item_total;
+                    refunded_fees_total = refunded_fees_total + refunded_total;
+                }
+            }
+        }
+
+        data.insert("items".to_string(), json!(j_items));
+        data.insert("ticket_count".to_string(), json!(count));
+        data.insert("subtotal".to_string(), json!(sub_total));
+        data.insert("refunded_subtotal".to_string(), json!(refunded_sub_total));
+        data.insert("fees_total".to_string(), json!(fees_total));
+        data.insert("refunded_fees_total".to_string(), json!(refunded_fees_total));
+        data.insert("discount_total".to_string(), json!(discount_total));
+        data.insert("refunded_discount_total".to_string(), json!(refunded_discount_total));
+
+        data.insert(
+            "user_id".to_string(),
+            json!(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
+        );
+
+        Ok(())
     }
 
     fn transferer_payload_data(

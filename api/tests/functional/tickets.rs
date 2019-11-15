@@ -678,7 +678,7 @@ fn receive_ticket_transfer() {
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
 
     let transfer_auth: TransferAuthorization = TicketInstance::create_transfer(
-        auth_user.id(),
+        &auth_user.user,
         &vec![tickets[0].id, tickets[1].id],
         None,
         None,
@@ -750,8 +750,8 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
     .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
     let ticket_ids = vec![tickets[0].id, tickets[1].id];
-    let transfer = TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, false, conn).unwrap();
-    transfer.cancel(user.id, None, conn).unwrap();
+    let transfer = TicketInstance::create_transfer(&auth_user.user, &ticket_ids, None, None, false, conn).unwrap();
+    transfer.cancel(&user, None, conn).unwrap();
 
     //Try receive transfer
     let user2 = database.create_user().finish();

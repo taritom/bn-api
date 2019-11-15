@@ -3189,7 +3189,7 @@ fn details() {
 
     // Transfer new_order2's ticket to user3
     TicketInstance::direct_transfer(
-        user2.id,
+        &user2,
         &vec![ticket2.id],
         "nowhere",
         TransferMessageType::Email,
@@ -3282,7 +3282,7 @@ fn refund() {
 
     // Refund fails when ticket instance transferred
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,
@@ -3301,7 +3301,7 @@ fn refund() {
 
     // Able to be refunded once ticket has been transferred back to the original owner
     TicketInstance::direct_transfer(
-        user2.id,
+        &user2,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,

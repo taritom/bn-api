@@ -154,7 +154,7 @@ fn transfer_activity_by_event_tickets() {
 
     // Completed transfer
     let transfer = TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,
@@ -164,15 +164,15 @@ fn transfer_activity_by_event_tickets() {
     .unwrap();
 
     // Pending transfer
-    let transfer2 = TicketInstance::create_transfer(user.id, &[ticket2.id], None, None, false, connection).unwrap();
+    let transfer2 = TicketInstance::create_transfer(&user, &[ticket2.id], None, None, false, connection).unwrap();
 
     // Cancelled transfer
-    let transfer3 = TicketInstance::create_transfer(user.id, &[ticket3.id], None, None, false, connection).unwrap();
-    transfer3.cancel(user.id, None, connection).unwrap();
+    let transfer3 = TicketInstance::create_transfer(&user, &[ticket3.id], None, None, false, connection).unwrap();
+    transfer3.cancel(&user, None, connection).unwrap();
 
     // Cancelled and retransferred ticket
     let transfer4 = TicketInstance::create_transfer(
-        user.id,
+        &user,
         &[ticket4.id, ticket5.id, ticket6.id],
         None,
         None,
@@ -180,10 +180,10 @@ fn transfer_activity_by_event_tickets() {
         connection,
     )
     .unwrap();
-    let transfer4 = transfer4.cancel(user.id, None, connection).unwrap();
+    let transfer4 = transfer4.cancel(&user, None, connection).unwrap();
     // Only ticket 4 and 5 retransferred
-    let transfer5 = TicketInstance::create_transfer(user.id, &[ticket4.id], None, None, false, connection).unwrap();
-    let transfer6 = TicketInstance::create_transfer(user.id, &[ticket5.id], None, None, false, connection).unwrap();
+    let transfer5 = TicketInstance::create_transfer(&user, &[ticket4.id], None, None, false, connection).unwrap();
+    let transfer6 = TicketInstance::create_transfer(&user, &[ticket5.id], None, None, false, connection).unwrap();
     // Ticket 5 is accepted by user2
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
@@ -196,7 +196,7 @@ fn transfer_activity_by_event_tickets() {
     )
     .unwrap();
     // Ticket 5 is transferred again and accepted by user3
-    let transfer7 = TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection).unwrap();
+    let transfer7 = TicketInstance::create_transfer(&user2, &[ticket5.id], None, None, false, connection).unwrap();
     let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user3.id, connection).unwrap();
     TicketInstance::receive_ticket_transfer(
@@ -1087,7 +1087,7 @@ fn get_profile_for_organization() {
 
     // Transfer ticket to different user removing it from attendance information and moving it to theirs
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "example@tari.com",
         TransferMessageType::Email,
@@ -1095,6 +1095,8 @@ fn get_profile_for_organization() {
         connection,
     )
     .unwrap();
+    // Reload ticket for new redeem key as ticket was transferred
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
     assert_eq!(
         user.get_profile_for_organization(&organization, connection).unwrap(),
@@ -1206,7 +1208,7 @@ fn get_profile_for_organization() {
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     TicketInstance::direct_transfer(
-        user2.id,
+        &user2,
         &vec![ticket.id],
         "example@tari.com",
         TransferMessageType::Email,
@@ -1235,7 +1237,7 @@ fn get_profile_for_organization() {
 
     // Transfer ticket again
     TicketInstance::direct_transfer(
-        user4.id,
+        &user4,
         &vec![ticket.id],
         "example@tari.com",
         TransferMessageType::Email,
@@ -1244,6 +1246,7 @@ fn get_profile_for_organization() {
     )
     .unwrap();
 
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user5.id, connection).unwrap();
     assert_eq!(
         user4.get_profile_for_organization(&organization, connection).unwrap(),
@@ -2058,12 +2061,14 @@ fn get_global_scopes() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let mut user3 = project.create_user().finish();
+    let mut user4 = project.create_user().finish();
     let _organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .with_member(&user2, Roles::OrgMember)
         .finish();
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
+    user4 = user4.add_role(Roles::Super, connection).unwrap();
 
     assert_eq!(
         user.get_global_scopes()
@@ -2151,6 +2156,72 @@ fn get_global_scopes() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel-own",
+            "transfer:cancel",
+            "transfer:read-own",
+            "transfer:read",
+            "user:read",
+            "venue:write"
+        ]
+    );
+    assert_equiv!(
+        user4
+            .get_global_scopes()
+            .into_iter()
+            .map(|scope| scope.to_string())
+            .collect::<Vec<String>>(),
+        vec![
+            "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "dashboard:read",
+            "event:broadcast",
+            "event:cancel",
+            "event:data-read",
+            "event:delete",
+            "event:financial-reports",
+            "event:interest",
+            "event:reports",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "hold:read",
+            "hold:write",
+            "note:delete",
+            "note:read",
+            "note:write",
+            "order:make-external-payment",
+            "order:read",
+            "order:read-own",
+            "order:refund",
+            "order:resend-confirmation",
+            "org:admin",
+            "org:admin-users",
+            "org:fans",
+            "org:financial-reports",
+            "org:modify-settlement-type",
+            "org:read",
+            "org:read-events",
+            "org:reports",
+            "org:users",
+            "org:write",
+            "redeem:ticket",
+            "region:write",
+            "settlement:read",
+            "settlement:read-early",
+            "settlement:write",
+            "ticket:admin",
+            "ticket:read",
+            "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
+            "ticket-type:read",
+            "ticket-type:write",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:cancel",
             "transfer:read-own",

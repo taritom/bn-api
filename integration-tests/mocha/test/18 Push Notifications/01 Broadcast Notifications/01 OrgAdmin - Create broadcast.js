@@ -36,7 +36,8 @@ const get = async function (request_body) {
 
 let requestBody = `{
 	"name": "Last Call For Event",
-    "notification_type": "LastCall"
+    "notification_type": "LastCall",
+    "audience": "PeopleAtTheEvent"
 }`;
 
 
@@ -70,4 +71,4 @@ describe('OrgAdmin - Create broadcast', function () {
 
 });
 
-            
+

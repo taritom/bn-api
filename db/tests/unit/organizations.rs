@@ -193,15 +193,17 @@ fn next_settlement_date() {
     let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
     let now = pt_timezone.from_utc_datetime(&Utc::now().naive_utc());
     let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
-    let expected_pt =
-        pt_today.naive_utc() + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64);
+    let expected_pt = pt_today.naive_utc()
+        + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64)
+        + Duration::hours(3);
     let sa_timezone: Tz = "Africa/Johannesburg".parse().unwrap();
     let now = sa_timezone.from_utc_datetime(&Utc::now().naive_utc());
     let sa_today = sa_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
-    let expected_sa =
-        sa_today.naive_utc() + Duration::days(7 - sa_today.naive_local().weekday().num_days_from_monday() as i64);
+    let expected_sa = sa_today.naive_utc()
+        + Duration::days(7 - sa_today.naive_local().weekday().num_days_from_monday() as i64)
+        + Duration::hours(3);
 
-    // Default behavior no timezone, upcoming Monday 12:00 AM PT
+    // Default behavior no timezone, upcoming Monday 3:00 AM PT
     assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
 
     // Override organization timezone to SA
@@ -219,6 +221,8 @@ fn next_settlement_date() {
     assert_eq!(organization.next_settlement_date(None).unwrap(), expected_sa);
 
     // Switch to rolling which always uses PT
+    let expected_pt =
+        pt_today.naive_utc() + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64);
     let organization = organization
         .update(
             OrganizationEditableAttributes {
@@ -233,6 +237,9 @@ fn next_settlement_date() {
     assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
 
     // Override organization timezone to PT and switch back to PostEvent
+    let expected_pt = pt_today.naive_utc()
+        + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64)
+        + Duration::hours(3);
     let organization = organization
         .update(
             OrganizationEditableAttributes {
@@ -248,7 +255,7 @@ fn next_settlement_date() {
     assert_eq!(organization.next_settlement_date(None).unwrap(), expected_pt);
 
     // Using a passed in settlement period
-    let expected_pt = pt_today.naive_utc() + Duration::days(1);
+    let expected_pt = pt_today.naive_utc() + Duration::days(1) + Duration::hours(3);
     assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_pt);
 
     let organization = organization
@@ -262,7 +269,7 @@ fn next_settlement_date() {
             connection,
         )
         .unwrap();
-    let expected_sa = sa_today.naive_utc() + Duration::days(1);
+    let expected_sa = sa_today.naive_utc() + Duration::days(1) + Duration::hours(3);
     assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_sa);
 
     // Rolling with passed in settlement period
@@ -277,6 +284,7 @@ fn next_settlement_date() {
             connection,
         )
         .unwrap();
+    let expected_pt = pt_today.naive_utc() + Duration::days(1);
     assert_eq!(organization.next_settlement_date(Some(1)).unwrap(), expected_pt);
 }
 
@@ -410,6 +418,7 @@ fn find_by_order_item_ids() {
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
+        .with_event_fee()
         .with_fees()
         .finish();
     let organization2 = project
@@ -468,6 +477,7 @@ fn find_by_order_item_ids() {
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type2.id))
         .unwrap();
+    let event_fee_order_item = items.iter().find(|i| i.item_type == OrderItemTypes::EventFees).unwrap();
 
     // Ticket belonging to only first event / organization
     let organizations = Organization::find_by_order_item_ids(&vec![order_item.id], connection).unwrap();
@@ -479,7 +489,11 @@ fn find_by_order_item_ids() {
 
     // Ticket belonging to both events / organizations
     let organizations = Organization::find_by_order_item_ids(&vec![order_item.id, order_item2.id], connection).unwrap();
-    assert_eq!(organizations, vec![organization, organization2]);
+    assert_eq!(organizations, vec![organization.clone(), organization2]);
+
+    // Event fee
+    let organizations = Organization::find_by_order_item_ids(&vec![event_fee_order_item.id], connection).unwrap();
+    assert_eq!(organizations, vec![organization]);
 }
 
 #[test]
@@ -1493,7 +1507,7 @@ fn regenerate_interaction_data() {
 
     // Transfers
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket2.id],
         "nowhere",
         TransferMessageType::Email,
@@ -1505,7 +1519,7 @@ fn regenerate_interaction_data() {
     assert_eq!(interaction_data.interaction_count, 5);
 
     TicketInstance::direct_transfer(
-        user2.id,
+        &user2,
         &vec![ticket2.id],
         "nowhere",
         TransferMessageType::Email,
@@ -1832,7 +1846,7 @@ fn search_fans() {
         .map(|t| t.id)
         .collect();
     TicketInstance::direct_transfer(
-        order_user3.id,
+        &order_user3,
         &vec![ticket_ids.pop().unwrap()],
         "nowhere",
         TransferMessageType::Email,
@@ -1842,7 +1856,7 @@ fn search_fans() {
     .unwrap();
     // Intermediary transfer user transfers out their inventory
     TicketInstance::direct_transfer(
-        order_user3.id,
+        &order_user3,
         &ticket_ids,
         "nowhere",
         TransferMessageType::Email,
@@ -1851,7 +1865,7 @@ fn search_fans() {
     )
     .unwrap();
     TicketInstance::direct_transfer(
-        previous_transfer_user.id,
+        &previous_transfer_user,
         &ticket_ids,
         "nowhere",
         TransferMessageType::Email,

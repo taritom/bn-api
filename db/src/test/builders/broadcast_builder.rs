@@ -15,25 +15,34 @@ pub struct BroadcastBuilder<'a> {
     send_at: Option<NaiveDateTime>,
     status: BroadcastStatus,
     connection: &'a PgConnection,
+    subject: Option<String>,
+    audience: BroadcastAudience,
 }
 
 impl<'a> BroadcastBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
         let x: u32 = random();
         BroadcastBuilder {
-            name: format!("Broadcast {}", x).into(),
             event_id: None,
             notification_type: BroadcastType::LastCall,
             channel: BroadcastChannel::PushNotification,
+            name: format!("Broadcast {}", x).into(),
             message: None,
             send_at: None,
             status: BroadcastStatus::Pending,
+            subject: None,
+            audience: BroadcastAudience::PeopleAtTheEvent,
             connection,
         }
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn with_subject(mut self, subject: Option<String>) -> Self {
+        self.subject = subject;
+        self
+    }
+
+    pub fn with_audience(mut self, audience: BroadcastAudience) -> Self {
+        self.audience = audience;
         self
     }
 
@@ -57,6 +66,11 @@ impl<'a> BroadcastBuilder<'a> {
         self
     }
 
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
     pub fn finish(&mut self) -> Broadcast {
         if self.event_id.is_none() {
             self.event_id = Some(EventBuilder::new(self.connection).finish().id);
@@ -70,6 +84,9 @@ impl<'a> BroadcastBuilder<'a> {
             self.message.clone(),
             self.send_at,
             Some(self.status),
+            None,
+            BroadcastAudience::PeopleAtTheEvent,
+            None,
         );
 
         broadcast.commit(self.connection).unwrap()
