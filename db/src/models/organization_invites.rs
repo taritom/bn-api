@@ -1,6 +1,7 @@
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
 use diesel::dsl::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp, Uuid as dUuid};
 use models::*;
@@ -95,7 +96,7 @@ impl NewOrganizationInvite {
         {
             self.event_ids = Some(Vec::new());
         }
-
+        self.user_email = self.user_email.to_lowercase();
         self.security_token = Some(Uuid::new_v4());
         self.validate_record(conn)?;
         let res = diesel::insert_into(organization_invites::table)
@@ -186,15 +187,38 @@ impl OrganizationInvite {
         )
     }
 
-    pub fn find_active_invite_by_email(
+    pub fn find_active_organization_invite_for_email(
         email: &String,
+        organization: &Organization,
+        event_ids: Option<&[Uuid]>,
         conn: &PgConnection,
     ) -> Result<Option<OrganizationInvite>, DatabaseError> {
+        let mut query = organization_invites::table
+            .filter(organization_invites::user_email.eq(email))
+            .filter(organization_invites::security_token.is_not_null())
+            .filter(organization_invites::organization_id.eq(organization.id))
+            .into_boxed();
+
+        if let Some(event_ids) = event_ids {
+            query = query.filter(sql("organization_invites.event_ids && ").bind::<Array<dUuid>, _>(event_ids.clone()));
+        }
+
+        query
+            .first::<OrganizationInvite>(conn)
+            .optional()
+            .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
+    }
+
+    pub fn find_all_active_organization_invites_by_email(
+        email: &String,
+        organization: &Organization,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrganizationInvite>, DatabaseError> {
         organization_invites::table
             .filter(organization_invites::user_email.eq(email))
             .filter(organization_invites::security_token.is_not_null())
-            .first::<OrganizationInvite>(conn)
-            .optional()
+            .filter(organization_invites::organization_id.eq(organization.id))
+            .load::<OrganizationInvite>(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 

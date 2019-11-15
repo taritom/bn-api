@@ -35,7 +35,11 @@ impl NewOrganizationUser {
         let existing_user = OrganizationUser::find_by_user_id(self.user_id, self.organization_id, conn).optional()?;
         match existing_user {
             Some(mut user) => {
-                user.role = self.role;
+                // Merge roles
+                user.role.extend(self.role);
+                user.role.sort();
+                user.role.dedup();
+
                 diesel::update(organization_users::table.filter(organization_users::id.eq(user.id)))
                     .set((organization_users::role.eq(user.role),))
                     .get_result(conn)

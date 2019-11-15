@@ -5,6 +5,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
+use uuid::Uuid;
 
 #[test]
 fn create() {
@@ -25,7 +26,7 @@ fn create() {
 }
 
 #[test]
-fn find_pending_by_org() {
+fn find_all_active_organization_invites_by_email() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let connection = project.get_connection();
@@ -33,7 +34,54 @@ fn find_pending_by_org() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let _org_invite = project
+    let event = project.create_event().with_organization(&organization).finish();
+    let event2 = project.create_event().with_organization(&organization).finish();
+    let mut org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id])
+        .with_invitee(&user)
+        .finish();
+    let mut org_invite2 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event2.id])
+        .with_invitee(&user)
+        .finish();
+    let email = "test@test.com".to_string();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    let mut expected_organization_invite_ids = vec![org_invite.id, org_invite2.id];
+    expected_organization_invite_ids.sort();
+    let mut found_organization_invite_ids: Vec<Uuid> = organization_invites.iter().map(|oi| oi.id).collect();
+    found_organization_invite_ids.sort();
+    assert_eq!(expected_organization_invite_ids, found_organization_invite_ids);
+
+    org_invite.change_invite_status(0, connection).unwrap();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    assert_eq!(vec![org_invite2.clone()], organization_invites);
+
+    org_invite2.change_invite_status(0, connection).unwrap();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    assert!(organization_invites.is_empty());
+}
+
+#[test]
+fn find_active_organization_invite_for_email() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let event = project.create_event().with_organization(&organization).finish();
+    let event2 = project.create_event().with_organization(&organization).finish();
+    let mut org_invite = project
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&user)
@@ -41,8 +89,67 @@ fn find_pending_by_org() {
     let pending = OrganizationInvite::find_pending_by_organization(organization.id, None, connection).unwrap();
     assert_eq!(pending.len(), 1);
     let email = "test@test.com".to_string();
-    let active_find = OrganizationInvite::find_active_invite_by_email(&email, connection).unwrap();
-    assert_eq!(active_find.is_some(), true);
+    assert!(
+        OrganizationInvite::find_active_organization_invite_for_email(&email, &organization, None, connection)
+            .unwrap()
+            .is_some()
+    );
+    org_invite.change_invite_status(0, connection).unwrap();
+
+    let mut org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id])
+        .finish();
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite.clone())
+    );
+    assert!(OrganizationInvite::find_active_organization_invite_for_email(
+        &email,
+        &organization,
+        Some(&vec![event2.id]),
+        connection
+    )
+    .unwrap()
+    .is_none());
+    org_invite.change_invite_status(0, connection).unwrap();
+
+    let org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id, event2.id])
+        .finish();
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite.clone())
+    );
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event2.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite)
+    );
 }
 
 #[test]

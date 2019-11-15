@@ -72,6 +72,6 @@ fn update() {
         .commit(project.get_connection())
         .unwrap();
 
-    assert_eq!(vec![Roles::OrgOwner], organization_user.role);
+    assert_eq!(vec![Roles::OrgMember, Roles::OrgOwner], organization_user.role);
     assert_eq!(organization_user_id, organization_user.id);
 }
