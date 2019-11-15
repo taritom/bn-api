@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl::{count, exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, Text, Uuid as dUuid};
+use diesel::sql_types::{Array, Bool, Text, Uuid as dUuid};
 use models::*;
 use schema::{
     assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types, transfer_tickets, transfers,
@@ -445,6 +445,12 @@ impl Transfer {
             .to_db_error(ErrorCode::QueryError, "Error loading transfers")
     }
 
+    pub fn tickets(&self, conn: &PgConnection) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let transfer_tickets = self.transfer_tickets(conn)?;
+        let ticket_ids: Vec<Uuid> = transfer_tickets.iter().map(|tt| tt.ticket_instance_id).collect();
+        TicketInstance::find_by_ids(&ticket_ids, conn)
+    }
+
     pub fn transfer_tickets(&self, conn: &PgConnection) -> Result<Vec<TransferTicket>, DatabaseError> {
         transfer_tickets::table
             .filter(transfer_tickets::transfer_id.eq(self.id))
@@ -454,7 +460,7 @@ impl Transfer {
 
     pub fn cancel_by_ticket_instance_ids(
         ticket_instance_ids: &[Uuid],
-        user_id: Uuid,
+        user: &User,
         new_transfer_key: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
@@ -468,41 +474,128 @@ impl Transfer {
             .to_db_error(ErrorCode::QueryError, "Error loading transfers")?;
 
         for transfer in transfers {
-            transfer.cancel(user_id, new_transfer_key, conn)?;
+            transfer.cancel(&user, new_transfer_key, conn)?;
         }
 
         Ok(())
     }
 
+    pub fn regenerate_redeem_keys(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        for ticket in self.tickets(conn)? {
+            ticket.associate_redeem_key(conn)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn was_retransferred(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        let query = r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM transfer_tickets tt
+                JOIN transfers t ON tt.transfer_id = t.id
+                JOIN transfer_tickets tt2 ON tt2.ticket_instance_id = tt.ticket_instance_id AND tt.id <> tt2.id
+                JOIN transfers t2 ON tt2.transfer_id = t2.id
+                WHERE tt.transfer_id = $1
+                AND t2.created_at >= t.created_at
+                AND t2.status IN ('Pending', 'Completed')
+            );
+        "#;
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "Bool"]
+            exists: bool,
+        }
+
+        Ok(diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .get_results::<R>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not check if accepted transfer eligible for cancelling",
+            )?
+            .pop()
+            .map(|r| r.exists)
+            .unwrap_or(false))
+    }
+
+    pub fn contains_redeemed_tickets(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(self
+            .tickets(conn)?
+            .iter()
+            .map(|t| t.redeemed_at.is_some())
+            .any(|r| r == true))
+    }
+
     pub fn cancel(
         &self,
-        user_id: Uuid,
+        user: &User,
         new_transfer_key: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
-        if self.status != TransferStatus::Pending {
-            return Err(DatabaseError::new(
-                ErrorCode::UpdateError,
-                Some("Transfer cannot be cancelled as it is no longer pending".to_string()),
-            ));
+        let has_cancel_accepted_permission = self.status == TransferStatus::Completed
+            && user.get_global_scopes().contains(&Scopes::TransferCancelAccepted);
+        if !has_cancel_accepted_permission && self.status != TransferStatus::Pending {
+            return DatabaseError::business_process_error("Transfer cannot be cancelled as it is no longer pending");
+        } else if has_cancel_accepted_permission && self.was_retransferred(conn)? {
+            return DatabaseError::business_process_error(
+                "Transfer cannot be cancelled as it contains tickets involved in a transfer to another user from the destination user",
+            );
+        } else if self.contains_redeemed_tickets(conn)? {
+            return DatabaseError::business_process_error(
+                "Transfer cannot be cancelled as it contains tickets that have been redeemed",
+            );
         }
-
+        let previous_status = self.status;
         let transfer = self.update(
             TransferEditableAttributes {
                 status: Some(TransferStatus::Cancelled),
-                cancelled_by_user_id: Some(user_id),
+                cancelled_by_user_id: Some(user.id),
                 ..Default::default()
             },
             conn,
         )?;
+
+        // If transfer was cancelled prior to acceptance we do not update redeem key as it never leaked to recipient
+        if self.status != TransferStatus::Pending {
+            self.regenerate_redeem_keys(conn)?;
+            let wallet = Wallet::find_default_for_user(self.source_user_id, conn)?;
+            let name_override: Option<String> = None;
+
+            let mut update_count = 0;
+            let tickets = self.tickets(conn)?;
+            for ticket in &tickets {
+                update_count += diesel::update(
+                    ticket_instances::table
+                        .filter(ticket_instances::id.eq(ticket.id))
+                        .filter(ticket_instances::updated_at.eq(ticket.updated_at)),
+                )
+                .set((
+                    ticket_instances::wallet_id.eq(wallet.id),
+                    ticket_instances::updated_at.eq(dsl::now),
+                    ticket_instances::first_name_override.eq(&name_override),
+                    ticket_instances::last_name_override.eq(&name_override),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
+            }
+
+            if update_count != tickets.len() {
+                return Err(DatabaseError::new(
+                    ErrorCode::UpdateError,
+                    Some("Could not update ticket instances".to_string()),
+                ));
+            }
+        }
 
         DomainEvent::create(
             DomainEventTypes::TransferTicketCancelled,
             "Ticket transfer was cancelled".to_string(),
             Tables::Transfers,
             Some(self.id),
-            Some(user_id),
-            Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key })),
+            Some(user.id),
+            Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key, "previous_status": previous_status })),
         )
         .commit(conn)?;
 
@@ -516,10 +609,7 @@ impl Transfer {
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
         if self.status != TransferStatus::Pending {
-            return Err(DatabaseError::new(
-                ErrorCode::UpdateError,
-                Some("Transfer cannot be completed as it is no longer pending".to_string()),
-            ));
+            return DatabaseError::business_process_error("Transfer cannot be completed as it is no longer pending");
         }
 
         let transfer = self.update(
@@ -530,6 +620,8 @@ impl Transfer {
             },
             conn,
         )?;
+
+        self.regenerate_redeem_keys(conn)?;
 
         DomainEvent::create(
             DomainEventTypes::TransferTicketCompleted,
@@ -647,10 +739,7 @@ impl Transfer {
 
     pub fn update_associated_orders(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.status != TransferStatus::Pending {
-            return Err(DatabaseError::new(
-                ErrorCode::UpdateError,
-                Some("Transfer cannot be updated as it is no longer pending".to_string()),
-            ));
+            return DatabaseError::business_process_error("Transfer cannot be updated as it is no longer pending");
         }
         let query = r#"
             INSERT INTO order_transfers (order_id, transfer_id)

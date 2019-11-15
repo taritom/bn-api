@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use bigneon_db::utils::errors::*;
 use branch_rs::BranchError;
+use customer_io::CustomerIoError;
 use diesel::result::Error as DieselError;
 use errors::*;
 use facebook::prelude::FacebookError;
@@ -53,6 +54,12 @@ fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
 impl ConvertToWebError for dyn Error {
     fn to_response(&self) -> HttpResponse {
         error!("General error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for CustomerIoError {
+    fn to_response(&self) -> HttpResponse {
         internal_error("Internal error")
     }
 }

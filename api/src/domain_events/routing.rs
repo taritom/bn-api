@@ -47,7 +47,7 @@ impl DomainActionRouter {
             let conf = conf.clone();
             match action_type {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
-                BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new()),
+                BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new(&conf)),
 
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
                 RegenerateDripActions => Box::new(RegenerateDripActionsExecutor::new(conf)),

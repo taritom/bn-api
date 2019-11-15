@@ -39,6 +39,7 @@ ADD logging ./logging/
 ADD globee ./globee/
 ADD embed_dirs_derive ./embed_dirs_derive/
 ADD macros ./macros/
+ADD customer_io ./customer_io/
 ADD Cargo.lock Cargo.toml ./
 
 RUN cargo build --release

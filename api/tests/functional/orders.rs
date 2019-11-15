@@ -484,7 +484,7 @@ pub fn refund_for_non_refundable_tickets() {
 
     // Transfer the first ticket away
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "example@tari.com",
         TransferMessageType::Email,

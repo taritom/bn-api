@@ -1,7 +1,7 @@
 use actix_web::Path;
 use actix_web::{HttpResponse, Query};
 use auth::user::User;
-use bigneon_db::models::enums::{BroadcastChannel, BroadcastType};
+use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use bigneon_db::models::scopes::Scopes;
 use bigneon_db::models::{Broadcast, BroadcastEditableAttributes, Organization, PagingParameters};
 use chrono::NaiveDateTime;
@@ -10,15 +10,19 @@ use errors::BigNeonError;
 use extractors::Json;
 use models::{PathParameters, WebPayload};
 use reqwest::StatusCode;
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
 pub struct NewBroadcastData {
-    pub name: Option<String>,
     pub notification_type: BroadcastType,
+    pub name: String,
     //None is now
     pub send_at: Option<NaiveDateTime>,
     pub message: Option<String>,
     pub channel: Option<BroadcastChannel>,
+    pub audience: BroadcastAudience,
+    pub subject: Option<String>,
+    pub preview_email: Option<String>,
 }
 
 pub fn create(
@@ -26,20 +30,24 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let organization = Organization::find_for_event(path.id, connection)?;
+    let channel = json.channel.unwrap_or(BroadcastChannel::PushNotification);
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
-    let push_notification = Broadcast::create(
+
+    let broadcast = Broadcast::create(
         path.id,
         json.notification_type.clone(),
-        json.channel.clone().unwrap_or(BroadcastChannel::PushNotification),
-        json.name.clone().unwrap_or(json.notification_type.to_string()),
+        channel,
+        json.name.clone(),
         json.message.clone(),
-        json.send_at.clone(),
+        json.send_at,
         None,
+        json.subject.clone(),
+        json.audience.clone(),
+        json.preview_email.clone(),
     )
     .commit(connection)?;
-
-    Ok(HttpResponse::Created().json(json!(push_notification)))
+    Ok(HttpResponse::Created().json(json!(broadcast)))
 }
 
 pub fn index(
@@ -50,7 +58,20 @@ pub fn index(
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
 
-    let push_notifications = Broadcast::find_by_event_id(path.id, query.page(), query.limit(), connection)?;
+    let push_notifications = Broadcast::find_by_event_id(
+        path.id,
+        match query.get_tag_as_str("channel") {
+            Some(s) => Some(s.parse()?),
+            None => None,
+        },
+        match query.get_tag_as_str("broadcast_type") {
+            Some(s) => Some(s.parse()?),
+            None => None,
+        },
+        query.page() as i64,
+        query.limit() as i64,
+        connection,
+    )?;
 
     Ok(WebPayload::new(StatusCode::OK, push_notifications))
 }
@@ -101,4 +122,8 @@ pub fn tracking_count(
     Broadcast::increment_open_count(path.id.clone(), connection)?;
     let broadcast = Broadcast::find(path.id, connection)?;
     Ok(HttpResponse::Ok().json(json!({"event_id": broadcast.event_id})))
+}
+#[derive(Serialize, Deserialize)]
+pub struct BroadcastPushNotificationAction {
+    pub event_id: Uuid,
 }

@@ -14,195 +14,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
-fn count_report() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let organization = project.create_organization().with_event_fee().with_fees().finish();
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .with_name("Event1".to_string())
-        .with_tickets()
-        .finish();
-    let mut ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
-
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
-
-    project
-        .create_order()
-        .quantity(2)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .finish();
-
-    // Partially refunded order
-    let mut order = project
-        .create_order()
-        .quantity(2)
-        .for_event(&event)
-        .on_behalf_of_user(&user2)
-        .for_user(&user)
-        .is_paid()
-        .finish();
-    let items = order.items(&connection).unwrap();
-    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
-    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
-    let ticket = &tickets[0];
-    let refund_items = vec![RefundItemRequest {
-        order_item_id: order_item.id,
-        ticket_instance_id: Some(ticket.id),
-    }];
-    order.refund(&refund_items, user.id, None, connection).unwrap();
-
-    // Redeem ticket
-    let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
-
-    // Hold order
-    let hold = project
-        .create_hold()
-        .with_quantity(10)
-        .with_ticket_type_id(ticket_type.id)
-        .with_hold_type(HoldTypes::Discount)
-        .finish();
-    project
-        .create_order()
-        .quantity(2)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .with_redemption_code(hold.redemption_code.clone().unwrap())
-        .finish();
-    project
-        .create_order()
-        .quantity(1)
-        .for_event(&event)
-        .for_user(&user)
-        .on_behalf_of_user(&user3)
-        .is_paid()
-        .with_redemption_code(hold.redemption_code.clone().unwrap())
-        .finish();
-
-    // Comp order
-    let comp = project
-        .create_hold()
-        .with_quantity(10)
-        .with_ticket_type_id(ticket_type.id)
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
-    project
-        .create_order()
-        .quantity(2)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .with_redemption_code(comp.redemption_code.clone().unwrap())
-        .finish();
-
-    // Discount code order
-    let code = project
-        .create_code()
-        .with_event(&event)
-        .for_ticket_type(&ticket_type)
-        .with_discount_in_cents(Some(50))
-        .finish();
-    project
-        .create_order()
-        .quantity(2)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .with_redemption_code(code.redemption_code.clone())
-        .finish();
-
-    // New price point for ticket type but has same price
-    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
-    ticket_type = ticket_type
-        .update(TicketTypeEditableAttributes { ..Default::default() }, None, connection)
-        .unwrap();
-    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
-    assert_ne!(old_pricing.id, new_pricing.id);
-    let order_dupe_price = project
-        .create_order()
-        .quantity(1)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .finish();
-    assert_eq!(
-        order_dupe_price
-            .items(connection)
-            .unwrap()
-            .iter()
-            .find(|i| i.ticket_type_id == Some(ticket_type.id))
-            .unwrap()
-            .ticket_pricing_id,
-        Some(new_pricing.id)
-    );
-
-    // New price point for ticket type with new price so orders will create a new row
-    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
-    ticket_type = ticket_type
-        .update(
-            TicketTypeEditableAttributes {
-                price_in_cents: Some(200),
-                ..Default::default()
-            },
-            None,
-            connection,
-        )
-        .unwrap();
-    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
-    assert_ne!(old_pricing.id, new_pricing.id);
-    let order_new_price = project
-        .create_order()
-        .quantity(1)
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .finish();
-    assert_eq!(
-        order_new_price
-            .items(connection)
-            .unwrap()
-            .iter()
-            .find(|i| i.ticket_type_id == Some(ticket_type.id))
-            .unwrap()
-            .ticket_pricing_id,
-        Some(new_pricing.id)
-    );
-
-    let result = event
-        .clone()
-        .count_report(None, None, true, true, true, false, connection)
-        .unwrap();
-    assert_eq!(6, result.sales.len());
-    let ticket_count_report = Report::ticket_count_report(Some(event.id), Some(organization.id), connection).unwrap();
-    assert_eq!(result, ticket_count_report);
-
-    let result = event
-        .clone()
-        .count_report(None, None, true, true, false, false, connection)
-        .unwrap();
-    assert_eq!(3, result.sales.len());
-
-    let result = event
-        .clone()
-        .count_report(None, None, true, false, false, false, connection)
-        .unwrap();
-    assert_eq!(2, result.sales.len());
-
-    let result = event
-        .clone()
-        .count_report(None, None, false, false, false, false, connection)
-        .unwrap();
-    assert_eq!(2, result.sales.len());
-}
-
-#[test]
 fn slug() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1662,7 +1473,7 @@ fn guest_list() {
             .map(|ti| ti.id)
             .collect();
         TicketInstance::direct_transfer(
-            from_user.id,
+            &from_user,
             &ticket_ids,
             "nowhere",
             TransferMessageType::Email,
@@ -2370,12 +2181,12 @@ fn find_all_events_for_organization() {
     // No filter on past or upcoming returns all events
     let events =
         Event::find_all_events_for_organization(organization.id, None, None, false, 0, 100, connection).unwrap();
-    assert_eq!(
+    assert_equiv!(
         events.data,
         vec![
             past_event.summary(connection).unwrap(),
             current_event.summary(connection).unwrap(),
-            future_event.summary(connection).unwrap()
+            future_event.summary(connection).unwrap(),
         ]
     );
     assert_eq!(events.paging.total, 3);

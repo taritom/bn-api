@@ -1,8 +1,209 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
+use diesel;
+use diesel::sql_types;
 use diesel::PgConnection;
+use diesel::RunQueryDsl;
 use uuid::Uuid;
+
+#[test]
+fn transfer_eligible_for_cancelling() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(3)
+        .is_paid()
+        .finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    // Transferred
+    let ticket = &user_tickets[0];
+    // Transferred
+    let ticket2 = &user_tickets[1];
+    // Transferred and later redeemed
+    let ticket3 = &user_tickets[2];
+
+    // Completed transfer
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id, ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+
+    let transfer2 = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket3.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(10).finish())
+    .bind::<sql_types::Uuid, _>(transfer2.id)
+    .execute(connection)
+    .unwrap();
+
+    // Pending transfer for first ticket
+    let transfer3 = TicketInstance::create_transfer(&user2, &[ticket.id], None, None, false, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(20).finish())
+    .bind::<sql_types::Uuid, _>(transfer3.id)
+    .execute(connection)
+    .unwrap();
+
+    // Completed transfer for second ticket
+    let transfer4 = TicketInstance::direct_transfer(
+        &user2,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user3.id,
+        connection,
+    )
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(30).finish())
+    .bind::<sql_types::Uuid, _>(transfer4.id)
+    .execute(connection)
+    .unwrap();
+
+    // Redeem ticket 3
+    let ticket3 = TicketInstance::find(ticket3.id, connection).unwrap();
+    TicketInstance::redeem_ticket(ticket3.id, ticket3.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user2.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer3.id).unwrap();
+    assert_eq!(activity_item.1, true);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, true);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user3.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, true);
+
+    // Cancel transfer 3
+    assert!(transfer3.cancel(&user, None, connection).is_ok());
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user2.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer3.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, true);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user3.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, true);
+
+    // Cancel transfer 4
+    assert!(transfer4.cancel(&user, None, connection).is_ok());
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, true);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user2.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer.id).unwrap();
+    assert_eq!(activity_item.1, true);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer2.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer3.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    let activity_items =
+        ActivityItem::load_for_event(event.id, user3.id, Some(ActivityType::Transfer), connection).unwrap();
+    let activity_items = &activity_items_eligibility(activity_items);
+    let activity_item = activity_items.iter().find(|ai| ai.0 == transfer4.id).unwrap();
+    assert_eq!(activity_item.1, false);
+    assert!(transfer.cancel(&user, None, connection).is_ok());
+}
+
+fn activity_items_eligibility(activity_items: Vec<ActivityItem>) -> Vec<(Uuid, bool)> {
+    activity_items
+        .into_iter()
+        .map(|ai| {
+            if let ActivityItem::Transfer {
+                transfer_id,
+                eligible_for_cancelling,
+                ..
+            } = ai
+            {
+                Some((transfer_id, eligible_for_cancelling))
+            } else {
+                None
+            }
+        })
+        .map(|ai| ai.unwrap())
+        .collect()
+}
 
 #[test]
 fn load_for_event() {
@@ -93,7 +294,7 @@ fn load_for_event() {
 
     // Completed transfer
     let transfer = TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,
@@ -103,11 +304,11 @@ fn load_for_event() {
     .unwrap();
 
     // Pending transfer
-    let transfer2 = TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection).unwrap();
+    let transfer2 = TicketInstance::create_transfer(&user2, &[ticket5.id], None, None, false, connection).unwrap();
 
     // Cancelled transfer
-    let transfer3 = TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, false, connection).unwrap();
-    let transfer3 = transfer3.cancel(user4.id, None, connection).unwrap();
+    let transfer3 = TicketInstance::create_transfer(&user2, &[ticket8.id], None, None, false, connection).unwrap();
+    let transfer3 = transfer3.cancel(&user4, None, connection).unwrap();
 
     TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
@@ -310,7 +511,7 @@ fn load_for_order() {
 
     // Completed transfer
     let transfer = TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,
@@ -416,6 +617,7 @@ fn occurred_at() {
             order_id: None,
             order_number: None,
             transfer_key: Uuid::new_v4(),
+            eligible_for_cancelling: true,
         },
         ActivityItem::CheckIn {
             ticket_instance_id: Uuid::new_v4(),

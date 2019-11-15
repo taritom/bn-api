@@ -14,6 +14,38 @@ use bigneon_db::prelude::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
+fn associate_redeem_key() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let redeem_key = ticket.redeem_key.clone();
+    ticket.associate_redeem_key(connection).unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    let new_redeem_key = ticket.redeem_key.clone();
+    assert_ne!(redeem_key, new_redeem_key);
+
+    ticket.associate_redeem_key(connection).unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_ne!(new_redeem_key, ticket.redeem_key);
+}
+
+#[test]
 fn find_for_user_for_display() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -530,7 +562,7 @@ fn release() {
         .finish();
     let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
+    TicketInstance::create_transfer(&user, &[ticket.id], None, None, false, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -593,7 +625,7 @@ fn release_for_cancelled_ticket_type() {
     let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     ticket_type.cancel(connection).unwrap();
 
-    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
+    TicketInstance::create_transfer(&user, &[ticket.id], None, None, false, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -669,7 +701,7 @@ fn was_transferred() {
 
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer = TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(&user, &[ticket.id], None, None, false, connection).unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer.into_authorization(connection).unwrap(),
         &sender_wallet,
@@ -1130,7 +1162,7 @@ fn owner() {
 
     // Transferred
     TicketInstance::direct_transfer(
-        user.id,
+        &user,
         &vec![ticket.id],
         "nowhere",
         TransferMessageType::Email,
@@ -1298,12 +1330,12 @@ fn create_transfer() {
     let mut ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     ticket_ids.push(Uuid::new_v4());
 
-    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
+    let transfer = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection);
     assert!(transfer.is_err());
 
     //Now try with tickets that the user does own
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-    let transfer2 = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection).unwrap();
+    let transfer2 = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection).unwrap();
     assert_eq!(transfer2.source_user_id, user.id);
     assert!(!transfer2.direct);
 
@@ -1317,14 +1349,14 @@ fn create_transfer() {
     assert_eq!(1, domain_events.len());
 
     // Event ended cannot create transfer
-    transfer2.cancel(user.id, None, connection).unwrap();
+    transfer2.cancel(&user, None, connection).unwrap();
     let parameters = EventEditableAttributes {
         event_start: Some(dates::now().add_days(-7).finish()),
         event_end: Some(dates::now().add_days(-1).finish()),
         ..Default::default()
     };
     event.update(None, parameters, connection).unwrap();
-    let result = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
+    let result = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection);
     assert_eq!(
         result,
         Err(DatabaseError::new(
@@ -1405,7 +1437,7 @@ fn receive_ticket_transfer() {
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
 
     //try receive the wrong number of tickets (too few)
-    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection).unwrap();
 
     let mut wrong_auth: TransferAuthorization = transfer.clone().into_authorization(connection).unwrap();
     wrong_auth.num_tickets = 4;
@@ -1453,7 +1485,7 @@ fn receive_ticket_transfer() {
     let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let transfer =
-        TicketInstance::create_transfer(user2.id, &[reloaded_ticket.id], None, None, false, connection).unwrap();
+        TicketInstance::create_transfer(&user2, &[reloaded_ticket.id], None, None, false, connection).unwrap();
     let parameters = EventEditableAttributes {
         event_start: Some(dates::now().add_days(-7).finish()),
         event_end: Some(dates::now().add_days(-1).finish()),
@@ -1523,7 +1555,7 @@ fn transfer_to_existing_user() {
     assert!(receiver.genres(connection).unwrap().is_empty());
 
     let transfer = TicketInstance::direct_transfer(
-        original_purchaser.id,
+        &original_purchaser,
         &ticket_ids,
         "nowhere",
         TransferMessageType::Email,

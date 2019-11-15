@@ -49,6 +49,7 @@ pub struct EventShowResult {
     pub slug: String,
     pub facebook_pixel_key: Option<String>,
     pub extra_admin_data: Option<Value>,
+    pub facebook_event_id: Option<String>,
 }
 
 //This struct is used to just contain the id and name of the org

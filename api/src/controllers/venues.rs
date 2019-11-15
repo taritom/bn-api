@@ -57,7 +57,7 @@ pub fn create((connection, new_venue, user): (Connection, Json<NewVenue>, User))
         let organization = Organization::find(organization_id, connection)?;
         user.requires_scope_for_organization(Scopes::VenueWrite, &organization, connection)?;
     } else {
-        user.requires_scope(Scopes::ArtistWrite)?;
+        user.requires_scope(Scopes::VenueWrite)?;
     }
 
     let mut venue = new_venue.commit(connection)?;

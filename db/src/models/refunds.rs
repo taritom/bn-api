@@ -34,6 +34,10 @@ impl Refund {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve refund data")
     }
 
+    pub fn order(&self, conn: &PgConnection) -> Result<Order, DatabaseError> {
+        Order::find(self.order_id, conn)
+    }
+
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<RefundItem>, DatabaseError> {
         refund_items::table
             .filter(refund_items::refund_id.eq(self.id))
@@ -64,7 +68,7 @@ impl NewRefund {
             Tables::Orders,
             Some(refund.order_id),
             Some(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
-            None,
+            Some(json!({"refund_id": refund.id})),
         )
         .commit(conn)?;
 

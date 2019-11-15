@@ -50,8 +50,8 @@ impl DomainActionMonitor {
 
             let mut runtime = current_thread::Runtime::new().unwrap();
 
-            for f in futures {
-                let timeout = Timeout::new(f.0.execute(f.1, f.2), Duration::from_secs(55));
+            for (executor, domain_action, connection) in futures {
+                let timeout = Timeout::new(executor.execute(domain_action, connection), Duration::from_secs(55));
 
                 runtime
                     .block_on(timeout.or_else(|err| {
@@ -77,22 +77,22 @@ impl DomainActionMonitor {
         let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
-            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
+            //            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
             return Ok(0);
         };
-        jlog!(
-            Debug,
-            "bigneon::domain_events",
-            "Event publishers found",
-            {"num_publishers": domain_event_publishers.len()}
-        );
+        //        jlog!(
+        //            Debug,
+        //            "bigneon::domain_events",
+        //            "Event publishers found",
+        //            {"num_publishers": domain_event_publishers.len()}
+        //        );
         let mut events_published = 0;
         let domain_events = DomainEvent::find_after_seq(
             domain_event_publishers[0].last_domain_event_seq.unwrap_or(-1),
             500,
             connection,
         )?;
-        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
+        //        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
         for event in domain_events {
             conn.begin_transaction()?;
             //            jlog!(Debug, "bigneon::domain_events", "Checking event for publishers", { "event_type": &event.event_type, "organization_id": event.organization_id});
@@ -130,7 +130,7 @@ impl DomainActionMonitor {
 
             // Domain Monitor main loop
             if DomainActionMonitor::find_and_publish_events(&config, &database)? == 0 {
-                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
+                //                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
                 thread::sleep(Duration::from_secs(interval));
             }
         }

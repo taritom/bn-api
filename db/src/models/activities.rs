@@ -3,7 +3,7 @@ use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_query;
-use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use std::cmp::Reverse;
@@ -73,6 +73,7 @@ pub enum ActivityItem {
         order_id: Option<Uuid>,
         order_number: Option<String>,
         transfer_key: Uuid,
+        eligible_for_cancelling: bool,
     },
     CheckIn {
         ticket_instance_id: Uuid,
@@ -386,6 +387,8 @@ impl ActivityItem {
             order_id: Option<Uuid>,
             #[sql_type = "dUuid"]
             transfer_key: Uuid,
+            #[sql_type = "Bool"]
+            eligible_for_cancelling: bool,
         }
 
         let mut query = transfers::table
@@ -460,6 +463,24 @@ impl ActivityItem {
                 transfers::cancelled_by_user_id,
                 orders::id.nullable(),
                 transfers::transfer_key,
+                sql::<Bool>(
+                    "
+                    transfers.status <> 'Cancelled'
+                    AND (SELECT NOT EXISTS (
+                        SELECT 1
+                        FROM transfer_tickets tt
+                        JOIN ticket_instances ti ON tt.ticket_instance_id = ti.id
+                        JOIN transfers t ON tt.transfer_id = t.id
+                        LEFT JOIN transfer_tickets tt2 ON tt2.ticket_instance_id = tt.ticket_instance_id AND tt.id <> tt2.id
+                        LEFT JOIN transfers t2 ON tt2.transfer_id = t2.id
+                        WHERE tt.transfer_id = transfers.id
+                        AND (
+                            (t2.created_at >= t.created_at AND t2.status IN ('Pending', 'Completed'))
+                            OR ti.redeemed_at IS NOT NULL
+                        )
+                    )
+                )",
+                ),
             ))
             .distinct()
             .load(conn)
@@ -537,6 +558,7 @@ impl ActivityItem {
                 order_number: transfer_datum.order_id.map(|id| Order::parse_order_number(id)),
                 order_id: transfer_datum.order_id,
                 transfer_key: transfer_datum.transfer_key,
+                eligible_for_cancelling: transfer_datum.eligible_for_cancelling,
             });
         }
         Ok(activity_items)

@@ -33,6 +33,7 @@ CREATE OR REPLACE FUNCTION ticket_sales_per_ticket_pricing(start TIMESTAMP, "end
                 online_refunded_count              BIGINT,
                 box_office_sale_count              BIGINT,
                 online_sale_count                  BIGINT,
+                online_fee_count                   BIGINT,
                 comp_sale_count                    BIGINT,
                 total_box_office_fees_in_cents     BIGINT,
                 total_online_fees_in_cents         BIGINT,
@@ -104,6 +105,10 @@ SELECT e.organization_id                                                        
                      FILTER (WHERE o.box_office_pricing IS FALSE AND
                                    (h.hold_type IS NULL OR h.hold_type != 'Comp')),
                      0) AS BIGINT)                                                                              AS online_sale_count,
+       CAST(COALESCE(SUM(oi_t_fees.quantity - oi_t_fees.refunded_quantity)
+                     FILTER (WHERE o.box_office_pricing IS FALSE AND
+                                   (h.hold_type IS NULL OR h.hold_type != 'Comp')),
+                     0) AS BIGINT)                                                                              AS online_fee_count,
        CAST(COALESCE(SUM(oi.quantity - oi.refunded_quantity) FILTER (WHERE h.hold_type = 'Comp'), 0) AS BIGINT) AS comp_sale_count,
 
 
@@ -166,7 +171,7 @@ FROM order_items oi
                     WHERE p.status = 'Completed'
                     GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
          LEFT JOIN (SELECT gh.id, gh.name, gh.hold_type, gh.discount_in_cents FROM holds gh WHERE $3 LIKE '%hold%') as gh ON gh.id = oi.hold_id
-         LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt
+         LEFT JOIN (SELECT tt.id, tt.name, tt.status, tt.rank FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt
                    ON tt.id = oi.ticket_type_id
          LEFT JOIN (SELECT tp.id, tp.name, tp.price_in_cents
                     FROM ticket_pricing tp
@@ -176,7 +181,8 @@ FROM order_items oi
 WHERE oi.ticket_type_id IS NOT NULL
   AND ($1 IS NULL OR o.paid_at >= $1)
   AND ($2 IS NULL OR o.paid_at <= $2)
-GROUP BY e.id, tt.id, tt.name, tt.status, tp.name, tp.price_in_cents, gh.id, gh.name, gh.hold_type,
-         gh.discount_in_cents, c.id, c.name, c.redemption_code, oi_promo_code_price.unit_price_in_cents;
+GROUP BY e.id, tt.id, tt.name, tt.status, tt.rank, tp.name, tp.price_in_cents, gh.id, gh.name, gh.hold_type, oi_t_fees.client_fee_in_cents,
+         gh.discount_in_cents, c.id, c.name, c.redemption_code, oi_promo_code_price.unit_price_in_cents
+ORDER BY e.id, tt.rank, c.redemption_code, (tp.price_in_cents - gh.discount_in_cents) DESC, oi_t_fees.client_fee_in_cents;
 $body$
     LANGUAGE SQL;

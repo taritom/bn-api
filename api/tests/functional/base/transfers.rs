@@ -134,6 +134,83 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     }
 }
 
+pub fn cancel_completed_transfer(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let order = database
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+
+    let ticket = TicketInstance::find(
+        TicketInstance::find_ids_for_order(order.id, connection)
+            .unwrap()
+            .pop()
+            .unwrap(),
+        connection,
+    )
+    .unwrap();
+
+    let transfer = TicketInstance::direct_transfer(
+        &user,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    let wallet = Wallet::find_default_for_user(transfer.source_user_id, connection).unwrap();
+    for ticket in transfer.tickets(connection).unwrap() {
+        assert_ne!(ticket.wallet_id, wallet.id);
+    }
+
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = transfer.id;
+    let response: HttpResponse = transfers::cancel((
+        database.connection.clone().into(),
+        path,
+        auth_user.clone(),
+        test_request.extract_state(),
+    ))
+    .into();
+
+    if should_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let found_transfer: DisplayTransfer = serde_json::from_str(&body).unwrap();
+        assert_eq!(found_transfer.id, transfer.id);
+        assert_eq!(found_transfer.status, TransferStatus::Cancelled);
+
+        for ticket in transfer.tickets(connection).unwrap() {
+            assert_eq!(ticket.wallet_id, wallet.id);
+        }
+    } else {
+        support::expects_forbidden(
+            &response,
+            Some("You do not have access to cancel this transfer as it is completed"),
+        );
+
+        for ticket in transfer.tickets(connection).unwrap() {
+            assert_ne!(ticket.wallet_id, wallet.id);
+        }
+    }
+}
+
 pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
