@@ -2156,6 +2156,7 @@ fn get_global_scopes() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:cancel",
             "transfer:read-own",

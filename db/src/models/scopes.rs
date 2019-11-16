@@ -370,12 +370,13 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::SettlementRead,
                 Scopes::SettlementReadEarly,
                 Scopes::SettlementWrite,
+                Scopes::TransferCancelAccepted,
             ];
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
         }
         Super => {
-            let mut roles = vec![Scopes::TransferCancelAccepted];
+            let mut roles = vec![];
             roles.extend(get_scopes_for_role(Admin));
             roles
         }
@@ -569,6 +570,7 @@ fn get_scopes_test() {
             "ticket:write",
             "ticket:write-own",
             "transfer:cancel",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",
@@ -703,6 +705,7 @@ fn get_scopes_test() {
             "ticket-type:read",
             "ticket-type:write",
             "transfer:cancel",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",
