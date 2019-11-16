@@ -424,6 +424,17 @@ fn rolling_to_post_event_settlement_hack_behavior() {
     )
     .commit(None, connection)
     .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE settlements
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-3).finish())
+    .bind::<sql_types::Uuid, _>(settlement.id)
+    .execute(connection)
+    .unwrap();
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
     assert_eq!(display_settlement.event_entries.len(), 1);

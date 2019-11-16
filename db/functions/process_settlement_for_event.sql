@@ -10,7 +10,9 @@ BEGIN
 
 SELECT CASE WHEN s.only_finished_events = true THEN NULL ELSE s.start_time END
 FROM settlements s
-JOIN organizations o ON o.id = (SELECT organization_id FROM settlements WHERE id = $1)
+JOIN organizations o ON o.id = s.organization_id
+JOIN settlements s2 ON s2.organization_id = o.id
+WHERE s2.id = $1
 ORDER BY s.created_at
 LIMIT 1
 INTO start_override;
