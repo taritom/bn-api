@@ -3,35 +3,48 @@ use db::ConnectionType;
 use db::{Connection, ReadonlyConnection};
 use diesel::r2d2::{self, ConnectionManager};
 use diesel::PgConnection;
-use r2d2::Error as R2D2Error;
+use errors::{ApplicationError, BigNeonError};
 
 type R2D2Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-pub struct Database {
-    connection_pool: R2D2Pool,
+#[derive(Clone)]
+pub enum DatabaseConnectionPool {
+    PGConn(r2d2::Pool<ConnectionManager<PgConnection>>),
+    Redis(r2d2::Pool<ConnectionManager<PgConnection>>),
 }
+
+pub struct Database {
+    pub connection_pool: DatabaseConnectionPool,
+}
+
 
 impl Database {
     pub fn from_config(config: &Config) -> Database {
         Database {
-            connection_pool: create_connection_pool(&config, config.database_url.clone()),
+            connection_pool: DatabaseConnectionPool::PGConn(create_connection_pool(&config, config.database_url.clone())),
         }
     }
 
     pub fn readonly_from_config(config: &Config) -> Database {
         Database {
-            connection_pool: create_connection_pool(&config, config.readonly_database_url.clone()),
+            connection_pool: DatabaseConnectionPool::PGConn(create_connection_pool(&config, config.readonly_database_url.clone())),
         }
     }
 
-    pub fn get_connection(&self) -> Result<Connection, R2D2Error> {
-        let conn = self.connection_pool.get()?;
-        Ok(ConnectionType::R2D2(conn).into())
+    pub fn get_connection(&self) -> Result<Connection, BigNeonError> {
+        if let DatabaseConnectionPool::PGConn(c) = &self.connection_pool{
+            let conn = c.get()?;
+            return Ok(ConnectionType::R2D2(conn).into())
+        }
+        Err(BigNeonError::from(ApplicationError::new("Database connection pool does not exist".to_string())))
     }
 
-    pub fn get_ro_connection(&self) -> Result<ReadonlyConnection, R2D2Error> {
-        let conn = self.connection_pool.get()?;
-        Ok(ConnectionType::R2D2(conn).into())
+    pub fn get_ro_connection(&self) -> Result<ReadonlyConnection, BigNeonError> {
+        if let DatabaseConnectionPool::PGConn(c) = &self.connection_pool{
+            let conn = c.get()?;
+            return Ok(ConnectionType::R2D2(conn).into())
+        }
+        Err(BigNeonError::from(ApplicationError::new("Database connection pool does not exist".to_string())))
     }
 }
 

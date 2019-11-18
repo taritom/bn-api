@@ -13,6 +13,7 @@ use tari_client::{HttpTariClient, TariClient, TariTestClient};
 pub struct Config {
     pub actix: Actix,
     pub allowed_origins: String,
+    pub redis_connection_string: String,
     pub front_end_url: String,
     pub api_host: String,
     pub api_port: String,
@@ -119,7 +120,7 @@ pub struct CustomerIoSettings {
     pub api_key: String,
     pub site_id: String,
 }
-
+const REDIS_CONNECTION_STRING: &str = "REDIS_CONNECTION_STRING";
 const CUSTOMER_IO_API_KEY: &str = "CUSTOMER_IO_API_KEY";
 const CUSTOMER_IO_SITE_ID: &str = "CUSTOMER_IO_SITE_ID";
 const CUSTOMER_IO_BASE_URL: &str = "CUSTOMER_IO_BASE_URL";
@@ -239,7 +240,9 @@ impl Config {
         let token_issuer = get_env_var(TOKEN_ISSUER);
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
-
+        
+        let redis_connection_string= env::var(&REDIS_CONNECTION_STRING).unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+        
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
 
         let front_end_url = get_env_var(FRONT_END_URL);
@@ -372,6 +375,7 @@ impl Config {
             globee_base_url,
             branch_io_base_url,
             validate_ipns,
+            redis_connection_string,
             api_base_url,
             google_recaptcha_secret_key,
             http_keep_alive,

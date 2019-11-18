@@ -1,0 +1,9 @@
+[package]
+name = "redis_server"
+version = "0.1.0"
+authors = ["toiletspider <dan4rie@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+r2d2_redis = "0.12.0"

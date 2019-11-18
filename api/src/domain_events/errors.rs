@@ -5,6 +5,7 @@ use r2d2;
 use std::error;
 use std::fmt;
 use std::io;
+use errors::BigNeonError;
 
 #[derive(Debug)]
 pub enum DomainActionError {
@@ -14,6 +15,12 @@ pub enum DomainActionError {
 
 impl From<DatabaseError> for DomainActionError {
     fn from(de: DatabaseError) -> Self {
+        DomainActionError::CausedBy(Box::new(de))
+    }
+}
+
+impl From<BigNeonError> for DomainActionError {
+    fn from(de: BigNeonError) -> Self {
         DomainActionError::CausedBy(Box::new(de))
     }
 }
