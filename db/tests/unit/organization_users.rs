@@ -2,6 +2,28 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::{OrganizationUser, Roles};
 
 #[test]
+fn is_event_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let mut organization_user = OrganizationUser::find_by_user_id(user.id, organization.id, connection).unwrap();
+    assert!(!organization_user.is_event_user());
+
+    organization_user.role = vec![Roles::Promoter];
+    assert!(organization_user.is_event_user());
+
+    organization_user.role = vec![Roles::PromoterReadOnly];
+    assert!(organization_user.is_event_user());
+
+    organization_user.role = vec![Roles::OrgMember];
+    assert!(!organization_user.is_event_user());
+}
+
+#[test]
 fn find_users_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -71,7 +93,23 @@ fn update() {
     let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::OrgOwner])
         .commit(project.get_connection())
         .unwrap();
+    assert_eq!(vec![Roles::OrgOwner], organization_user.role);
+    assert_eq!(organization_user_id, organization_user.id);
 
-    assert_eq!(vec![Roles::OrgMember, Roles::OrgOwner], organization_user.role);
+    let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::Promoter])
+        .commit(project.get_connection())
+        .unwrap();
+    let organization_user_id = organization_user.id;
+
+    let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::PromoterReadOnly])
+        .commit(project.get_connection())
+        .unwrap();
+    assert_eq!(vec![Roles::Promoter, Roles::PromoterReadOnly], organization_user.role);
+    assert_eq!(organization_user_id, organization_user.id);
+
+    let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::OrgOwner])
+        .commit(project.get_connection())
+        .unwrap();
+    assert_eq!(vec![Roles::OrgOwner], organization_user.role);
     assert_eq!(organization_user_id, organization_user.id);
 }

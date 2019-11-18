@@ -2,14 +2,14 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
 use models::enums::Roles;
-use models::{Organization, User};
+use models::{EventUser, Organization, User};
 use schema::{event_users, events, organization_users};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Associations, Identifiable, Queryable, Serialize)]
+#[derive(AsChangeset, Associations, Identifiable, Queryable, Serialize)]
 #[belongs_to(User)]
 #[belongs_to(Organization)]
 #[table_name = "organization_users"]
@@ -31,14 +31,30 @@ pub struct NewOrganizationUser {
 }
 
 impl NewOrganizationUser {
+    pub fn is_event_user(&self) -> bool {
+        OrganizationUser::contains_role_for_event_user(&self.role)
+    }
+
     pub fn commit(self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
         let existing_user = OrganizationUser::find_by_user_id(self.user_id, self.organization_id, conn).optional()?;
         match existing_user {
             Some(mut user) => {
-                // Merge roles
-                user.role.extend(self.role);
-                user.role.sort();
-                user.role.dedup();
+                // If the new role is a promoter role, combine with existing roles
+                if self.is_event_user() {
+                    if user.is_event_user() {
+                        // Merge roles
+                        user.role.extend(self.role);
+                        user.role.sort();
+                        user.role.dedup();
+                    } else {
+                        // User is getting updated to an event only role, replace existing
+                        user.role = self.role;
+                    }
+                } else {
+                    // Replace roles, remove existing event user links as other roles are cross all events
+                    EventUser::destroy_all(self.user_id, conn)?;
+                    user.role = self.role;
+                }
 
                 diesel::update(organization_users::table.filter(organization_users::id.eq(user.id)))
                     .set((organization_users::role.eq(user.role),))
@@ -60,6 +76,14 @@ impl NewOrganizationUser {
 }
 
 impl OrganizationUser {
+    pub fn is_event_user(&self) -> bool {
+        OrganizationUser::contains_role_for_event_user(&self.role)
+    }
+
+    pub(crate) fn contains_role_for_event_user(role: &[Roles]) -> bool {
+        role.contains(&Roles::Promoter) || role.contains(&Roles::PromoterReadOnly)
+    }
+
     pub fn create(organization_id: Uuid, user_id: Uuid, role: Vec<Roles>) -> NewOrganizationUser {
         NewOrganizationUser {
             organization_id,

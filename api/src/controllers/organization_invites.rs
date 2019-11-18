@@ -271,21 +271,26 @@ fn accept_invite(
 ) -> Result<(), BigNeonError> {
     invite.change_invite_status(1, connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
-    organization.add_user(user_id, invite.roles.clone(), invite.event_ids.clone(), connection)?;
+    let organization_user =
+        organization.add_user(user_id, invite.roles.clone(), invite.event_ids.clone(), connection)?;
 
     // Check for any additional pending invites for this organization and accept them
-    for mut related_invite in OrganizationInvite::find_all_active_organization_invites_by_email(
-        &invite.user_email,
-        &organization,
-        connection,
-    )? {
-        organization.add_user(
-            user_id,
-            related_invite.roles.clone(),
-            related_invite.event_ids.clone(),
+    if organization_user.is_event_user() {
+        for mut related_invite in OrganizationInvite::find_all_active_organization_invites_by_email(
+            &invite.user_email,
+            &organization,
             connection,
-        )?;
-        related_invite.change_invite_status(1, connection)?;
+        )? {
+            if related_invite.is_event_user() {
+                organization.add_user(
+                    user_id,
+                    related_invite.roles.clone(),
+                    related_invite.event_ids.clone(),
+                    connection,
+                )?;
+                related_invite.change_invite_status(1, connection)?;
+            }
+        }
     }
 
     Ok(())

@@ -6,8 +6,8 @@ use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp, Uuid as dUuid};
 use models::*;
 use schema::{organization_invites, organizations, users};
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::{DatabaseError, ErrorCode};
+use std::borrow::Cow;
+use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode, Optional};
 use uuid::Uuid;
 use validator::Validate;
 use validators::{self, *};
@@ -72,7 +72,7 @@ pub struct DisplayInvite {
 
 impl NewOrganizationInvite {
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
+        let mut validation_errors = validators::append_validation_error(
             self.validate(),
             "event_ids",
             event_ids_belong_to_organization_validation(
@@ -82,6 +82,18 @@ impl NewOrganizationInvite {
                 conn,
             )?,
         );
+
+        if let Some(user_id) = self.user_id {
+            let organization_user =
+                OrganizationUser::find_by_user_id(user_id, self.organization_id, conn).optional()?;
+            if organization_user.is_some() && !organization_user.unwrap().is_event_user() {
+                let mut validation_error =
+                    create_validation_error("uniqueness", "User already belongs to organization");
+                validation_error.add_param(Cow::from("user_id"), &user_id);
+                validation_errors =
+                    validators::append_validation_error(validation_errors, "user_id", Err(validation_error));
+            }
+        }
 
         Ok(validation_errors?)
     }
@@ -107,6 +119,10 @@ impl NewOrganizationInvite {
 }
 
 impl OrganizationInvite {
+    pub fn is_event_user(&self) -> bool {
+        OrganizationUser::contains_role_for_event_user(&self.roles)
+    }
+
     pub fn create(
         org_id: Uuid,
         invitee_id: Uuid,
