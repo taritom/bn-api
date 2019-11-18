@@ -147,21 +147,26 @@ fn create_invite(
     let mut invite = invite.commit(connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
 
-    // If the user already exists, accept the invite immediately, otherwise send an email
-    match user_id {
-        Some(user_id) => {
+    // If the user already exists for organization, accept the invite immediately, otherwise send an email
+    let mut mail_invite = true;
+    if let Some(user_id) = user_id {
+        let organization_user = OrganizationUser::find_by_user_id(user_id, organization.id, connection).optional()?;
+        if organization_user.is_some() {
+            mail_invite = false;
             accept_invite(user_id, &mut invite, &connection)?;
         }
-        None => {
-            mailers::organization_invites::invite_user_to_organization_email(
-                &state.config,
-                &invite,
-                &organization,
-                &recipient,
-                connection,
-            )?;
-        }
     }
+
+    if mail_invite {
+        mailers::organization_invites::invite_user_to_organization_email(
+            &state.config,
+            &invite,
+            &organization,
+            &recipient,
+            connection,
+        )?;
+    }
+
     Ok(HttpResponse::Created().json(invite))
 }
 
