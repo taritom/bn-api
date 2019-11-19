@@ -9,7 +9,7 @@ documentation = "https://github.com/big-neon/docs"
 
 [dependencies]
 actix = "0.7"
-actix-web = "=0.7.16"
+actix-web = "=0.7.18"
 bigneon_db = { path = "../db" }
 bigneon_http = { path = "../http" }
 bigneon_caching_derive = { path = "../http/caching_derive" }

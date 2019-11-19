@@ -1,6 +1,6 @@
 use actix_web::http;
 use actix_web::middleware::cors::Cors;
-use actix_web::{server, App};
+use actix_web::{fs::StaticFiles, server, App};
 use bigneon_db::utils::errors::DatabaseError;
 use config::Config;
 use db::*;
@@ -31,6 +31,7 @@ impl AppState {
         })
     }
 }
+
 pub struct Server {
     pub config: Config,
 }
@@ -68,7 +69,7 @@ impl Server {
             info!("Listening on {}", bind_addr);
 
             let conf = config.clone();
-
+            let static_file_conf = config.clone();
             //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
             let mut server = server::new({
                 move || {
@@ -76,41 +77,47 @@ impl Server {
                         AppState::new(conf.clone(), database.clone(), database_ro.clone())
                             .expect("Expected to generate app state"),
                     )
-                    .middleware(BigNeonLogger::new(LOGGER_FORMAT))
-                    .middleware(DatabaseTransaction::new())
-                    .middleware(AppVersionHeader::new())
-                    .middleware(Metatags::new(
-                        conf.ssr_trigger_header.clone(),
-                        conf.ssr_trigger_value.clone(),
-                        conf.front_end_url.clone(),
-                        conf.app_name.clone(),
-                    ))
-                    .configure(|a| {
-                        let mut cors_config = Cors::for_app(a);
-                        match conf.allowed_origins.as_ref() {
-                            "*" => cors_config.send_wildcard(),
-                            _ => cors_config.allowed_origin(&conf.allowed_origins),
-                        };
-                        cors_config
-                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                            .allowed_headers(vec![
-                                http::header::AUTHORIZATION,
-                                http::header::ACCEPT,
-                                "X-API-Client-Version"
-                                    .parse::<http::header::HeaderName>()
-                                    .unwrap(),
-                            ])
-                            .allowed_header(http::header::CONTENT_TYPE)
-                            .expose_headers(vec!["x-app-version"])
-                            .max_age(3600);
+                        .middleware(BigNeonLogger::new(LOGGER_FORMAT))
+                        .middleware(DatabaseTransaction::new())
+                        .middleware(AppVersionHeader::new())
+                        .middleware(Metatags::new(
+                            conf.ssr_trigger_header.clone(),
+                            conf.ssr_trigger_value.clone(),
+                            conf.front_end_url.clone(),
+                            conf.app_name.clone(),
+                        ))
+                        .configure(|a| {
+                            let mut cors_config = Cors::for_app(a);
+                            match conf.allowed_origins.as_ref() {
+                                "*" => cors_config.send_wildcard(),
+                                _ => cors_config.allowed_origin(&conf.allowed_origins),
+                            };
+                            cors_config
+                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                                .allowed_headers(vec![
+                                    http::header::AUTHORIZATION,
+                                    http::header::ACCEPT,
+                                    "X-API-Client-Version"
+                                        .parse::<http::header::HeaderName>()
+                                        .unwrap(),
+                                ])
+                                .allowed_header(http::header::CONTENT_TYPE)
+                                .expose_headers(vec!["x-app-version"])
+                                .max_age(3600);
 
-                        routing::routes(&mut cors_config)
-                    })
+                            routing::routes(&mut cors_config)
+                        })
+                        .configure(|a| {
+                            match &static_file_conf.static_file_path {
+                                Some(static_file_path) => a.handler("/", StaticFiles::new(static_file_path).unwrap()),
+                                None => a
+                            }
+                        })
                 }
             })
-            //            .keep_alive(keep_alive)
-            .bind(&bind_addr)
-            .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr));
+                //            .keep_alive(keep_alive)
+                .bind(&bind_addr)
+                .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr));
 
             if let Some(workers) = config.actix.workers {
                 server = server.workers(workers);
