@@ -32,6 +32,7 @@ logging = {path="../logging"}
 macros = {path="../macros"}
 phonenumber = "0.2.3"
 r2d2 = "0.8"
+r2d2_redis = "0.12.0"
 regex = "1"
 reqwest="0.9.22"
 serde = "1.0"

@@ -18,6 +18,7 @@ pub struct Config {
     pub api_port: String,
     pub app_name: String,
     pub database_url: String,
+    pub redis_connection_string: String,
     pub readonly_database_url: String,
     pub domain: String,
     pub email_templates: EmailTemplates,
@@ -130,6 +131,7 @@ const APP_NAME: &str = "APP_NAME";
 const API_HOST: &str = "API_HOST";
 const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
+const REDIS_CONNECTION_STRING: &str = "REDIS_CONNECTION_STRING";
 const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const EMAIL_TEMPLATES_CUSTOM_BROADCAST: &str = "EMAIL_TEMPLATES_CUSTOM_BROADCAST";
@@ -214,6 +216,8 @@ impl Config {
         dotenv().ok();
 
         let app_name = env::var(&APP_NAME).unwrap_or_else(|_| "Big Neon".to_string());
+
+        let redis_connection_string = env::var(&REDIS_CONNECTION_STRING ).unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
 
         let database_url = match environment {
             Environment::Test => get_env_var(TEST_DATABASE_URL),
@@ -366,6 +370,7 @@ impl Config {
             api_host,
             api_port,
             database_url,
+            redis_connection_string,
             readonly_database_url,
             domain,
             email_templates,

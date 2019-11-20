@@ -5,7 +5,7 @@ use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
-use db::Connection;
+use db::{Connection, ConnectionRedis};
 use db::ReadonlyConnection;
 use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
@@ -226,11 +226,12 @@ pub fn checkins(
 }
 
 pub fn index(
-    (state, connection, query, auth_user): (
+    (state, connection, query, auth_user, redis_connection): (
         State<AppState>,
         ReadonlyConnection,
         Query<SearchParameters>,
         OptionalUser,
+        ConnectionRedis,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
