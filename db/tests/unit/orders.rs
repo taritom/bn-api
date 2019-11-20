@@ -2439,7 +2439,7 @@ fn add_tickets_below_min_fee() {
     assert_eq!(fee_item.company_fee_in_cents, 0);
 
     // Without the minimum fee schedule of 0
-    cart.clear_cart(user.id, connection);
+    cart.clear_cart(user.id, connection).unwrap();
     diesel::delete(fee_schedule_ranges::table.filter(fee_schedule_ranges::min_price_in_cents.eq(0)))
         .execute(connection)
         .unwrap();
