@@ -17,6 +17,8 @@ branch_rs = {path="../branch_rs"}
 chrono = {version = "0.4", features = ["serde"]}
 clap = "2.32"
 customer_io= {path="../customer_io"}
+redis_server= {path="../redis_server"}
+r2d2_redis = "0.12.0"
 diesel="1.4.2"
 dotenv = "0.13"
 # Pulling from github as dependency fix merged into master has yet to be released

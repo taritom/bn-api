@@ -29,6 +29,8 @@ extern crate logging;
 extern crate macros;
 extern crate phonenumber;
 extern crate r2d2;
+extern crate r2d2_redis;
+extern crate redis_server;
 extern crate regex;
 extern crate reqwest;
 extern crate serde;

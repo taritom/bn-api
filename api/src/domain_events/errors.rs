@@ -1,11 +1,11 @@
 use bigneon_db::prelude::*;
 use diesel;
 use diesel::prelude::ConnectionError;
+use errors::BigNeonError;
 use r2d2;
 use std::error;
 use std::fmt;
 use std::io;
-use errors::BigNeonError;
 
 #[derive(Debug)]
 pub enum DomainActionError {

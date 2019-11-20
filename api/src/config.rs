@@ -240,9 +240,10 @@ impl Config {
         let token_issuer = get_env_var(TOKEN_ISSUER);
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
-        
-        let redis_connection_string= env::var(&REDIS_CONNECTION_STRING).unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
-        
+
+        let redis_connection_string =
+            env::var(&REDIS_CONNECTION_STRING).unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
 
         let front_end_url = get_env_var(FRONT_END_URL);

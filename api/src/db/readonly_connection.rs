@@ -12,13 +12,7 @@ pub struct ReadonlyConnection {
     inner: Arc<ConnectionType>,
 }
 
-impl From<ConnectionType> for ReadonlyConnection {
-    fn from(connection_type: ConnectionType) -> Self {
-        ReadonlyConnection {
-            inner: Arc::new(connection_type),
-        }
-    }
-}
+
 
 impl From<PgConnection> for ReadonlyConnection {
     fn from(connection: PgConnection) -> Self {
@@ -76,10 +70,12 @@ impl FromRequest<AppState> for ReadonlyConnection {
     type Result = Result<ReadonlyConnection, BigNeonError>;
 
     fn from_request(request: &HttpRequest<AppState>, _config: &Self::Config) -> Self::Result {
+        // if another thread has already added it, return it
         if let Some(connection) = request.extensions().get::<ReadonlyConnection>() {
             return Ok(connection.clone());
         }
 
+        // Otherwise, create a new connection
         let connection = request.state().database_ro.get_ro_connection()?;
         {
             let connection_object = connection.get();
@@ -88,6 +84,7 @@ impl FromRequest<AppState> for ReadonlyConnection {
                 .begin_transaction(connection_object)?;
         }
 
+        // and add it
         request.extensions_mut().insert(connection.clone());
         Ok(connection)
     }

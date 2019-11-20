@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 r2d2_redis = "0.12.0"
+chrono = "0.4.9"

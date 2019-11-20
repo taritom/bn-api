@@ -3,6 +3,7 @@ use actix_web::middleware::cors::Cors;
 use actix_web::{server, App};
 use bigneon_db::utils::errors::DatabaseError;
 use config::Config;
+use db::ConnectionRedis;
 use db::*;
 use domain_events::DomainActionMonitor;
 use log::Level::Debug;
