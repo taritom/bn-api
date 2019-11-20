@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
 
 BINARIES_DIR=binaries
 BINARIES=(server bndb_cli api-cli)
@@ -31,5 +30,5 @@ do
   git add "$BINARIES_DIR/$BINARY"
 done
 
-git commit -a -m "Commit binaries for $BRANCH"
+git commit -a -m "Commit binaries for $BRANCH" || exit 0
 git push -u origin "$BRANCH"
