@@ -9,10 +9,6 @@ cube(`Events`, {
       TicketTypes :{
         sql: `${Events}.id = ${TicketTypes}.event_id`,
           relationship:`hasMany`
-      },
-      AnalyticsPageViews: {
-        sql:`${AnalyticsPageViews}.event_id = ${Events}.id`,
-          relationship:`hasMany`
       }
   },
 

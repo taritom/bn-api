@@ -1,12 +1,12 @@
 use actix_web::{http::header, HttpRequest, HttpResponse, Query};
 use bigneon_db::models::analytics::PageView;
+use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use db::Connection;
 use errors::BigNeonError;
 use server::AppState;
-use url::Url;
-use core::borrow::Borrow;
 use url::form_urlencoded::Parse;
+use url::Url;
 
 #[derive(Deserialize)]
 pub struct PageViewTrackingData {
@@ -38,20 +38,25 @@ pub fn track(
         .map(|p| p.to_string())
         .ok();
 
-    let url = Url::parse(query.url.as_str())?;
-    let params = url.query_pairs();
-    let utm_source = extract_param(&params, "utm_source");
-    let utm_medium = extract_param(&params, "utm_medium");
-    let utm_content = extract_param(&params, "utm_content");
-    let utm_term = extract_param(&params, "utm_term");
-    let utm_campaign = extract_param(&params, "utm_campaign");
-    let utm_code = extract_param(&params, "code");
-    let is_facebook = extract_param(&params, "fbclid").map(|_| "facebook".to_string());
+    let url = Url::parse(query.url.to_string().as_str())?;
+    let mut params = url.query_pairs();
+    let utm_source = extract_param(&mut params, "utm_source");
+    let utm_medium = extract_param(&mut params, "utm_medium");
+    let utm_content = extract_param(&mut params, "utm_content");
+    let utm_term = extract_param(&mut params, "utm_term");
+    let utm_campaign = extract_param(&mut params, "utm_campaign");
+    let utm_code = extract_param(&mut params, "code");
+    let is_facebook = extract_param(&mut params, "fbclid").map(|_| "facebook".to_string());
 
     PageView::create(
         Utc::now().naive_utc(),
         query.event_id.clone(),
-        query.source.clone().or(utm_source).or(is_facebook).unwrap_or("".to_string()),
+        query
+            .source
+            .clone()
+            .or(utm_source)
+            .or(is_facebook)
+            .unwrap_or("".to_string()),
         query.medium.clone().or(utm_medium).unwrap_or("".to_string()),
         query.term.clone().or(utm_term).unwrap_or("".to_string()),
         query.content.clone().or(utm_content).unwrap_or("".to_string()),
@@ -63,11 +68,11 @@ pub fn track(
         ip_address.unwrap_or("".to_string()),
         user_agent.unwrap_or("".to_string()),
     )
-        .commit(conn)?;
+    .commit(conn)?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
-fn extract_param<'a>(query_params: &Parse, name: &str) -> Option<String> {
-params.find(|i| &i.0 == name).map(|i| i.1.to_string())
+fn extract_param<'a>(query_params: &mut Parse, name: &str) -> Option<String> {
+    query_params.find(|i| &i.0 == name).map(|i| i.1.to_string())
 }

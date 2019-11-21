@@ -2,10 +2,10 @@ cube(`AnalyticsPageViews`, {
   sql: `SELECT * FROM public.analytics_page_views`,
 
   joins: {
-    Events: {
-      sql: `${CUBE}.event_id = ${Events}.id`,
-      relationship: `belongsTo`
-    }
+      Sources: {
+        sql: `${CUBE}.source = ${Sources}.source`,
+          relationship: 'belongsTo'
+      }
   },
 
   measures: {
