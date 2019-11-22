@@ -5,6 +5,7 @@ use url::form_urlencoded::byte_serialize;
 
 pub mod orders;
 pub mod organization_invites;
+pub mod reports;
 pub mod tickets;
 pub mod user;
 

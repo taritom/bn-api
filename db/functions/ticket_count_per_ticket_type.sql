@@ -23,6 +23,7 @@ CREATE OR REPLACE FUNCTION ticket_count_per_ticket_type(event_id UUID, organizat
         reserved_count                       BIGINT,
         redeemed_count                       BIGINT,
         purchased_count                      BIGINT,
+        purchased_yesterday_count            BIGINT,
         nullified_count                      BIGINT,
         available_for_purchase_count         BIGINT,
         total_refunded_count                 BIGINT,
@@ -63,6 +64,16 @@ SELECT o.id                                                                     
            COALESCE(COUNT(ti.id) FILTER (WHERE ti.status = 'Redeemed'), 0) AS BIGINT)   AS redeemed_count,
        CAST(
            COALESCE(COUNT(ti.id) FILTER (WHERE ti.status = 'Purchased'), 0) AS BIGINT)  AS purchased_count,
+       CAST(
+         COALESCE(COUNT(ti.id) FILTER (
+              WHERE ti.status = 'Purchased'
+              AND CASE WHEN CURRENT_DATE + '12:00:00'::time < now()
+                THEN o2.paid_at >= CURRENT_DATE - 1 + '12:00:00'::time
+                ELSE o2.paid_at >= CURRENT_DATE - 2 + '12:00:00'::time END
+              AND CASE WHEN CURRENT_DATE + '12:00:00'::time < now()
+                THEN o2.paid_at < CURRENT_DATE + '12:00:00'::time
+                ELSE o2.paid_at < CURRENT_DATE - 1 + '12:00:00'::time END
+         ), 0) AS BIGINT)  AS purchased_yesterday_count,
        CAST(
            COALESCE(COUNT(ti.id) FILTER (WHERE ti.status = 'Nullified'), 0) AS BIGINT)  AS nullified_count,
        -- Not in a hold and not purchased / reserved / redeemed etc
@@ -131,6 +142,8 @@ FROM ticket_instances ti
                     WHERE $3 SIMILAR TO '%event%|%ticket_type%') AS e ON (e.id = tt2.event_id)
          LEFT JOIN events e2 ON (e2.id = tt2.event_id)
          LEFT JOIN organizations o ON o.id = e2.organization_id
+         LEFT JOIN order_items oi ON (oi.id = ti.order_item_id)
+         LEFT JOIN orders o2 ON (o2.id = oi.order_id)
 WHERE ($1 IS NULL OR e2.id = $1)
   AND ($2 IS NULL OR e2.organization_id = $2)
   AND (tt2.status <> 'Cancelled')

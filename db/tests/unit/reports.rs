@@ -2,9 +2,203 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
 use bigneon_db::utils::dates;
-use chrono::{Duration, NaiveDate, Utc};
+use chrono::{Datelike, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Tz;
 use diesel;
 use diesel::prelude::*;
+
+#[test]
+fn find_event_reports_for_processing() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
+    let event2 = project.create_event().with_tickets().finish();
+    let event3 = project.create_event().with_tickets().finish();
+
+    // Only events that have not ended that have active sales are included
+    assert_eq!(
+        Report::find_event_reports_for_processing(connection)
+            .unwrap()
+            .get(&ReportTypes::TicketCounts)
+            .unwrap(),
+        &vec![]
+    );
+
+    project.create_order().for_event(&event).is_paid().finish();
+    project.create_order().for_event(&event2).is_paid().finish();
+    project.create_order().for_event(&event3).is_paid().finish();
+
+    // Adjust event end to prevent some from being included
+    let event = event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_days(-1).finish()),
+                event_end: Some(dates::now().add_minutes(-10).finish()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    event2
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_days(-3).finish()),
+                event_end: Some(dates::now().add_days(-2).finish()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let event3 = event3
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_days(-3).finish()),
+                event_end: Some(dates::now().add_days(5).finish()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    // Event2 is not included as it ended 2 days ago
+    assert_eq!(
+        Report::find_event_reports_for_processing(connection)
+            .unwrap()
+            .get(&ReportTypes::TicketCounts)
+            .unwrap(),
+        &vec![event, event3]
+    );
+}
+
+#[test]
+fn schedule_domain_actions() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let domain_actions = &DomainAction::find_by_resource(
+        None,
+        None,
+        DomainActionTypes::SendAutomaticReportEmails,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_actions.len());
+
+    // Schedule domain action
+    Report::schedule_domain_actions(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        None,
+        None,
+        DomainActionTypes::SendAutomaticReportEmails,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+
+    // No change since action exists
+    Report::schedule_domain_actions(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        None,
+        None,
+        DomainActionTypes::SendAutomaticReportEmails,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+
+    // Delete action
+    domain_actions[0].set_done(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        None,
+        None,
+        DomainActionTypes::SendAutomaticReportEmails,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_actions.len());
+
+    // Added back as it was no longer there (the job creates the next domain action normally)
+    Report::schedule_domain_actions(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        None,
+        None,
+        DomainActionTypes::SendAutomaticReportEmails,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+}
+
+#[test]
+fn next_automatic_report_date() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
+    let now = pt_timezone.from_utc_datetime(&Utc::now().naive_utc());
+    let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(4, 0, 0);
+    let expected = pt_today.naive_utc() + Duration::days(1);
+    assert_eq!(Report::next_automatic_report_date().unwrap(), expected);
+
+    // Organization timezone has no effect on the date
+    organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("Africa/Johannesburg".to_string()),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(Report::next_automatic_report_date().unwrap(), expected);
+}
+
+#[test]
+fn upcoming_automatic_report_domain_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    Report::create_next_automatic_report_domain_action(connection).unwrap();
+    let upcoming_automatic_report_domain_action = Report::upcoming_automatic_report_domain_action(connection).unwrap();
+    assert!(upcoming_automatic_report_domain_action.is_some());
+
+    // Mark as done
+    upcoming_automatic_report_domain_action
+        .unwrap()
+        .set_done(connection)
+        .unwrap();
+    let upcoming_automatic_report_domain_action = Report::upcoming_automatic_report_domain_action(connection).unwrap();
+    assert!(upcoming_automatic_report_domain_action.is_none());
+}
+
+#[test]
+fn create_next_automatic_report_domain_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    assert!(Report::upcoming_automatic_report_domain_action(connection)
+        .unwrap()
+        .is_none());
+
+    Report::create_next_automatic_report_domain_action(connection).unwrap();
+    let domain_action = Report::upcoming_automatic_report_domain_action(connection)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        domain_action.scheduled_at,
+        Report::next_automatic_report_date().unwrap()
+    );
+    assert_eq!(domain_action.status, DomainActionStatus::Pending);
+    assert_eq!(domain_action.main_table, None);
+    assert_eq!(domain_action.main_table_id, None);
+}
 
 #[test]
 fn ticket_count_report() {
@@ -224,6 +418,7 @@ fn ticket_count_report() {
         reserved_count: 0,
         redeemed_count: 1,
         purchased_count: 11,
+        purchased_yesterday_count: 0,
         nullified_count: 0,
         available_for_purchase_count: 73,
         total_refunded_count: 1,
@@ -494,6 +689,7 @@ fn ticket_count_report() {
             reserved_count: 0,
             redeemed_count: 1,
             purchased_count: 11,
+            purchased_yesterday_count: 0,
             nullified_count: 0,
             available_for_purchase_count: 73,
             total_refunded_count: 1,
@@ -527,6 +723,7 @@ fn ticket_count_report() {
             reserved_count: 0,
             redeemed_count: 0,
             purchased_count: 2,
+            purchased_yesterday_count: 0,
             nullified_count: 0,
             available_for_purchase_count: 98,
             total_refunded_count: 0,

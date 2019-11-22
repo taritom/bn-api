@@ -32,7 +32,7 @@ use validators::*;
 
 #[derive(Associations, Identifiable, Queryable)]
 #[belongs_to(Organization)]
-#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, QueryableByName, Debug)]
 #[belongs_to(Venue)]
 #[table_name = "events"]
 pub struct Event {
@@ -501,8 +501,8 @@ impl Event {
 
     pub fn clear_pending_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let drip_domain_actions = DomainAction::find_by_resource(
-            Tables::Events,
-            self.id,
+            Some(Tables::Events),
+            Some(self.id),
             DomainActionTypes::ProcessTransferDrip,
             DomainActionStatus::Pending,
             conn,

@@ -382,7 +382,7 @@ impl DomainEvent {
         Ok(())
     }
 
-    fn webhook_payload_event_data(
+    pub fn webhook_payload_event_data(
         event: &Event,
         data: &mut HashMap<String, serde_json::Value>,
         conn: &PgConnection,

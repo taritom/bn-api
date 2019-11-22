@@ -81,8 +81,8 @@ fn find_by_resource() {
         .finish();
 
     let pending_actions = DomainAction::find_by_resource(
-        main_table.clone(),
-        main_table_id,
+        Some(main_table.clone()),
+        Some(main_table_id),
         DomainActionTypes::UpdateGenres,
         DomainActionStatus::Pending,
         conn,
@@ -93,8 +93,8 @@ fn find_by_resource() {
 
     domain_action.set_done(conn).unwrap();
     let pending_actions = DomainAction::find_by_resource(
-        main_table,
-        main_table_id,
+        Some(main_table),
+        Some(main_table_id),
         DomainActionTypes::UpdateGenres,
         DomainActionStatus::Pending,
         conn,

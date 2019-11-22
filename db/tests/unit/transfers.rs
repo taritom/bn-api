@@ -621,8 +621,8 @@ fn create_drip_actions() {
 
     transfer.create_drip_actions(&event, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Transfers,
-        transfer.id,
+        Some(Tables::Transfers),
+        Some(transfer.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,

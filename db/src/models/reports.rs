@@ -1,10 +1,12 @@
 use chrono::prelude::*;
+use chrono_tz::Tz;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use std::collections::HashMap;
+use time::Duration;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -139,6 +141,8 @@ pub struct TicketCountRow {
     pub redeemed_count: i64,
     #[sql_type = "BigInt"]
     pub purchased_count: i64,
+    #[sql_type = "BigInt"]
+    pub purchased_yesterday_count: i64,
     #[sql_type = "BigInt"]
     pub nullified_count: i64,
     #[sql_type = "BigInt"]
@@ -576,6 +580,87 @@ impl TicketCountRow {
 }
 
 impl Report {
+    pub fn schedule_domain_actions(conn: &PgConnection) -> Result<(), DatabaseError> {
+        // Settlements weekly domain event
+        if Report::upcoming_automatic_report_domain_action(conn)?.is_none() {
+            Report::create_next_automatic_report_domain_action(conn)?
+        }
+
+        Ok(())
+    }
+
+    pub fn find_event_reports_for_processing(
+        conn: &PgConnection,
+    ) -> Result<HashMap<ReportTypes, Vec<Event>>, DatabaseError> {
+        let mut result = HashMap::new();
+        let last_report = Report::next_automatic_report_date()? - Duration::days(2);
+        let active_events_with_orders: Vec<Event> = diesel::sql_query(
+            "SELECT e.*
+            FROM events e
+            JOIN (
+                SELECT oi.event_id, min(o.paid_at)
+                FROM orders o
+                JOIN order_items oi ON oi.order_id = o.id
+                WHERE o.paid_at IS NOT NULL
+                GROUP BY oi.event_id
+            ) es ON es.event_id = e.id
+            WHERE e.event_end >= $1
+            ORDER BY e.event_end;",
+        )
+        .bind::<Timestamp, _>(last_report)
+        .get_results(conn)
+        .to_db_error(ErrorCode::QueryError, "Error loading events")?;
+
+        result.insert(ReportTypes::TicketCounts, active_events_with_orders);
+        Ok(result)
+    }
+
+    pub fn next_automatic_report_date() -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = "America/Los_Angeles"
+            .to_string()
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+        // 4 AM tomorrow PT
+        Ok(timezone
+            .ymd(now.year(), now.month(), now.day())
+            .and_hms(4, 0, 0)
+            .naive_utc()
+            + Duration::days(1))
+    }
+
+    pub fn upcoming_automatic_report_domain_action(conn: &PgConnection) -> Result<Option<DomainAction>, DatabaseError> {
+        Ok(DomainAction::find_by_resource(
+            None,
+            None,
+            DomainActionTypes::SendAutomaticReportEmails,
+            DomainActionStatus::Pending,
+            conn,
+        )?
+        .pop())
+    }
+
+    pub fn create_next_automatic_report_domain_action(conn: &PgConnection) -> Result<(), DatabaseError> {
+        if let Some(upcoming_domain_action) = Report::upcoming_automatic_report_domain_action(conn)? {
+            if upcoming_domain_action.scheduled_at > Utc::now().naive_utc() {
+                return DatabaseError::business_process_error("Settlement processing domain action is already pending");
+            }
+        }
+
+        let mut action = DomainAction::create(
+            None,
+            DomainActionTypes::SendAutomaticReportEmails,
+            None,
+            json!({}),
+            None,
+            None,
+        );
+        action.schedule_at(Report::next_automatic_report_date()?);
+        action.commit(conn)?;
+
+        Ok(())
+    }
+
     pub fn box_office_sales_summary_report(
         organization_id: Uuid,
         start: Option<NaiveDateTime>,

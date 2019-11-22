@@ -145,12 +145,16 @@ fn schedule_missing_domain_actions(config: Config, database: Database) {
     let connection = database.get_connection().expect("Expected connection to establish");
     let connection = connection.get();
 
+    // Organization specific domain actions
     let organizations = Organization::all(connection).expect("Expected to find organizations");
     for organization in organizations {
         organization
             .schedule_domain_actions(config.settlement_period_in_days, connection)
             .expect("Expected to schedule any missing domain actions");
     }
+
+    // Report specific domain actions
+    Report::schedule_domain_actions(connection).expect("Expected to schedule any missing domain actions");
 }
 
 fn sync_spotify_genres(config: Config, database: Database) {
