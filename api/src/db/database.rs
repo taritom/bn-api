@@ -6,6 +6,7 @@ use diesel::PgConnection;
 use r2d2::{Error as R2D2Error};
 use r2d2_redis;
 use r2d2_redis::RedisConnectionManager;
+use errors::BigNeonError;
 
 type R2D2Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -18,14 +19,14 @@ impl Database {
     pub fn from_config(config: &Config) -> Database {
         Database {
             connection_pool: create_connection_pool(&config, config.database_url.clone()),
-            redis_connection_pool: create_redis_connection_pool(&config.redis_connection_string),
+            redis_connection_pool: create_redis_connection_pool(&config.redis_connection_string).unwrap(),
         }
     }
 
     pub fn readonly_from_config(config: &Config) -> Database {
         Database {
             connection_pool: create_connection_pool(&config, config.readonly_database_url.clone()),
-            redis_connection_pool: create_redis_connection_pool(&config.redis_connection_string),
+            redis_connection_pool: create_redis_connection_pool(&config.redis_connection_string).unwrap(),
         }
     }
 
@@ -65,10 +66,10 @@ fn create_connection_pool(config: &Config, database_url: String) -> R2D2Pool {
         .expect("Failed to create connection pool.")
 }
 
-fn create_redis_connection_pool(database_url: &str) -> r2d2_redis::r2d2::Pool<RedisConnectionManager> {
-    let manager = RedisConnectionManager::new(database_url).unwrap();
+fn create_redis_connection_pool(database_url: &str) -> Result<r2d2_redis::r2d2::Pool<RedisConnectionManager>, BigNeonError> {
+    let manager = RedisConnectionManager::new(database_url)?;
     let pool = r2d2_redis::r2d2::Pool::builder()
         .build(manager)
         .unwrap();
-    pool
+    Ok(pool)
 }

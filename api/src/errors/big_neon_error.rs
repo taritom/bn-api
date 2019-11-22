@@ -10,11 +10,9 @@ use facebook::prelude::FacebookError;
 use globee::GlobeeError;
 use jwt::errors::Error as JwtError;
 use payments::PaymentProcessorError;
-use r2d2;
 use reqwest;
 use reqwest::header::ToStrError as ReqwestToStrError;
 use serde_json::Error as SerdeError;
-use std::error::Error;
 use std::fmt;
 use tari_client::TariError;
 use twilio::TwilioError;
@@ -55,6 +53,7 @@ error_conversion!(chrono::ParseError);
 error_conversion!(std::io::Error);
 error_conversion!(sitemap::Error);
 error_conversion!(reqwest::Error);
+error_conversion!(r2d2_redis::redis::RedisError);
 
 impl fmt::Display for BigNeonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -62,7 +61,7 @@ impl fmt::Display for BigNeonError {
     }
 }
 
-impl Error for BigNeonError {
+impl std::error::Error for BigNeonError {
     fn description(&self) -> &str {
         self.0.description()
     }
@@ -111,6 +110,15 @@ impl From<TwilioError> for BigNeonError {
 impl ConvertToWebError for TwilioError {
     fn to_response(&self) -> HttpResponse {
         error!("Twilio error: {}", self);
+        HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+            .into_builder()
+            .json(json!({"error": self.to_string()}))
+    }
+}
+
+impl ConvertToWebError for r2d2_redis::redis::RedisError {
+    fn to_response(&self) -> HttpResponse {
+        error!("RedisError error: {}", self);
         HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
             .into_builder()
             .json(json!({"error": self.to_string()}))

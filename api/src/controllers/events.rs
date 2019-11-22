@@ -5,7 +5,7 @@ use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
-use db::{Connection, ConnectionRedis};
+use db::{Connection, ConnectionRedis, RedisCommands};
 use db::ReadonlyConnection;
 use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
@@ -20,8 +20,10 @@ use std::collections::HashMap;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
+use r2d2_redis::redis::{Commands, RedisResult, FromRedisValue};
+use std::borrow::Borrow;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Serialize)]
 pub struct SearchParameters {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     query: Option<String>,
@@ -43,6 +45,7 @@ pub struct SearchParameters {
     updated_at: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     category: Option<EventTypes>,
+    cache: Option<u32>,
 }
 
 impl From<SearchParameters> for Paging {
@@ -234,10 +237,24 @@ pub fn index(
         ConnectionRedis,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    let mut redis_connection = redis_connection.conn()?;
     let connection = connection.get();
     let query = query.into_inner();
     let paging = query.clone().into();
     let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
+
+    let cache = query.cache.clone();
+    let query_serialized = &serde_json::to_string(&query)?;
+    if let Some(seconds) = cache{
+        dbg!(query_serialized);
+        match redis_connection.get_value(query_serialized.borrow()) {
+            Ok(cached_value) => {
+                dbg!(&cached_value);
+                return Ok(HttpResponse::Ok().json(&cached_value))
+            },
+            _ => {}
+        };
+    }
 
     let past_or_upcoming = match query
         .past_or_upcoming
@@ -290,6 +307,10 @@ pub fn index(
     payload.paging.total = count as u64;
     payload.paging.limit = paging.limit;
 
+    if let Some(seconds) = cache {
+        let j = serde_json::to_string(&payload)?;
+        redis_connection.set(query_serialized, &j)?;
+    }
     Ok(HttpResponse::Ok().json(&payload))
 }
 
