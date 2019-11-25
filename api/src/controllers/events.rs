@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
-use r2d2_redis::redis::{Commands, RedisResult, FromRedisValue};
+use r2d2_redis::redis::{Commands };
 use std::borrow::Borrow;
 
 #[derive(Deserialize, Clone, Serialize)]
@@ -45,7 +45,7 @@ pub struct SearchParameters {
     updated_at: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     category: Option<EventTypes>,
-    cache: Option<u32>,
+    cache_period: Option<u32>,
 }
 
 impl From<SearchParameters> for Paging {
@@ -243,17 +243,16 @@ pub fn index(
     let paging = query.clone().into();
     let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
 
-    let cache = query.cache.clone();
-    let query_serialized = &serde_json::to_string(&query)?;
-    if let Some(seconds) = cache{
-        dbg!(query_serialized);
-        match redis_connection.get_value(query_serialized.borrow()) {
-            Ok(cached_value) => {
-                dbg!(&cached_value);
-                return Ok(HttpResponse::Ok().json(&cached_value))
-            },
-            _ => {}
-        };
+    let cache_period = query.cache_period.clone();
+    let query_serialized = serde_json::to_string(&query)?;
+    let query_serialized = query_serialized.borrow();
+    // only look for cached value if a cached_period is giving
+    if let Some(cache_period) = cache_period  {
+        // look up the key, if the key exist and it falls in to allowed time elapse, return the cached value
+        match redis_connection.get_cache_value(query_serialized, cache_period as i64) {
+            Some(cached_value) => return Ok(HttpResponse::Ok().json(&cached_value)),
+            _ => ()
+        }
     }
 
     let past_or_upcoming = match query
@@ -307,9 +306,9 @@ pub fn index(
     payload.paging.total = count as u64;
     payload.paging.limit = paging.limit;
 
-    if let Some(seconds) = cache {
-        let j = serde_json::to_string(&payload)?;
-        redis_connection.set(query_serialized, &j)?;
+    if let Some(cache_period) = cache_period {
+        let payload_json = serde_json::to_string(&payload)?;
+        redis_connection.set_cache_value (query_serialized, payload_json.borrow(), cache_period as i64);
     }
     Ok(HttpResponse::Ok().json(&payload))
 }
