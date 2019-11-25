@@ -130,7 +130,7 @@ fn queue_push_notification(
                 None,
                 Some(vec!["broadcast"]),
                 Some(
-                    [("broadcast_id".to_string(), broadcast.id.to_string())]
+                    [("broadcast_id".to_string(), json!(broadcast.id))]
                         .iter()
                         .cloned()
                         .collect(),
@@ -173,8 +173,8 @@ fn queue_email_notification(
             Some(vec!["broadcast"]),
             Some(
                 [
-                    ("broadcast_id".to_string(), broadcast.id.to_string()),
-                    ("event_id".to_string(), broadcast.event_id.to_string()),
+                    ("broadcast_id".to_string(), json!(broadcast.id)),
+                    ("event_id".to_string(), json!(broadcast.event_id)),
                 ]
                 .iter()
                 .cloned()

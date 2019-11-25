@@ -6,7 +6,8 @@ use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
-use log::Level::Trace;
+use log::Level::Info;
+use serde_json::Value;
 use std::collections::HashMap;
 use tokio::prelude::*;
 use utils::expo;
@@ -29,7 +30,7 @@ pub fn send_async(
     }
 
     if config.block_external_comms {
-        jlog!(Trace, "Blocked communication", { "communication": communication });
+        jlog!(Info, "Blocked communication", { "communication": communication });
 
         return Either::A(future::ok(()));
     };
@@ -80,7 +81,7 @@ fn send_email_template(
 
     // Short circuit logic if communication template and template is blank
     if template_id == "" {
-        jlog!(Trace, "Blocked communication, blank template ID", {
+        jlog!(Info, "Blocked communication, blank template ID", {
             "communication": communication
         });
         return Box::new(future::ok(()));
@@ -110,7 +111,7 @@ fn send_email_template(
             if let Some(ref td) = communication.template_data {
                 for map in td {
                     for (key, value) in map {
-                        extra_data.insert(key.clone(), value.clone());
+                        extra_data.insert(key.clone(), json!(value));
                     }
                 }
             }
@@ -130,6 +131,13 @@ fn send_email_template(
             }
         }
         EmailProvider::Sendgrid => {
+            let mut sendgrid_extra_data: HashMap<String, String> = HashMap::new();
+            if let Some(ref ed) = extra_data {
+                for (key, value) in ed {
+                    sendgrid_extra_data.insert(key.clone(), value.as_str().unwrap_or("").to_string());
+                }
+            }
+
             // sendgrid
             sendgrid::send_email_template_async(
                 &config.sendgrid_api_key,
@@ -138,7 +146,7 @@ fn send_email_template(
                 template.template_id.clone(),
                 communication.template_data.as_ref().unwrap(),
                 communication.categories.clone(),
-                extra_data,
+                Some(sendgrid_extra_data),
             )
         } // Customer IO
     }
@@ -150,7 +158,7 @@ pub fn customer_io_send_email(
     template_id: String,
     title: String,
     body: Option<String>,
-    mut template_data: HashMap<String, String>,
+    mut template_data: HashMap<String, Value>,
     domain_action: &DomainAction,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
@@ -161,32 +169,32 @@ pub fn customer_io_send_email(
         &config.customer_io.base_url,
     )?;
 
-    template_data.insert("subject".to_string(), title);
+    template_data.insert("subject".to_string(), json!(title));
 
     if let Some(b) = body {
-        template_data.insert("message".to_string(), b);
+        template_data.insert("message".to_string(), json!(b));
     }
 
     if domain_action.main_table == Some(Tables::Events) && domain_action.main_table_id.is_some() {
         let event = Event::find(domain_action.main_table_id.unwrap(), conn)?;
 
-        template_data.insert("show_name".to_string(), event.name.clone());
+        template_data.insert("show_name".to_string(), json!(event.name.clone()));
 
         if let Some(start_datetime) = event.event_start {
-            template_data.insert("show_start_date".to_string(), start_datetime.date().to_string());
-            template_data.insert("show_start_time".to_string(), start_datetime.time().to_string());
+            template_data.insert("show_start_date".to_string(), json!(start_datetime.date().to_string()));
+            template_data.insert("show_start_time".to_string(), json!(start_datetime.time().to_string()));
         }
 
         // parse the venue address if venue
         if let Some(venue_id) = event.venue_id {
             let venue = Venue::find(venue_id, conn)?;
 
-            template_data.insert("show_venue_name".to_string(), venue.name.clone());
+            template_data.insert("show_venue_name".to_string(), json!(venue.name.clone()));
 
-            template_data.insert("show_venue_address".to_string(), venue.address.to_string());
-            template_data.insert("show_venue_city".to_string(), venue.city.to_string());
-            template_data.insert("show_venue_state".to_string(), venue.state.to_string());
-            template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
+            template_data.insert("show_venue_address".to_string(), json!(venue.address));
+            template_data.insert("show_venue_city".to_string(), json!(venue.city));
+            template_data.insert("show_venue_state".to_string(), json!(venue.state));
+            template_data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
         }
     }
     // loop dest_email_addresses, each email will be sent different email address
