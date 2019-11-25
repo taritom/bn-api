@@ -6,7 +6,7 @@ use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
-use log::Level::Info;
+use log::Level::Trace;
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::prelude::*;
@@ -30,7 +30,7 @@ pub fn send_async(
     }
 
     if config.block_external_comms {
-        jlog!(Info, "Blocked communication", { "communication": communication });
+        jlog!(Trace, "Blocked communication", { "communication": communication });
 
         return Either::A(future::ok(()));
     };
@@ -81,7 +81,7 @@ fn send_email_template(
 
     // Short circuit logic if communication template and template is blank
     if template_id == "" {
-        jlog!(Info, "Blocked communication, blank template ID", {
+        jlog!(Trace, "Blocked communication, blank template ID", {
             "communication": communication
         });
         return Box::new(future::ok(()));
