@@ -598,13 +598,18 @@ impl Report {
             "SELECT e.*
             FROM events e
             JOIN (
-                SELECT oi.event_id, min(o.paid_at)
-                FROM orders o
-                JOIN order_items oi ON oi.order_id = o.id
-                WHERE o.paid_at IS NOT NULL
-                GROUP BY oi.event_id
-            ) es ON es.event_id = e.id
+                SELECT min(tp.start_date) as on_sale,
+                tt.event_id
+                FROM ticket_types tt
+                JOIN ticket_pricing tp ON tp.ticket_type_id = tt.id
+                WHERE  tt.deleted_at IS NULL
+                AND tp.status <> 'Deleted'
+                GROUP BY tt.event_id
+            ) tt ON tt.event_id = e.id
             WHERE e.event_end >= $1
+            AND e.status = 'Published'
+            AND e.publish_date <= now()
+            AND tt.on_sale <= now()
             ORDER BY e.event_end;",
         )
         .bind::<Timestamp, _>(last_report)

@@ -149,7 +149,8 @@ WHERE ($1 IS NULL OR e2.id = $1)
   AND (tt2.status <> 'Cancelled')
   AND (tt2.deleted_at IS NULL)
   AND (e2.deleted_at IS NULL)
-GROUP BY e.id, e.name, o.id, o.name, tt.id, tt.name, tt.status;
+GROUP BY e.id, e.name, o.id, o.name, tt2.rank, tt.id, tt.name, tt.status
+ORDER BY e.id, e.name, o.id, o.name, tt2.rank;
 $body$
     LANGUAGE SQL;
 

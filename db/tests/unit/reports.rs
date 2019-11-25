@@ -11,11 +11,26 @@ use diesel::prelude::*;
 fn find_event_reports_for_processing() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let event = project.create_event().with_tickets().finish();
-    let event2 = project.create_event().with_tickets().finish();
-    let event3 = project.create_event().with_tickets().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type()
+        .starting(dates::now().add_days(1).finish())
+        .ending(dates::now().add_days(2).finish())
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_ticket_type()
+        .starting(dates::now().add_days(1).finish())
+        .ending(dates::now().add_days(2).finish())
+        .finish();
+    let event3 = project
+        .create_event()
+        .with_ticket_type()
+        .starting(dates::now().add_days(1).finish())
+        .ending(dates::now().add_days(2).finish())
+        .finish();
 
-    // Only events that have not ended that have active sales are included
+    // Only events on sale that have not ended are included
     assert_eq!(
         Report::find_event_reports_for_processing(connection)
             .unwrap()
@@ -24,9 +39,46 @@ fn find_event_reports_for_processing() {
         &vec![]
     );
 
-    project.create_order().for_event(&event).is_paid().finish();
-    project.create_order().for_event(&event2).is_paid().finish();
-    project.create_order().for_event(&event3).is_paid().finish();
+    // Add ticket pricing for each event
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    ticket_type
+        .add_ticket_pricing(
+            "Pricing1".into(),
+            dates::now().add_days(-1).finish(),
+            dates::now().add_days(2).finish(),
+            3000,
+            false,
+            None,
+            None,
+            connection,
+        )
+        .unwrap();
+    let ticket_type2 = &event2.ticket_types(true, None, connection).unwrap()[0];
+    ticket_type2
+        .add_ticket_pricing(
+            "Pricing1".into(),
+            dates::now().add_days(-1).finish(),
+            dates::now().add_days(2).finish(),
+            3000,
+            false,
+            None,
+            None,
+            connection,
+        )
+        .unwrap();
+    let ticket_type3 = &event3.ticket_types(true, None, connection).unwrap()[0];
+    ticket_type3
+        .add_ticket_pricing(
+            "Pricing1".into(),
+            dates::now().add_days(-1).finish(),
+            dates::now().add_days(2).finish(),
+            3000,
+            false,
+            None,
+            None,
+            connection,
+        )
+        .unwrap();
 
     // Adjust event end to prevent some from being included
     let event = event
@@ -69,7 +121,17 @@ fn find_event_reports_for_processing() {
             .unwrap()
             .get(&ReportTypes::TicketCounts)
             .unwrap(),
-        &vec![event, event3]
+        &vec![event.clone(), event3.clone()]
+    );
+
+    // Unpublish first event, should hide event
+    event.unpublish(None, connection).unwrap();
+    assert_eq!(
+        Report::find_event_reports_for_processing(connection)
+            .unwrap()
+            .get(&ReportTypes::TicketCounts)
+            .unwrap(),
+        &vec![event3]
     );
 }
 
