@@ -36,10 +36,10 @@ impl CustomerIoClient {
             .basic_auth(&self.site_id, Some(&self.api_key))
             .json(&event)
             .send()?;
-        if let Some(response_string) = response.text().ok(){
+        if let Some(response_string) = response.text().ok() {
             jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {
-            "response": response_string
-        });
+                "response": response_string
+            });
         }
         response.error_for_status()?;
         Ok(())
@@ -52,10 +52,10 @@ impl CustomerIoClient {
             .basic_auth(&self.site_id, Some(&self.api_key))
             .json(&event)
             .send()?;
-        if let Some(response_string) = response.text().ok(){
+        if let Some(response_string) = response.text().ok() {
             jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {
-            "response": response_string
-        });
+                "response": response_string
+            });
         }
         response.error_for_status()?;
         Ok(())
