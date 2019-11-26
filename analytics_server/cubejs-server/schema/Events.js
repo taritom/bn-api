@@ -1,5 +1,5 @@
 cube(`Events`, {
-  sql: `SELECT * FROM public.events`,
+  sql: `SELECT * FROM public.events where ${USER_CONTEXT.event_id.filter("name")}`,
 
   joins: {
     Organizations: {

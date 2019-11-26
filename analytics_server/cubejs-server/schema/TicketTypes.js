@@ -1,5 +1,5 @@
 cube(`TicketTypes`, {
-  sql: `SELECT * FROM public.ticket_types`,
+  sql: `SELECT * FROM public.ticket_types WHERE ${FILTER_PARAMS.TicketTypes.eventId.filter(JSON.stringify(USER_CONTEXT))}`,
 
   joins: {
     Events: {
