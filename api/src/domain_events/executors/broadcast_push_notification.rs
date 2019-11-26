@@ -66,23 +66,36 @@ impl BroadcastPushNotificationExecutor {
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
+        // if preview email, only send and nothing to the audience
+        if broadcast.preview_email != None {
+            queue_email_notification(
+                &broadcast,
+                conn,
+                self.template_id.clone(),
+                message.to_string(),
+                "",
+                broadcast.preview_email.clone(),
+            )?;
+            return Ok(());
+        }
+
         for user in audience {
             match broadcast.channel {
                 BroadcastChannel::PushNotification => {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
                 }
-                BroadcastChannel::Email => queue_email_notification(
-                    &broadcast,
-                    conn,
-                    self.template_id.clone(),
-                    message.to_string(),
-                    &user,
-                    broadcast.preview_email.clone(),
-                )?,
-            }
-            // if preview email, only send 1 email
-            if broadcast.preview_email != None {
-                break;
+                BroadcastChannel::Email => {
+                    if let Some(email_address) = &user.email {
+                        queue_email_notification(
+                            &broadcast,
+                            conn,
+                            self.template_id.clone(),
+                            message.to_string(),
+                            email_address,
+                            broadcast.preview_email.clone(),
+                        )?
+                    }
+                }
             }
         }
 
@@ -137,15 +150,11 @@ fn queue_email_notification(
     conn: &PgConnection,
     template_id: Option<String>,
     message: String,
-    user: &User,
+    email_address: &str,
     preview_email: Option<String>,
 ) -> Result<(), BigNeonError> {
-    if user.email.is_none() {
-        return Ok(());
-    }
-
     let email = match preview_email {
-        None => CommAddress::from(user.email.clone().unwrap()),
+        None => CommAddress::from(email_address.to_string()),
         Some(e) => CommAddress::from(e),
     };
 
