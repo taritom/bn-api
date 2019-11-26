@@ -4,6 +4,9 @@ use bigneon_api::extractors::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::prelude::*;
 use bigneon_db::utils::dates;
+use diesel;
+use diesel::sql_types;
+use diesel::RunQueryDsl;
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -47,12 +50,27 @@ pub fn create(role: Roles, should_succeed: bool) {
 
 pub fn index(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let organization = database.create_organization().finish();
     let organization2 = database.create_organization().finish();
     let user = database.create_user().finish();
 
-    let settlement = database.create_settlement().with_organization(&organization).finish();
+    let mut settlement = database.create_settlement().with_organization(&organization).finish();
     let _settlement2 = database.create_settlement().with_organization(&organization2).finish();
+
+    // Settlement only visible after a certain period of time for admins without SettlementReadEarly
+    // This avoids having the logic run into unauthorized errors when tests are run in that range.
+    diesel::sql_query(
+        r#"
+        UPDATE settlements
+        SET created_at = $1
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Uuid, _>(settlement.id)
+    .execute(connection)
+    .unwrap();
+    settlement = Settlement::find(settlement.id, connection).unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
@@ -89,7 +107,22 @@ pub fn show(role: Roles, should_succeed: bool) {
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
 
-    let settlement = database.create_settlement().with_organization(&organization).finish();
+    let mut settlement = database.create_settlement().with_organization(&organization).finish();
+
+    // Settlement only visible after a certain period of time for admins without SettlementReadEarly
+    // This avoids having the logic run into unauthorized errors when tests are run in that range.
+    diesel::sql_query(
+        r#"
+        UPDATE settlements
+        SET created_at = $1
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Uuid, _>(settlement.id)
+    .execute(connection)
+    .unwrap();
+    settlement = Settlement::find(settlement.id, connection).unwrap();
+
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
