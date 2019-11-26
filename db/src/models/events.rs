@@ -956,11 +956,8 @@ impl Event {
         None
     }
 
-    pub fn find_all_ticket_holders(
-        event_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
-        let result: Vec<(TicketInstance, User, Uuid)> = events::table
+    pub fn find_all_ticket_holders_query(event_id: Uuid, conn: &PgConnection) -> Box<BoxableExpression<events::table, DB, SqlType = Bool>> {
+        let query = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -970,6 +967,17 @@ impl Event {
             .filter(events::id.eq(event_id))
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
             .order_by(users::id)
+            .into_boxed();
+        return query;
+    }
+
+    pub fn find_all_ticket_holders(
+        event_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
+        let mut query = find_all_ticket_holders_query(event_id, conn);
+
+        let result: Vec<(TicketInstance, User, Uuid)> = query
             .select((ticket_instances::all_columns, users::all_columns, order_items::order_id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load event transfers")?;

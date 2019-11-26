@@ -60,7 +60,7 @@ describe('OrgAdmin - Email count recipients', function () {
     it("Should return 12", function () {
         let json = JSON.parse(responseBody);
 
-        expect(json).to.not.be.null;
+        expect(json).to.equal(12);
     });
 
 
