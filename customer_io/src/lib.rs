@@ -1,10 +1,10 @@
+use log::Level::Debug;
+use logging::jlog;
 use serde::Serialize;
+use serde_json::json;
 use std::collections::HashMap;
 use url::{ParseError, Url};
 use uuid::Uuid;
-use log::Level::Debug;
-use serde_json::json;
-use logging::jlog;
 
 pub struct CustomerIoClient {
     site_id: String,
@@ -36,7 +36,9 @@ impl CustomerIoClient {
             .basic_auth(&self.site_id, Some(&self.api_key))
             .json(&event)
             .send()?;
-        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"response": &response});
+        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {
+            "response": &response
+        });
         response.error_for_status()?;
         Ok(())
     }
@@ -48,7 +50,9 @@ impl CustomerIoClient {
             .basic_auth(&self.site_id, Some(&self.api_key))
             .json(&event)
             .send()?;
-        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"response": &response});
+        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {
+            "response": &response
+        });
         response.error_for_status()?;
         Ok(())
     }
