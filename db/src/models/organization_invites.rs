@@ -1,12 +1,13 @@
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
 use diesel::dsl::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp, Uuid as dUuid};
 use models::*;
 use schema::{organization_invites, organizations, users};
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::{DatabaseError, ErrorCode};
+use std::borrow::Cow;
+use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode, Optional};
 use uuid::Uuid;
 use validator::Validate;
 use validators::{self, *};
@@ -71,7 +72,7 @@ pub struct DisplayInvite {
 
 impl NewOrganizationInvite {
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
+        let mut validation_errors = validators::append_validation_error(
             self.validate(),
             "event_ids",
             event_ids_belong_to_organization_validation(
@@ -81,6 +82,18 @@ impl NewOrganizationInvite {
                 conn,
             )?,
         );
+
+        if let Some(user_id) = self.user_id {
+            let organization_user =
+                OrganizationUser::find_by_user_id(user_id, self.organization_id, conn).optional()?;
+            if organization_user.is_some() && !organization_user.unwrap().is_event_user() {
+                let mut validation_error =
+                    create_validation_error("uniqueness", "User already belongs to organization");
+                validation_error.add_param(Cow::from("user_id"), &user_id);
+                validation_errors =
+                    validators::append_validation_error(validation_errors, "user_id", Err(validation_error));
+            }
+        }
 
         Ok(validation_errors?)
     }
@@ -95,7 +108,7 @@ impl NewOrganizationInvite {
         {
             self.event_ids = Some(Vec::new());
         }
-
+        self.user_email = self.user_email.to_lowercase();
         self.security_token = Some(Uuid::new_v4());
         self.validate_record(conn)?;
         let res = diesel::insert_into(organization_invites::table)
@@ -106,6 +119,10 @@ impl NewOrganizationInvite {
 }
 
 impl OrganizationInvite {
+    pub fn is_event_user(&self) -> bool {
+        OrganizationUser::contains_role_for_event_user(&self.roles)
+    }
+
     pub fn create(
         org_id: Uuid,
         invitee_id: Uuid,
@@ -186,15 +203,38 @@ impl OrganizationInvite {
         )
     }
 
-    pub fn find_active_invite_by_email(
+    pub fn find_active_organization_invite_for_email(
         email: &String,
+        organization: &Organization,
+        event_ids: Option<&[Uuid]>,
         conn: &PgConnection,
     ) -> Result<Option<OrganizationInvite>, DatabaseError> {
+        let mut query = organization_invites::table
+            .filter(organization_invites::user_email.eq(email))
+            .filter(organization_invites::security_token.is_not_null())
+            .filter(organization_invites::organization_id.eq(organization.id))
+            .into_boxed();
+
+        if let Some(event_ids) = event_ids {
+            query = query.filter(sql("organization_invites.event_ids && ").bind::<Array<dUuid>, _>(event_ids.clone()));
+        }
+
+        query
+            .first::<OrganizationInvite>(conn)
+            .optional()
+            .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
+    }
+
+    pub fn find_all_active_organization_invites_by_email(
+        email: &String,
+        organization: &Organization,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrganizationInvite>, DatabaseError> {
         organization_invites::table
             .filter(organization_invites::user_email.eq(email))
             .filter(organization_invites::security_token.is_not_null())
-            .first::<OrganizationInvite>(conn)
-            .optional()
+            .filter(organization_invites::organization_id.eq(organization.id))
+            .load::<OrganizationInvite>(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 

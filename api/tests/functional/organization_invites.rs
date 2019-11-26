@@ -253,7 +253,7 @@ pub fn accept_invite_for_user_id_succeeds() {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Promoter, Some(&organization), &database);
     database.create_user().finish();
 
     let invite = database
@@ -261,6 +261,7 @@ pub fn accept_invite_for_user_id_succeeds() {
         .with_org(&organization)
         .with_invitee(&user2)
         .link_to_user(&user)
+        .with_role(Roles::PromoterReadOnly)
         .with_security_token(None)
         .finish();
 
