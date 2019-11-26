@@ -13,14 +13,13 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use models::*;
-use serde_json::Value;
+use serde_json::{Value, Error};
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
-use r2d2_redis::redis::{Commands };
 use std::borrow::Borrow;
 
 #[derive(Deserialize, Clone, Serialize)]
@@ -228,7 +227,7 @@ pub fn checkins(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn index(
+pub fn index_cached(
     (state, connection, query, auth_user, redis_connection): (
         State<AppState>,
         ReadonlyConnection,
@@ -238,22 +237,47 @@ pub fn index(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let mut redis_connection = redis_connection.conn()?;
+    let search_params = query.into_inner();
+    let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
+
+    let cache_period = search_params.cache_period.clone();
+    let query_serialized = serde_json::to_string(&search_params)?;
+    let query_serialized = query_serialized.borrow();
+
+    if user.is_none() {
+        // only look for cached value if a cached_period is giving
+        let cache_result = cache_period.and_then(|period| redis_connection.get_cache_value(query_serialized, period as i64))
+                                .map(|cached_value| Ok(HttpResponse::Ok().json(&cached_value)));
+        if let Some(r) = cache_result {
+            return r
+        }
+    }
+
+    let index_value = index((state, connection, query, auth_user));
+
+    if let Some(response) = index_value.ok() {
+        let body: String = response.body().into();
+        if cache_period.is_some() {
+            let payload_json = serde_json::to_string(body.borrow())?;
+            redis_connection.set_cache_value (query_serialized, payload_json.borrow());
+        }
+    }
+
+    return Ok(HttpResponse::Ok().json(&index_value))
+}
+
+pub fn index_func(
+    (state, connection, query, auth_user): (
+        State<AppState>,
+        ReadonlyConnection,
+        Query<SearchParameters>,
+        OptionalUser,
+    ),
+) -> Result<String, BigNeonError> {
     let connection = connection.get();
     let query = query.into_inner();
     let paging = query.clone().into();
     let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
-
-    let cache_period = query.cache_period.clone();
-    let query_serialized = serde_json::to_string(&query)?;
-    let query_serialized = query_serialized.borrow();
-    // only look for cached value if a cached_period is giving
-    if let Some(cache_period) = cache_period  {
-        // look up the key, if the key exist and it falls in to allowed time elapse, return the cached value
-        match redis_connection.get_cache_value(query_serialized, cache_period as i64) {
-            Some(cached_value) => return Ok(HttpResponse::Ok().json(&cached_value)),
-            _ => ()
-        }
-    }
 
     let past_or_upcoming = match query
         .past_or_upcoming
@@ -305,12 +329,74 @@ pub fn index(
     );
     payload.paging.total = count as u64;
     payload.paging.limit = paging.limit;
+    Ok(serde_json::to_string(&payload)?)
+}
 
-    if let Some(cache_period) = cache_period {
-        let payload_json = serde_json::to_string(&payload)?;
-        redis_connection.set_cache_value (query_serialized, payload_json.borrow(), cache_period as i64);
-    }
-    Ok(HttpResponse::Ok().json(&payload))
+pub fn index(
+    (state, connection, query, auth_user): (
+        State<AppState>,
+        ReadonlyConnection,
+        Query<SearchParameters>,
+        OptionalUser,
+    ),
+) -> Result<String, BigNeonError> {
+    let connection = connection.get();
+    let query = query.into_inner();
+    let paging = query.clone().into();
+    let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
+
+    let past_or_upcoming = match query
+        .past_or_upcoming
+        .clone()
+        .unwrap_or("upcoming".to_string())
+        .as_str()
+        {
+            "past" => PastOrUpcoming::Past,
+            _ => PastOrUpcoming::Upcoming,
+        };
+
+    let sort_field = match query.sort.clone().unwrap_or("event_start".to_string()).as_str() {
+        "event_start" => EventSearchSortField::EventStart,
+        "name" => EventSearchSortField::Name,
+        _ => EventSearchSortField::EventStart,
+    };
+
+    let events_count = Event::search(
+        query.query.clone(),
+        query.region_id,
+        query.organization_id,
+        query.venue_id.map(|v| vec![v]),
+        if query.genres.is_empty() {
+            None
+        } else {
+            Some(query.genres.clone())
+        },
+        query.start_utc,
+        query.end_utc,
+        if query.status.is_empty() {
+            None
+        } else {
+            Some(query.status.clone())
+        },
+        sort_field,
+        query.dir.clone().unwrap_or(SortingDir::Asc),
+        user.clone(),
+        past_or_upcoming,
+        query.category.clone(),
+        &paging,
+        state.service_locator.country_lookup_service(),
+        connection,
+    )?;
+    let (events, count) = events_count;
+
+    let mut payload = Payload::new(
+        EventVenueEntry::event_venues_from_events(events, user, &state, connection)?,
+        query.into(),
+    );
+    payload.paging.total = count as u64;
+    payload.paging.limit = paging.limit;
+
+    Ok(serde_json::to_string(&payload)?)
 }
 
 #[derive(Deserialize)]

@@ -26,7 +26,7 @@ pub trait RedisCommands {
     fn is_key_outdated(&mut self, start_time: i64, seconds: i64) -> bool;
 
     fn get_cache_value(&mut self, key: &str, time_lapse: i64) -> Option<String>;
-    fn set_cache_value(&mut self, key: &str, cached_value: &str, time_lapse: i64);
+    fn set_cache_value(&mut self, key: &str, cached_value: &str);
 }
 
 impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager> {
@@ -57,29 +57,23 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
 
     // time_lapse: this is measured in seconds. Only return the redis value if it happened in this period
     fn get_cache_value(&mut self, key: &str, time_lapse: i64) -> Option<String> {
-        match self.get_value_int(key) {
-           Ok(set_time) => {
+        if let Some(set_time) = self.get_value_int(key).ok() {
                // get the time when query was set
                let is_out_dated = self.is_key_outdated(set_time, time_lapse);
                if !is_out_dated {
                    // if not outdated return the value for the key
                    // else return None
-                   return match self.get_value(key){
-                       Ok(t) => Some(t),
-                       Err(_) => None
-                   }
+                   return self.get_value(key).ok()
                }
-           },
-            _ => ()
         }
         None
     }
 
-    fn set_cache_value(&mut self, key: &str, value: &str, time_lapse: i64) {
+    fn set_cache_value(&mut self, key: &str, value: &str) {
         // set the current time and the new value for the key
         let time_now = Utc::now().timestamp_millis();
-        self.set_value_int(key, time_now);
-        self.set_value(key, value);
+        self.set_value_int(key, time_now).ok();
+        self.set_value(key, value).ok();
         ()
     }
 }
