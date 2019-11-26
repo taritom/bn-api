@@ -18,7 +18,7 @@ pub fn ticket_counts(
     let title = "BigNeon Ticket Counts".to_string();
     let template_id = config.email_templates.ticket_count_report.to_string();
     let mut extra_data: HashMap<String, serde_json::Value> = HashMap::new();
-    DomainEvent::webhook_payload_event_data(&event, &mut extra_data, conn)?;
+    Event::event_payload_data(&event, &mut extra_data, conn)?;
     extra_data.insert("report".to_string(), json!(ticket_count_report));
 
     Communication::new(

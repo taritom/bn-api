@@ -299,6 +299,70 @@ impl Event {
         Ok(events)
     }
 
+    pub fn event_payload_data(
+        event: &Event,
+        data: &mut HashMap<String, serde_json::Value>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let organization = event.organization(conn)?;
+        let venue = event.venue(conn)?;
+        let localized_times = event.get_all_localized_times(venue.as_ref());
+        data.insert("show_id".to_string(), json!(event.id));
+        data.insert("show_event_name".to_string(), json!(event.name.clone()));
+
+        data.insert(
+            "show_start".to_string(),
+            json!(event.event_start.map(|e| e.timestamp())),
+        );
+
+        data.insert("show_end".to_string(), json!(event.event_end.map(|e| e.timestamp())));
+
+        if let Some(event_start) = localized_times.event_start {
+            data.insert(
+                "show_start_date".to_string(),
+                json!(format!(
+                    "{} {}",
+                    event_start.format("%A,"),
+                    event_start.format("%e %B %Y").to_string().trim()
+                )),
+            );
+            data.insert(
+                "show_start_time".to_string(),
+                json!(event_start.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(door_time) = localized_times.door_time {
+            data.insert(
+                "show_doors_open_time".to_string(),
+                json!(door_time.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(event_end) = localized_times.event_end {
+            data.insert(
+                "show_end_time".to_string(),
+                json!(event_end.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+        if let Some(venue) = event.venue(conn)? {
+            data.insert("show_venue_address".to_string(), json!(venue.address));
+            data.insert("show_venue_city".to_string(), json!(venue.city));
+            data.insert("show_venue_state".to_string(), json!(venue.state));
+            data.insert("show_venue_country".to_string(), json!(venue.country));
+            data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
+            data.insert(
+                "show_venue_phone".to_string(),
+                json!(venue.phone.unwrap_or("".to_string())),
+            );
+            data.insert("show_venue_name".to_string(), json!(venue.name));
+            data.insert("show_timezone".to_string(), json!(venue.timezone));
+        }
+        data.insert("organization_id".to_string(), json!(organization.id));
+        data.insert("organization_name".to_string(), json!(organization.name));
+        Ok(())
+    }
+
     pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         // An event is ineligible for deletion if it is present in any cart
         Ok(self.deleted_at.is_none()

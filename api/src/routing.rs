@@ -69,6 +69,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PATCH).with(comps::update);
         r.method(Method::DELETE).with(comps::destroy);
     })
+    .resource("/event_report_subscribers/{id}", |r| {
+        r.method(Method::DELETE).with(event_report_subscribers::destroy);
+    })
     .resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
@@ -312,9 +315,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/regions", |r| {
         r.method(Method::GET).with(regions::index);
         r.method(Method::POST).with(regions::create)
-    })
-    .resource("/report_subscribers/{id}", |r| {
-        r.method(Method::DELETE).with(event_report_subscribers::destroy);
     })
     .resource("/reports/{id}", |r| {
         r.method(Method::GET).with(reports::get_report);
