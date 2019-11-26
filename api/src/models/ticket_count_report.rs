@@ -43,8 +43,16 @@ impl From<TicketSalesAndCounts> for TicketCountReport {
                     .unwrap_or("".to_string());
                 data.push(TicketCountReportRow {
                     row_name,
-                    daily_sold: ticket_type_counts.iter().map(|c| c.purchased_yesterday_count).sum(),
-                    total_sold: ticket_type_counts.iter().map(|c| c.purchased_count).sum(),
+                    daily_sold: ticket_type_counts
+                        .iter()
+                        .map(|c| c.purchased_yesterday_count)
+                        .sum::<i64>()
+                        - ticket_type_counts
+                            .iter()
+                            .map(|c| c.comp_purchased_yesterday_count)
+                            .sum::<i64>(),
+                    total_sold: ticket_type_counts.iter().map(|c| c.purchased_count).sum::<i64>()
+                        - ticket_type_counts.iter().map(|c| c.comp_purchased_count).sum::<i64>(),
                     held: ticket_type_counts.iter().map(|c| c.hold_available_count).sum::<i64>()
                         + ticket_type_counts.iter().map(|c| c.comp_available_count).sum::<i64>(),
                     open: ticket_type_counts.iter().map(|c| c.available_for_purchase_count).sum(),

@@ -24,6 +24,7 @@ CREATE OR REPLACE FUNCTION ticket_count_per_ticket_type(event_id UUID, organizat
         redeemed_count                       BIGINT,
         purchased_count                      BIGINT,
         purchased_yesterday_count            BIGINT,
+        comp_purchased_yesterday_count       BIGINT,
         nullified_count                      BIGINT,
         available_for_purchase_count         BIGINT,
         total_refunded_count                 BIGINT,
@@ -74,6 +75,18 @@ SELECT o.id                                                                     
                 THEN o2.paid_at < CURRENT_DATE + '12:00:00'::time
                 ELSE o2.paid_at < CURRENT_DATE - 1 + '12:00:00'::time END
          ), 0) AS BIGINT)  AS purchased_yesterday_count,
+       CAST(
+         COALESCE(COUNT(DISTINCT ti.id) FILTER (
+              WHERE ti.hold_id IS NOT NULL
+              AND h.hold_type = 'Comp'
+              AND ti.status in ('Purchased', 'Redeemed')
+              AND CASE WHEN CURRENT_DATE + '12:00:00'::time < now()
+                THEN o2.paid_at >= CURRENT_DATE - 1 + '12:00:00'::time
+                ELSE o2.paid_at >= CURRENT_DATE - 2 + '12:00:00'::time END
+              AND CASE WHEN CURRENT_DATE + '12:00:00'::time < now()
+                THEN o2.paid_at < CURRENT_DATE + '12:00:00'::time
+                ELSE o2.paid_at < CURRENT_DATE - 1 + '12:00:00'::time END
+         ), 0) AS BIGINT)  AS comp_purchased_yesterday_count,
        CAST(
            COALESCE(COUNT(DISTINCT ti.id) FILTER (WHERE ti.status = 'Nullified'), 0) AS BIGINT)  AS nullified_count,
        -- Not in a hold and not purchased / reserved / redeemed etc

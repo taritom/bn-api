@@ -144,6 +144,8 @@ pub struct TicketCountRow {
     #[sql_type = "BigInt"]
     pub purchased_yesterday_count: i64,
     #[sql_type = "BigInt"]
+    pub comp_purchased_yesterday_count: i64,
+    #[sql_type = "BigInt"]
     pub nullified_count: i64,
     #[sql_type = "BigInt"]
     pub available_for_purchase_count: i64,
