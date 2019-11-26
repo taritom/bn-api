@@ -119,8 +119,8 @@ impl NewVenue {
             .get_result::<Venue>(connection)
             .to_db_error(ErrorCode::UpdateError, "Could not update venue slug")?;
 
-        // Add slug for city if it contains a city, state, and country
-        if venue.city != "" && venue.state != "" && venue.country != "" {
+        // Add slug for city
+        if venue.city != "" {
             Slug::generate_slug(&slug_context, SlugTypes::City, connection)?;
         }
 
@@ -142,30 +142,21 @@ impl Venue {
     pub fn update(&self, attributes: VenueEditableAttributes, conn: &PgConnection) -> Result<Venue, DatabaseError> {
         attributes.validate()?;
 
-        let update_city_slug = {
-            let city = attributes.city.as_ref().unwrap_or(&self.city);
-            let state = attributes.state.as_ref().unwrap_or(&self.state);
-            let country = attributes.country.as_ref().unwrap_or(&self.country);
-            (city != &self.city || state != &self.state || country != &self.country)
-                && city != ""
-                && state != ""
-                && country != ""
-        };
-
         let venue: Venue = diesel::update(self)
             .set((attributes, venues::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update venue")?;
 
-        if update_city_slug {
-            Slug::destroy(venue.id, Tables::Venues, SlugTypes::City, conn)?;
-            let slug_context = SlugContext::Venue {
-                id: venue.id,
-                name: venue.name.clone(),
-                city: venue.city.clone(),
-                state: venue.state.clone(),
-                country: venue.country.clone(),
-            };
+        Slug::destroy(venue.id, Tables::Venues, SlugTypes::City, conn)?;
+        let slug_context = SlugContext::Venue {
+            id: venue.id,
+            name: venue.name.clone(),
+            city: venue.city.clone(),
+            state: venue.state.clone(),
+            country: venue.country.clone(),
+        };
+
+        if venue.city != "" {
             Slug::generate_slug(&slug_context, SlugTypes::City, conn)?;
         }
 
@@ -280,7 +271,9 @@ impl Venue {
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayVenue, DatabaseError> {
         let slug = Slug::primary_slug(self.id, Tables::Venues, conn)?.slug;
-        let city_slug = Slug::find_first_for_city(&self.city, &self.state, &self.country, conn)?.slug;
+        let city_slug = Slug::find_first_for_city(&self.city, &self.state, &self.country, conn)
+            .optional()?
+            .map(|s| s.slug);
         Ok(DisplayVenue {
             id: self.id,
             name: self.name.clone(),
@@ -304,7 +297,7 @@ pub struct DisplayVenue {
     pub name: String,
     pub address: String,
     pub city: String,
-    pub city_slug: String,
+    pub city_slug: Option<String>,
     pub state: String,
     pub country: String,
     pub postal_code: String,

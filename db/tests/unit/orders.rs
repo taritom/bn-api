@@ -4504,8 +4504,9 @@ fn for_display_seconds_until_expiry() {
         .get_result::<Order>(connection)
         .unwrap();
     let display_order = order.for_display(None, order.user_id, connection).unwrap();
-    // Check both 59 and 60 for the purposes of the test to avoid timing errors
-    assert!(vec![59, 60].contains(&display_order.seconds_until_expiry.unwrap()));
+    // Add a little wiggle room for test slowness
+    let expiry_seconds = display_order.seconds_until_expiry.unwrap();
+    assert!(expiry_seconds <= 60 && expiry_seconds >= 55);
 
     // No organization filtering
     assert!(!display_order.order_contains_other_tickets);
