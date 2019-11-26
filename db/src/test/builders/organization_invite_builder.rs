@@ -91,7 +91,7 @@ impl<'a> OrgInviteBuilder<'a> {
             .or_else(|| Some(UserBuilder::new(self.connection).finish().id))
             .unwrap();
 
-        let orginvite = OrganizationInvite::create(
+        let invite = OrganizationInvite::create(
             organization_id,
             invitee_id,
             &self.user_email,
@@ -101,6 +101,6 @@ impl<'a> OrgInviteBuilder<'a> {
         )
         .commit(self.connection)
         .unwrap();
-        orginvite
+        invite
     }
 }
