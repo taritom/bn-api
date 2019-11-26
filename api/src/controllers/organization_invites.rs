@@ -101,23 +101,38 @@ fn create_invite(
     let recipient: String;
     let user_id: Option<Uuid>;
 
-    match User::find_by_email(&new_org_invite.user_email, connection).optional() {
-        Ok(maybe_a_user) => match maybe_a_user {
-            Some(user) => {
-                recipient = user.full_name();
-                user_id = Some(user.id);
-            }
-            None => {
-                recipient = "New user".to_string();
-                user_id = None;
-            }
-        },
-        Err(e) => return Err(e.into()),
+    match User::find_by_email(&new_org_invite.user_email, connection).optional()? {
+        Some(user) => {
+            recipient = user.full_name();
+            user_id = Some(user.id);
+        }
+        None => {
+            recipient = "New user".to_string();
+            user_id = None;
+        }
     };
 
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Some(mut i) = OrganizationInvite::find_active_invite_by_email(&new_org_invite.user_email, connection)? {
-        i.change_invite_status(0, connection)?;
+    if let Some(event_ids) = &new_org_invite.event_ids {
+        // If this invite is related to event access check to see if this event already has an invite
+        if let Some(mut i) = OrganizationInvite::find_active_organization_invite_for_email(
+            &new_org_invite.user_email,
+            &organization,
+            Some(event_ids),
+            connection,
+        )? {
+            i.change_invite_status(0, connection)?;
+        }
+    } else {
+        // For invites giving full organization access only check if this user has an active invite for the organization
+        if let Some(mut i) = OrganizationInvite::find_active_organization_invite_for_email(
+            &new_org_invite.user_email,
+            &organization,
+            None,
+            connection,
+        )? {
+            i.change_invite_status(0, connection)?;
+        }
     }
 
     invite = OrganizationInvite::create(
@@ -129,16 +144,29 @@ fn create_invite(
         new_org_invite.event_ids.clone(),
     );
 
-    let invite = invite.commit(connection)?;
+    let mut invite = invite.commit(connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
 
-    mailers::organization_invites::invite_user_to_organization_email(
-        &state.config,
-        &invite,
-        &organization,
-        &recipient,
-        connection,
-    )?;
+    // If the user already exists for organization, accept the invite immediately, otherwise send an email
+    let mut mail_invite = true;
+    if let Some(user_id) = user_id {
+        let organization_user = OrganizationUser::find_by_user_id(user_id, organization.id, connection).optional()?;
+        if organization_user.is_some() {
+            mail_invite = false;
+            accept_invite(user_id, &mut invite, &connection)?;
+        }
+    }
+
+    if mail_invite {
+        mailers::organization_invites::invite_user_to_organization_email(
+            &state.config,
+            &invite,
+            &organization,
+            &recipient,
+            connection,
+        )?;
+    }
+
     Ok(HttpResponse::Created().json(invite))
 }
 
@@ -231,9 +259,7 @@ pub fn accept_request(
             };
 
             if valid_for_acceptance {
-                invite_details.change_invite_status(1, connection)?;
-                let org = Organization::find(invite_details.organization_id, connection)?;
-                org.add_user(u.id(), invite_details.roles, invite_details.event_ids, connection)?;
+                accept_invite(u.id(), &mut invite_details, &connection)?;
             } else {
                 return application::unauthorized(Some(u), None);
             }
@@ -241,4 +267,36 @@ pub fn accept_request(
         None => return application::unauthorized(None, None),
     }
     Ok(HttpResponse::Ok().finish())
+}
+
+fn accept_invite(
+    user_id: Uuid,
+    invite: &mut OrganizationInvite,
+    connection: &PgConnection,
+) -> Result<(), BigNeonError> {
+    invite.change_invite_status(1, connection)?;
+    let organization = Organization::find(invite.organization_id, connection)?;
+    let organization_user =
+        organization.add_user(user_id, invite.roles.clone(), invite.event_ids.clone(), connection)?;
+
+    // Check for any additional pending invites for this organization and accept them
+    if organization_user.is_event_user() {
+        for mut related_invite in OrganizationInvite::find_all_active_organization_invites_by_email(
+            &invite.user_email,
+            &organization,
+            connection,
+        )? {
+            if related_invite.is_event_user() {
+                organization.add_user(
+                    user_id,
+                    related_invite.roles.clone(),
+                    related_invite.event_ids.clone(),
+                    connection,
+                )?;
+                related_invite.change_invite_status(1, connection)?;
+            }
+        }
+    }
+
+    Ok(())
 }
