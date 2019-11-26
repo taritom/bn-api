@@ -18,7 +18,7 @@ mod index_tests {
     }
     #[test]
     fn index_org_owner() {
-        base::settlements::index(Roles::OrgOwner, false);
+        base::settlements::index(Roles::OrgOwner, true);
     }
     #[test]
     fn index_door_person() {
@@ -34,7 +34,7 @@ mod index_tests {
     }
     #[test]
     fn index_org_admin() {
-        base::settlements::index(Roles::OrgAdmin, false);
+        base::settlements::index(Roles::OrgAdmin, true);
     }
     #[test]
     fn index_box_office() {
@@ -59,7 +59,7 @@ mod show_tests {
     }
     #[test]
     fn show_org_owner() {
-        base::settlements::show(Roles::OrgOwner, false);
+        base::settlements::show(Roles::OrgOwner, true);
     }
     #[test]
     fn show_door_person() {
@@ -75,7 +75,7 @@ mod show_tests {
     }
     #[test]
     fn show_org_admin() {
-        base::settlements::show(Roles::OrgAdmin, false);
+        base::settlements::show(Roles::OrgAdmin, true);
     }
     #[test]
     fn show_box_office() {

@@ -1993,6 +1993,7 @@ fn get_scopes_by_organization() {
             Scopes::OrgUsers,
             Scopes::OrgWrite,
             Scopes::RedeemTicket,
+            Scopes::SettlementRead,
             Scopes::TransferCancel,
             Scopes::TransferCancelOwn,
             Scopes::TransferRead,
