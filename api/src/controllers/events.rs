@@ -564,6 +564,16 @@ pub fn unpublish(
     Ok(HttpResponse::Ok().finish())
 }
 
+pub fn ticket_holder_count(
+    (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = connection.get();
+    let event = Event::find(path.id, conn)?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
+    let ticket_holders = Event::find_all_ticket_holders(path.id, conn)?;
+    Ok(HttpResponse::Ok().json(ticket_holders.len()))
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TicketRedeemRequest {
     pub redeem_key: String,
