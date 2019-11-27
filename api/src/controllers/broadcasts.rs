@@ -20,7 +20,7 @@ pub struct NewBroadcastData {
     pub send_at: Option<NaiveDateTime>,
     pub message: Option<String>,
     pub channel: Option<BroadcastChannel>,
-    pub audience: BroadcastAudience,
+    pub audience: Option<BroadcastAudience>,
     pub subject: Option<String>,
     pub preview_email: Option<String>,
 }
@@ -43,7 +43,7 @@ pub fn create(
         json.send_at,
         None,
         json.subject.clone(),
-        json.audience.clone(),
+        json.audience.clone().unwrap_or(BroadcastAudience::PeopleAtTheEvent),
         json.preview_email.clone(),
     )
     .commit(connection)?;
