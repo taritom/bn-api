@@ -145,7 +145,7 @@ fn queue_email_notification(
     }
 
     let email = match preview_email {
-        None => CommAddress::from(user.email.clone().unwrap()),
+        None => CommAddress::from(user.email.clone().unwrap_or("".into_string())),
         Some(e) => CommAddress::from(e),
     };
 
