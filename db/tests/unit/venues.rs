@@ -121,11 +121,10 @@ fn update() {
     };
 
     let venue = venue.update(parameters, project.get_connection()).unwrap();
-    // Slug not changed as city, state, or country have not been modified
-    assert_eq!(
-        slug,
-        Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap()
-    );
+    let found_slug = Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+    assert_eq!(slug.slug, found_slug.slug);
+    assert_eq!(slug.main_table, found_slug.main_table);
+    assert_eq!(slug.main_table_id, found_slug.main_table_id);
     assert_eq!(venue.name, new_name);
     assert_eq!(venue.address, new_address);
 
@@ -151,8 +150,22 @@ fn for_display() {
     let venue = project.create_venue().finish();
     let slug = Slug::primary_slug(venue.id, Tables::Venues, connection).unwrap();
     let display_venue = venue.for_display(connection).unwrap();
+
+    let city_slug = Slug::find_first_for_city(&venue.city, &venue.state, &venue.country, connection).unwrap();
     assert_eq!(display_venue.id, venue.id);
     assert_eq!(display_venue.slug, slug.slug);
+    assert_eq!(display_venue.city_slug, Some(city_slug.slug));
+
+    // No city so no slug
+    let parameters = VenueEditableAttributes {
+        city: Some("".to_string()),
+        ..Default::default()
+    };
+    let venue = venue.update(parameters, project.get_connection()).unwrap();
+    let display_venue = venue.for_display(connection).unwrap();
+    assert_eq!(display_venue.id, venue.id);
+    assert_eq!(display_venue.slug, slug.slug);
+    assert_eq!(display_venue.city_slug, None);
 }
 
 #[test]
