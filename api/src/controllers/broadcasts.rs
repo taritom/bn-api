@@ -15,7 +15,7 @@ use uuid::Uuid;
 #[derive(Deserialize, Serialize)]
 pub struct NewBroadcastData {
     pub notification_type: BroadcastType,
-    pub name: String,
+    pub name: Option<String>,
     //None is now
     pub send_at: Option<NaiveDateTime>,
     pub message: Option<String>,
@@ -38,7 +38,7 @@ pub fn create(
         path.id,
         json.notification_type.clone(),
         channel,
-        json.name.clone(),
+        json.name.clone().unwrap_or(json.notification_type.to_string()),
         json.message.clone(),
         json.send_at,
         None,
