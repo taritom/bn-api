@@ -5,27 +5,31 @@ use chrono::prelude::*;
 use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
+use uuid::Uuid;
 
 #[test]
 fn create() {
     let project = TestProject::new();
     let user = project.create_user().finish();
+    let user_email = "NEWUSER@test.com".to_string();
     let organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
     let org_invite = project
         .create_organization_invite()
+        .with_email(&user_email)
         .with_org(&organization)
         .with_invitee(&user)
         .finish();
 
     assert_eq!(org_invite.organization_id, organization.id);
     assert_eq!(org_invite.inviter_id, user.id);
+    assert_eq!(org_invite.user_email, "newuser@test.com".to_string());
 }
 
 #[test]
-fn find_pending_by_org() {
+fn find_all_active_organization_invites_by_email() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let connection = project.get_connection();
@@ -33,7 +37,54 @@ fn find_pending_by_org() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let _org_invite = project
+    let event = project.create_event().with_organization(&organization).finish();
+    let event2 = project.create_event().with_organization(&organization).finish();
+    let mut org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id])
+        .with_invitee(&user)
+        .finish();
+    let mut org_invite2 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event2.id])
+        .with_invitee(&user)
+        .finish();
+    let email = "test@test.com".to_string();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    let mut expected_organization_invite_ids = vec![org_invite.id, org_invite2.id];
+    expected_organization_invite_ids.sort();
+    let mut found_organization_invite_ids: Vec<Uuid> = organization_invites.iter().map(|oi| oi.id).collect();
+    found_organization_invite_ids.sort();
+    assert_eq!(expected_organization_invite_ids, found_organization_invite_ids);
+
+    org_invite.change_invite_status(0, connection).unwrap();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    assert_eq!(vec![org_invite2.clone()], organization_invites);
+
+    org_invite2.change_invite_status(0, connection).unwrap();
+    let organization_invites =
+        OrganizationInvite::find_all_active_organization_invites_by_email(&email, &organization, connection).unwrap();
+    assert!(organization_invites.is_empty());
+}
+
+#[test]
+fn find_active_organization_invite_for_email() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let event = project.create_event().with_organization(&organization).finish();
+    let event2 = project.create_event().with_organization(&organization).finish();
+    let mut org_invite = project
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&user)
@@ -41,18 +92,74 @@ fn find_pending_by_org() {
     let pending = OrganizationInvite::find_pending_by_organization(organization.id, None, connection).unwrap();
     assert_eq!(pending.len(), 1);
     let email = "test@test.com".to_string();
-    let active_find = OrganizationInvite::find_active_invite_by_email(&email, connection).unwrap();
-    assert_eq!(active_find.is_some(), true);
+    assert!(
+        OrganizationInvite::find_active_organization_invite_for_email(&email, &organization, None, connection)
+            .unwrap()
+            .is_some()
+    );
+    org_invite.change_invite_status(0, connection).unwrap();
+
+    let mut org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id])
+        .finish();
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite.clone())
+    );
+    assert!(OrganizationInvite::find_active_organization_invite_for_email(
+        &email,
+        &organization,
+        Some(&vec![event2.id]),
+        connection
+    )
+    .unwrap()
+    .is_none());
+    org_invite.change_invite_status(0, connection).unwrap();
+
+    let org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .with_role(Roles::Promoter)
+        .with_event_ids(vec![event.id, event2.id])
+        .finish();
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite.clone())
+    );
+    assert_eq!(
+        OrganizationInvite::find_active_organization_invite_for_email(
+            &email,
+            &organization,
+            Some(&vec![event2.id]),
+            connection
+        )
+        .unwrap(),
+        Some(org_invite)
+    );
 }
 
 #[test]
 fn create_event_limited_access_user() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_member(&user, Roles::OrgOwner)
-        .finish();
+    let organization = project.create_organization().finish();
     let event = project.create_event().with_organization(&organization).finish();
     let organization_invite = OrganizationInvite::create(
         organization.id,
@@ -72,6 +179,7 @@ fn create_event_limited_access_user() {
 #[test]
 fn create_with_validation_errors() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
     let organization = project
         .create_organization()
@@ -86,7 +194,7 @@ fn create_with_validation_errors() {
         vec![Roles::Promoter],
         Some(vec![other_organization_event.id]),
     )
-    .commit(project.get_connection());
+    .commit(connection);
 
     match result {
         Ok(_) => {
@@ -113,6 +221,46 @@ fn create_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+
+    // Attempt to create an existing user fails unless user is currently an event based user upgrading or adding new events
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let mut organization_user = OrganizationUser::find_by_user_id(user.id, organization.id, connection).unwrap();
+    let mut invite = OrganizationInvite::create(
+        organization.id,
+        user.id,
+        &user.email.clone().unwrap(),
+        Some(user.id),
+        vec![Roles::OrgMember],
+        None,
+    );
+    match invite.commit(connection) {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("user_id"));
+                assert_eq!(errors["user_id"].len(), 1);
+                assert_eq!(errors["user_id"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["user_id"][0].message.clone().unwrap().into_owned(),
+                    "User already belongs to organization"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    organization_user.role = vec![Roles::Promoter];
+    let _organization_user: OrganizationUser = diesel::update(&organization_user)
+        .set(&organization_user)
+        .get_result(connection)
+        .unwrap();
+    assert!(invite.commit(connection).is_ok());
 }
 
 #[test]
