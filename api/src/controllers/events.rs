@@ -570,8 +570,8 @@ pub fn ticket_holder_count(
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
-    let ticket_holders = Event::find_all_ticket_holders(path.id, conn)?;
-    Ok(HttpResponse::Ok().json(ticket_holders.len()))
+    let ticket_holders = Event::find_all_ticket_holders_count(path.id, conn)?;
+    Ok(HttpResponse::Ok().json(ticket_holders))
 }
 
 #[derive(Deserialize, Serialize, Debug)]
