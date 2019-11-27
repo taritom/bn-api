@@ -992,6 +992,24 @@ fn genres() {
 }
 
 #[test]
+fn find_all_ticket_holders_count() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+
+    let ticket_holders = Event::find_all_ticket_holders_count(event.id, connection).unwrap();
+    assert_eq!(ticket_holders, 5);
+}
+
+#[test]
 fn pending_transfers() {
     let project = TestProject::new();
     let connection = project.get_connection();

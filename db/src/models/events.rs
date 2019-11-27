@@ -965,6 +965,7 @@ impl Event {
             .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
             .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(events::id.eq(event_id))
+            .filter(users::email.is_not_null())
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
             .select(dsl::count(events::id))
             .get_result(conn)
@@ -975,7 +976,7 @@ impl Event {
         event_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
-        let query = events::table
+        let result: Vec<(TicketInstance, User, Uuid)> = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -983,11 +984,9 @@ impl Event {
             .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
             .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(events::id.eq(event_id))
+            .filter(users::email.is_not_null())
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
             .order_by(users::id)
-            .into_boxed();
-
-        let result: Vec<(TicketInstance, User, Uuid)> = query
             .select((ticket_instances::all_columns, users::all_columns, order_items::order_id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load event transfers")?;
