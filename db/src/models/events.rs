@@ -964,7 +964,6 @@ impl Event {
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
-            .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(events::id.eq(event_id))
             .filter(users::email.is_not_null())
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
