@@ -141,13 +141,12 @@ fn find_first_for_city() {
     let project = TestProject::new();
     let connection = project.get_connection();
 
+    // US city
     let city = "Oakland".to_string();
     let state = "California".to_string();
     let country = "US".to_string();
-
     // No records exist for this slug
     assert!(Slug::find_first_for_city(&city, &state, &country, connection).is_err());
-
     let venue = project
         .create_venue()
         .with_city(city.clone())
@@ -158,6 +157,25 @@ fn find_first_for_city() {
     assert_eq!(slug.main_table_id, venue.id);
     assert_eq!(slug.main_table, Tables::Venues);
     assert_eq!(slug.slug_type, SlugTypes::City);
+    assert_eq!(slug.slug, "oakland".to_string());
+
+    // Country without states
+    let city = "Cape Town".to_string();
+    let state = "".to_string();
+    let country = "SA".to_string();
+    // No records exist for this slug
+    assert!(Slug::find_first_for_city(&city, &state, &country, connection).is_err());
+    let venue = project
+        .create_venue()
+        .with_city(city.clone())
+        .with_state(state.clone())
+        .with_country(country.clone())
+        .finish();
+    let slug = Slug::find_first_for_city(&city, &state, &country, connection).unwrap();
+    assert_eq!(slug.main_table_id, venue.id);
+    assert_eq!(slug.main_table, Tables::Venues);
+    assert_eq!(slug.slug_type, SlugTypes::City);
+    assert_eq!(slug.slug, "cape-town".to_string());
 }
 
 #[test]

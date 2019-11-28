@@ -1,7 +1,7 @@
 use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
-use bigneon_db::schema::{order_items, orders, ticket_instances};
+use bigneon_db::schema::{fee_schedule_ranges, order_items, orders, ticket_instances};
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
@@ -2412,10 +2412,10 @@ fn add_tickets_below_min_fee() {
             connection,
         )
         .unwrap();
-
     let user = project.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
 
+    // With a minimum fee schedule of 0
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     cart.update_quantities(
         user.id,
         &vec![UpdateOrderItem {
@@ -2428,14 +2428,40 @@ fn add_tickets_below_min_fee() {
         connection,
     )
     .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
+    assert_eq!(order_item.unit_price_in_cents, 0);
+    assert_eq!(items.len(), 2);
 
+    let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, 0);
+    assert_eq!(fee_item.client_fee_in_cents, 0);
+    assert_eq!(fee_item.company_fee_in_cents, 0);
+
+    // Without the minimum fee schedule of 0
+    cart.clear_cart(user.id, connection).unwrap();
+    diesel::delete(fee_schedule_ranges::table.filter(fee_schedule_ranges::min_price_in_cents.eq(0)))
+        .execute(connection)
+        .unwrap();
+    cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     assert_eq!(order_item.unit_price_in_cents, 0);
     assert_eq!(items.len(), 1);
 
     let fee_item = order_item.find_fee_item(connection).unwrap();
-    assert_eq!(fee_item, None);
+    assert!(fee_item.is_none());
 }
 
 #[test]
@@ -4478,8 +4504,9 @@ fn for_display_seconds_until_expiry() {
         .get_result::<Order>(connection)
         .unwrap();
     let display_order = order.for_display(None, order.user_id, connection).unwrap();
-    // Check both 59 and 60 for the purposes of the test to avoid timing errors
-    assert!(vec![59, 60].contains(&display_order.seconds_until_expiry.unwrap()));
+    // Add a little wiggle room for test slowness
+    let expiry_seconds = display_order.seconds_until_expiry.unwrap();
+    assert!(expiry_seconds <= 60 && expiry_seconds >= 55);
 
     // No organization filtering
     assert!(!display_order.order_contains_other_tickets);

@@ -51,6 +51,7 @@ pub struct Config {
     pub sendgrid_template_bn_user_invite: String,
     pub settlement_period_in_days: Option<u32>,
     pub spotify_auth_token: Option<String>,
+    pub static_file_path: Option<String>,
     pub twilio_account_id: String,
     pub twilio_api_key: String,
     pub api_keys_encryption_key: String,
@@ -144,6 +145,7 @@ const API_BASE_URL: &str = "API_BASE_URL";
 const GOOGLE_RECAPTCHA_SECRET_KEY: &str = "GOOGLE_RECAPTCHA_SECRET_KEY";
 const PRIMARY_CURRENCY: &str = "PRIMARY_CURRENCY";
 const STRIPE_SECRET_KEY: &str = "STRIPE_SECRET_KEY";
+const STATIC_FILE_PATH: &str = "STATIC_FILE_PATH";
 const TARI_URL: &str = "TARI_URL";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TEST_READONLY_DATABASE_URL: &str = "TEST_READONLY_DATABASE_URL";
@@ -354,6 +356,8 @@ impl Config {
         let ssr_trigger_header = env::var(&SSR_TRIGGER_HEADER).unwrap_or("x-ssr".to_string());
         let ssr_trigger_value = env::var(&SSR_TRIGGER_VALUE).unwrap_or("facebook".to_string());
 
+        let static_file_path = env::var(&STATIC_FILE_PATH).map(|s| Some(s)).unwrap_or(None);
+
         Config {
             actix: Actix { workers: actix_workers },
             customer_io,
@@ -397,6 +401,7 @@ impl Config {
             sendgrid_template_bn_user_invite,
             settlement_period_in_days,
             spotify_auth_token,
+            static_file_path,
             twilio_api_key,
             twilio_account_id,
             api_keys_encryption_key,

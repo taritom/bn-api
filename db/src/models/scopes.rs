@@ -350,6 +350,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventReports,
                 Scopes::NoteDelete,
                 Scopes::OrgReports,
+                Scopes::SettlementRead,
                 Scopes::TicketWrite,
             ];
             roles.extend(get_scopes_for_role(OrgMember));
@@ -367,15 +368,15 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrgFinancialReports,
                 Scopes::OrgModifySettlementType,
                 Scopes::RegionWrite,
-                Scopes::SettlementRead,
                 Scopes::SettlementReadEarly,
                 Scopes::SettlementWrite,
+                Scopes::TransferCancelAccepted,
             ];
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
         }
         Super => {
-            let mut roles = vec![Scopes::TransferCancelAccepted];
+            let mut roles = vec![];
             roles.extend(get_scopes_for_role(Admin));
             roles
         }
@@ -426,6 +427,7 @@ fn get_scopes_for_role_test() {
             Scopes::OrgUsers,
             Scopes::OrgWrite,
             Scopes::RedeemTicket,
+            Scopes::SettlementRead,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
             Scopes::TicketWrite,
@@ -495,6 +497,7 @@ fn get_scopes_test() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "ticket-type:read",
             "ticket-type:write",
             "ticket:admin",
@@ -569,6 +572,7 @@ fn get_scopes_test() {
             "ticket:write",
             "ticket:write-own",
             "transfer:cancel",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",
@@ -703,6 +707,7 @@ fn get_scopes_test() {
             "ticket-type:read",
             "ticket-type:write",
             "transfer:cancel",
+            "transfer:cancel-accepted",
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",

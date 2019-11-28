@@ -98,7 +98,7 @@ mod cancel_completed_transfer_tests {
     }
     #[test]
     fn cancel_completed_transfer_admin() {
-        base::transfers::cancel_completed_transfer(Roles::Admin, false);
+        base::transfers::cancel_completed_transfer(Roles::Admin, true);
     }
     #[test]
     fn cancel_completed_transfer_super() {
