@@ -971,7 +971,7 @@ impl Event {
             .select(sql::<sql_types::Nullable<sql_types::BigInt>>(
                 "COALESCE(COUNT(DISTINCT users.id),0)",
             ))
-            .first::<Option<i64>>(conn)
+            .first::<i64>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load total")?;
         Ok(count.unwrap_or(0))
     }
