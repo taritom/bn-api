@@ -91,6 +91,7 @@ impl ExternalLogin {
                 .filter(external_logins::user_id.eq(user_id))
                 .filter(external_logins::site.eq(site))
                 .filter(external_logins::deleted_at.is_null())
+                .order_by(external_logins::created_at.desc())
                 .first::<ExternalLogin>(conn),
         )
     }
