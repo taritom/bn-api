@@ -17,6 +17,7 @@ pub struct Config {
     pub api_host: String,
     pub api_port: String,
     pub app_name: String,
+    pub cube_js: CubeJs,
     pub database_url: String,
     pub readonly_database_url: String,
     pub domain: String,
@@ -76,6 +77,11 @@ pub struct ConnectionPoolConfig {
 }
 
 #[derive(Clone)]
+pub struct CubeJs {
+    pub secret: String,
+}
+
+#[derive(Clone)]
 pub struct EmailTemplates {
     pub custom_broadcast: EmailTemplate,
     pub org_invite: EmailTemplate,
@@ -123,6 +129,7 @@ pub struct CustomerIoSettings {
 const CUSTOMER_IO_API_KEY: &str = "CUSTOMER_IO_API_KEY";
 const CUSTOMER_IO_SITE_ID: &str = "CUSTOMER_IO_SITE_ID";
 const CUSTOMER_IO_BASE_URL: &str = "CUSTOMER_IO_BASE_URL";
+const CUBE_JS_SECRET: &str = "CUBE_JS_SECRET";
 const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
@@ -231,6 +238,9 @@ impl Config {
         let allowed_origins = env::var(&ALLOWED_ORIGINS).unwrap_or_else(|_| "*".to_string());
         let api_host = env::var(&API_HOST).unwrap_or_else(|_| "127.0.0.1".to_string());
         let api_port = env::var(&API_PORT).unwrap_or_else(|_| "8088".to_string());
+
+        let secret = get_env_var(CUBE_JS_SECRET);
+        let cube_js = CubeJs { secret };
 
         let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or_else(|_| "usd".to_string());
         let stripe_secret_key = env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
@@ -361,6 +371,7 @@ impl Config {
             app_name,
             api_host,
             api_port,
+            cube_js,
             database_url,
             readonly_database_url,
             domain,
