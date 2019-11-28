@@ -7,6 +7,7 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::sql_types::{BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level;
@@ -956,8 +957,8 @@ impl Event {
         None
     }
 
-    pub fn find_all_ticket_holders_count(event_id: Uuid, conn: &PgConnection) -> Result<i64, DatabaseError> {
-        events::table
+    pub fn find_all_ticket_holders_count(event_id: Uuid, conn: &PgConnection) -> Result<Option<i64>, DatabaseError> {
+        let count = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -967,9 +968,12 @@ impl Event {
             .filter(events::id.eq(event_id))
             .filter(users::email.is_not_null())
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
-            .select(dsl::count(events::id))
-            .get_result(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load total")
+            .select(sql::<sql_types::Nullable<sql_types::BigInt>>(
+                "COUNT(DISTINCT users.id)",
+            ))
+            .first::<Option<i64>>(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load total")?;
+        Ok(count)
     }
 
     pub fn find_all_ticket_holders(
