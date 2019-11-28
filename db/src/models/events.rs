@@ -968,11 +968,11 @@ impl Event {
             .filter(users::email.is_not_null())
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
             .select(sql::<sql_types::Nullable<sql_types::BigInt>>(
-                "COUNT(DISTINCT users.id)",
+                "COALESCE(COUNT(DISTINCT users.id),0)",
             ))
-            .first::<Option<i64>>(conn)
+            .first::<i64>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load total")?;
-        Ok(count.unwrap_or(0))
+        Ok(count)
     }
 
     pub fn find_all_ticket_holders(
