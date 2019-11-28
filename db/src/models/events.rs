@@ -973,7 +973,7 @@ impl Event {
             ))
             .first::<i64>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load total")?;
-        Ok(count.unwrap_or(0))
+        Ok(count)
     }
 
     pub fn find_all_ticket_holders(
