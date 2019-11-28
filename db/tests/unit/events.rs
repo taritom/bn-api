@@ -1004,9 +1004,16 @@ fn find_all_ticket_holders_count() {
         .quantity(5)
         .is_paid()
         .finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
 
     let ticket_holders = Event::find_all_ticket_holders_count(event.id, connection).unwrap();
-    assert_eq!(ticket_holders, 5);
+    assert_eq!(ticket_holders, 2);
 }
 
 #[test]

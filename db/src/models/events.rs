@@ -957,7 +957,7 @@ impl Event {
         None
     }
 
-    pub fn find_all_ticket_holders_count(event_id: Uuid, conn: &PgConnection) -> Result<Option<i64>, DatabaseError> {
+    pub fn find_all_ticket_holders_count(event_id: Uuid, conn: &PgConnection) -> Result<i64, DatabaseError> {
         let count = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
@@ -973,7 +973,7 @@ impl Event {
             ))
             .first::<Option<i64>>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load total")?;
-        Ok(count)
+        Ok(count.unwrap_or(0))
     }
 
     pub fn find_all_ticket_holders(
