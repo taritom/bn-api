@@ -1,5 +1,6 @@
 cube(`TicketTypes`, {
-  sql: `SELECT * FROM public.ticket_types WHERE ${FILTER_PARAMS.TicketTypes.eventId.filter(JSON.stringify(USER_CONTEXT))}`,
+  sql: `SELECT * FROM public.ticket_types WHERE deleted_at IS NULL`,
+    // sql: `SELECT * FROM public.ticket_types WHERE ${USER_CONTEXT.event_id.filter("event_id")} AND deleted_at IS NULL`,
 
   joins: {
     Events: {
@@ -14,8 +15,7 @@ cube(`TicketTypes`, {
 
   measures: {
     count: {
-      type: `count`,
-      drillMembers: [id, eventId, name, parentId, endDateType, createdAt, updatedAt, startDate, endDate]
+      type: `count`
     }
   },
 
@@ -23,21 +23,12 @@ cube(`TicketTypes`, {
     id: {
       sql: `id`,
       type: `string`,
-      primaryKey: true
-    },
-
-    eventId: {
-      sql: `event_id`,
-      type: `string`
+      primaryKey: true,
+        shown: `false`
     },
 
     name: {
       sql: `name`,
-      type: `string`
-    },
-
-    description: {
-      sql: `description`,
       type: `string`
     },
 
@@ -46,18 +37,8 @@ cube(`TicketTypes`, {
       type: `string`
     },
 
-    parentId: {
-      sql: `parent_id`,
-      type: `string`
-    },
-
     visibility: {
       sql: `visibility`,
-      type: `string`
-    },
-
-    endDateType: {
-      sql: `end_date_type`,
       type: `string`
     },
 
@@ -78,12 +59,8 @@ cube(`TicketTypes`, {
 
     createdAt: {
       sql: `created_at`,
-      type: `time`
-    },
-
-    updatedAt: {
-      sql: `updated_at`,
-      type: `time`
+      type: `time`,
+        title: `First Created`
     },
 
     startDate: {
@@ -100,10 +77,5 @@ cube(`TicketTypes`, {
       sql: `cancelled_at`,
       type: `time`
     },
-
-    deletedAt: {
-      sql: `deleted_at`,
-      type: `time`
-    }
   }
 });

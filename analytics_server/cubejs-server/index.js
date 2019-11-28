@@ -1,6 +1,18 @@
 const CubejsServer = require('@cubejs-backend/server');
 
-const server = new CubejsServer();
+const server = new CubejsServer({
+    queryTransformer: (query, { authInfo }) => {
+        const user = authInfo.u;
+        if (user.event_id) {
+            query.filters.push({
+                dimension: 'Events.id',
+                operator: 'equals',
+                values: [user.event_id]
+            })
+        }
+        return query;
+    }
+});
 
 server.listen().then(({ port }) => {
   console.log(`🚀 Cube.js server is listening on ${port}`);

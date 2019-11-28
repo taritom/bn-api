@@ -723,7 +723,7 @@ pub fn dashboard(
 fn create_cube_js_token(event_id: Uuid, cube_js_secret: &str) -> Result<String, BigNeonError> {
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {
-        //        u: UserData,
+        u: UserData,
         iat: i64,
         exp: i64,
     };
@@ -733,13 +733,13 @@ fn create_cube_js_token(event_id: Uuid, cube_js_secret: &str) -> Result<String, 
         event_id: Uuid,
     }
     let claims = Claims {
-        //        u: UserData { event_id },
+        u: UserData { event_id },
         iat: Utc::now().timestamp(),
-        exp: dates::now().add_minutes(30).finish().timestamp(),
+        exp: dates::now().add_days(30).finish().timestamp(),
     };
 
-    print!("{}", cube_js_secret);
-    let token = encode(&Header::default(), &claims, cube_js_secret.as_bytes())?;
+    println!("Secret {}", cube_js_secret);
+    let token = encode(&Header::default(), &claims, cube_js_secret.as_ref())?;
     Ok(token)
 }
 

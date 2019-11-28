@@ -1,11 +1,11 @@
 [package]
 name = "bigneon_http"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Stan <sdbondi@users.noreply.github.com>"]
 
 [dependencies]
 actix-web = "0.7"
-ring = "0.13.5"
+ring = "0.13"
 serde = "1.0"
 
 
