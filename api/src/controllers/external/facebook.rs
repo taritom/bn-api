@@ -271,7 +271,7 @@ pub fn create_event(
         .ok_or_else(|| ApplicationError::unprocessable("Cannot publish this event on Facebook without a venue"))?;
     let mut fb_event = FBEvent::new(
         data.category.parse()?,
-        event.name.clone(),
+        data.title.clone(),
         data.description.clone(),
         venue.timezone.to_string(),
         event.promo_image_url.as_ref().map(|u| CoverPhoto::new(u.to_string())),
@@ -322,6 +322,7 @@ pub fn create_event(
 pub struct CreateFacebookEvent {
     event_id: Uuid,
     page_id: String,
+    title: String,
     category: String,
     description: String,
     location_type: EventLocationType,

@@ -452,7 +452,7 @@ impl Organization {
             query = query.filter(event_users::id.is_not_null());
         }
 
-        let users = query
+        let mut users = query
             .filter(organization_users::organization_id.eq(self.id))
             .select(organization_users::all_columns)
             .order_by(users::last_name.asc())
@@ -460,14 +460,29 @@ impl Organization {
             .load::<OrganizationUser>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve organization users")?;
 
-        let mut result = vec![];
+        let mut results = vec![];
+
+        // Search scoped to event, limit roles to event based roles
+        if let Some(event_id) = event_id {
+            let event_users = EventUser::find_all_by_event_id(event_id, conn)?;
+            let mut user_map: HashMap<Uuid, Roles> = HashMap::new();
+            for event_user in event_users {
+                user_map.insert(event_user.user_id, event_user.role);
+            }
+
+            for mut u in &mut users {
+                if let Some(role) = user_map.get(&u.user_id) {
+                    u.role = vec![*role];
+                }
+            }
+        }
 
         for u in users {
             let user = User::find(u.user_id, conn)?;
-            result.push((u, user));
+            results.push((u, user));
         }
 
-        Ok(result)
+        Ok(results)
     }
 
     pub fn pending_invites(

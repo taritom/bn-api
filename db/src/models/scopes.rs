@@ -350,6 +350,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventReports,
                 Scopes::NoteDelete,
                 Scopes::OrgReports,
+                Scopes::SettlementRead,
                 Scopes::TicketWrite,
             ];
             roles.extend(get_scopes_for_role(OrgMember));
@@ -367,7 +368,6 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrgFinancialReports,
                 Scopes::OrgModifySettlementType,
                 Scopes::RegionWrite,
-                Scopes::SettlementRead,
                 Scopes::SettlementReadEarly,
                 Scopes::SettlementWrite,
                 Scopes::TransferCancelAccepted,
@@ -427,6 +427,7 @@ fn get_scopes_for_role_test() {
             Scopes::OrgUsers,
             Scopes::OrgWrite,
             Scopes::RedeemTicket,
+            Scopes::SettlementRead,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
             Scopes::TicketWrite,
@@ -496,6 +497,7 @@ fn get_scopes_test() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "ticket-type:read",
             "ticket-type:write",
             "ticket:admin",

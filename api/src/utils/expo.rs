@@ -23,9 +23,10 @@ pub fn send_push_notification(tokens: &[String], body: &str, custom_data: Option
     let mut msgs = vec![];
     for token in tokens {
         let push_token = PushToken::from_str(token).map_err(|e| ApplicationError::new(e))?;
-        let msg = PushMessage::new(push_token)
-            .body(body)
-            .data(custom_data.clone().unwrap_or(Value::Null));
+        let mut msg = PushMessage::new(push_token).body(body);
+        if custom_data != None {
+            msg = msg.data(custom_data.clone().unwrap())
+        }
         msgs.push(msg);
     }
 

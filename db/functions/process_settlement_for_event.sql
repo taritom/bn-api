@@ -37,7 +37,6 @@ AND oi.item_type <> 'CreditCardFees'
 AND o.settlement_id IS NULL
 AND o.status = 'Paid'
 AND oi.parent_id IS NULL
-AND (oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0)) > 0
 AND o.box_office_pricing IS FALSE;
 
 -- Add refund items to the order items temp table
@@ -130,9 +129,9 @@ FROM (
   -- Filter out any records where the sum of their quantities is 0
   -- Negative indicates a refund settlement adjustment, positive purchases
   HAVING
-    SUM(online_sold_quantity) <> 0
+    (SUM(online_sold_quantity) <> 0 AND face_value_in_cents > 0)
   OR
-    SUM(fee_sold_quantity) <> 0
+    (SUM(fee_sold_quantity) <> 0 AND revenue_share_value_in_cents > 0)
 ;
 
 -- Update associated orders as part of this settlement

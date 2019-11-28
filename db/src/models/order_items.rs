@@ -36,8 +36,8 @@ pub struct OrderItem {
     pub parent_id: Option<Uuid>,
     pub hold_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
-    pub(crate) company_fee_in_cents: i64,
-    pub(crate) client_fee_in_cents: i64,
+    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: i64,
     pub refunded_quantity: i64,
 }
 

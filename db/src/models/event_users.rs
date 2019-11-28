@@ -4,12 +4,13 @@ use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
 use schema::event_users;
+use std::cmp::Ordering;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Identifiable, Queryable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Identifiable, Queryable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "event_users"]
 pub struct EventUser {
     pub id: Uuid,
@@ -32,6 +33,12 @@ pub struct NewEventUser {
 #[table_name = "event_users"]
 pub struct EventUserEditableAttributes {
     pub role: Option<Roles>,
+}
+
+impl PartialOrd for EventUser {
+    fn partial_cmp(&self, other: &EventUser) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
 }
 
 impl NewEventUser {
@@ -63,6 +70,14 @@ impl EventUser {
         Ok(())
     }
 
+    pub fn find_all_by_event_id(event_id: Uuid, conn: &PgConnection) -> Result<Vec<EventUser>, DatabaseError> {
+        event_users::table
+            .filter(event_users::event_id.eq(event_id))
+            .select(event_users::all_columns)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load event user")
+    }
+
     pub fn find_by_event_id_user_id(
         event_id: Uuid,
         user_id: Uuid,
@@ -74,6 +89,13 @@ impl EventUser {
             .select(event_users::all_columns)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load event user")
+    }
+
+    pub fn destroy_all(user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::delete(event_users::table.filter(event_users::user_id.eq(user_id)))
+            .execute(conn)
+            .to_db_error(ErrorCode::DeleteError, "Could not delete event user.")?;
+        Ok(())
     }
 
     pub fn update(

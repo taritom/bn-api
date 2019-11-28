@@ -561,6 +561,7 @@ fn current_user_organization_owner() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "transfer:cancel",
             "transfer:cancel-own",
             "transfer:read",
