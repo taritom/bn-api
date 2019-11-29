@@ -4,8 +4,8 @@ use errors::BigNeonError;
 use r2d2_redis::redis::{Commands, RedisResult};
 use r2d2_redis::RedisConnectionManager;
 use server::AppState;
-use std::sync::Arc;
 use std::str;
+use std::sync::Arc;
 
 pub struct ConnectionRedis {
     pub inner: Arc<r2d2_redis::r2d2::Pool<RedisConnectionManager>>,
@@ -24,6 +24,7 @@ pub trait RedisCommands {
     fn set_value(&mut self, key: &str, value: &str) -> RedisResult<String>;
     fn get_value_int(&mut self, key: &str) -> RedisResult<i64>;
     fn set_value_int(&mut self, key: &str, value: i64) -> RedisResult<i64>;
+    fn delete(&mut self, key: &str);
     fn is_key_outdated(&mut self, start_time: i64, seconds: i64) -> bool;
 
     fn get_cache_value(&mut self, key: &str, time_lapse: i64) -> Option<String>;
@@ -34,17 +35,19 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
     fn get_value(&mut self, key: &str) -> RedisResult<String> {
         self.get(key)
     }
-
     fn set_value(&mut self, key: &str, value: &str) -> RedisResult<String> {
         self.set(key, value)
     }
-
     fn get_value_int(&mut self, key: &str) -> RedisResult<i64> {
         self.get(key)
     }
     fn set_value_int(&mut self, key: &str, value: i64) -> RedisResult<i64> {
         self.set(key, value)
     }
+    fn delete(&mut self, key: &str) {
+        let _ : () = self.del(key.to_string()).unwrap_or_default();
+    }
+
     // start_time: this is measured in Unix time, the time in milliseconds from 1970-01-01
     // compares the difference in current time to giving
     fn is_key_outdated(&mut self, start_time: i64, seconds: i64) -> bool {
@@ -55,8 +58,7 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
     fn get_cache_value(&mut self, key: &str, time_lapse: i64) -> Option<String> {
         if let Some(set_time) = self.get_value_int(key).ok() {
             // get the time when query was set
-            let is_out_dated = self.is_key_outdated(set_time, time_lapse);
-            if !is_out_dated {
+            if !self.is_key_outdated(set_time, time_lapse) {
                 // if not outdated return the value for the key
                 // else return None
                 return self.get_value(key).ok();
