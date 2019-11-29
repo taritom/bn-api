@@ -70,7 +70,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(comps::destroy);
     })
     .resource("/events", |r| {
-        r.method(Method::GET).with(events::index);
+        r.method(Method::GET).with(events::index_cached);
         r.method(Method::POST).with(events::create);
     })
     .resource("/events/checkins", |r| {

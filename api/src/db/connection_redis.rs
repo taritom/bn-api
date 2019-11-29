@@ -1,10 +1,11 @@
-use actix_web::{FromRequest, HttpRequest, Result};
+use actix_web::{Body::Binary, FromRequest, HttpRequest, HttpResponse, Result};
+use chrono::Utc;
 use errors::BigNeonError;
+use r2d2_redis::redis::{Commands, RedisResult};
+use r2d2_redis::RedisConnectionManager;
 use server::AppState;
 use std::sync::Arc;
-use r2d2_redis::RedisConnectionManager;
-use r2d2_redis::redis::{RedisResult, Commands};
-use chrono::{DateTime, Utc};
+use std::str;
 
 pub struct ConnectionRedis {
     pub inner: Arc<r2d2_redis::r2d2::Pool<RedisConnectionManager>>,
@@ -30,7 +31,7 @@ pub trait RedisCommands {
 }
 
 impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager> {
-    fn get_value(&mut self, key: &str) -> RedisResult<String>{
+    fn get_value(&mut self, key: &str) -> RedisResult<String> {
         self.get(key)
     }
 
@@ -38,7 +39,7 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
         self.set(key, value)
     }
 
-    fn get_value_int(&mut self, key: &str) -> RedisResult<i64>{
+    fn get_value_int(&mut self, key: &str) -> RedisResult<i64> {
         self.get(key)
     }
     fn set_value_int(&mut self, key: &str, value: i64) -> RedisResult<i64> {
@@ -47,24 +48,19 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
     // start_time: this is measured in Unix time, the time in milliseconds from 1970-01-01
     // compares the difference in current time to giving
     fn is_key_outdated(&mut self, start_time: i64, seconds: i64) -> bool {
-        let utc: DateTime<Utc> = Utc::now();
-
-        if (utc.timestamp_millis() - start_time)*1000 > seconds {
-            true
-        }
-        else { false }
+        Utc::now().timestamp_millis() - start_time > seconds
     }
 
-    // time_lapse: this is measured in seconds. Only return the redis value if it happened in this period
+    // time_lapse: this is measured in milli seconds. Only return the redis value if it happened in this period
     fn get_cache_value(&mut self, key: &str, time_lapse: i64) -> Option<String> {
         if let Some(set_time) = self.get_value_int(key).ok() {
-               // get the time when query was set
-               let is_out_dated = self.is_key_outdated(set_time, time_lapse);
-               if !is_out_dated {
-                   // if not outdated return the value for the key
-                   // else return None
-                   return self.get_value(key).ok()
-               }
+            // get the time when query was set
+            let is_out_dated = self.is_key_outdated(set_time, time_lapse);
+            if !is_out_dated {
+                // if not outdated return the value for the key
+                // else return None
+                return self.get_value(key).ok();
+            }
         }
         None
     }
@@ -82,6 +78,13 @@ impl ConnectionRedis {
     pub fn conn(self) -> Result<r2d2_redis::r2d2::PooledConnection<RedisConnectionManager>, r2d2::Error> {
         self.inner.get()
     }
+
+    pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static str> {
+        match response.body() {
+            Binary(binary) => Ok(str::from_utf8(binary.as_ref()).unwrap()),
+            _ => Err("Unexpected response body"),
+        }
+    }
 }
 
 impl FromRequest<AppState> for ConnectionRedis {
@@ -94,7 +97,9 @@ impl FromRequest<AppState> for ConnectionRedis {
         }
 
         let connection = request.state().database.get_redis_connection();
-        let connection = ConnectionRedis{inner: Arc::new(connection)};
+        let connection = ConnectionRedis {
+            inner: Arc::new(connection),
+        };
 
         request.extensions_mut().insert(connection.clone());
         Ok(connection.clone())
