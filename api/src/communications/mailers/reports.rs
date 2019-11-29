@@ -1,4 +1,5 @@
 use bigneon_db::models::*;
+use chrono::prelude::*;
 use config::Config;
 use diesel::PgConnection;
 use errors::*;
@@ -20,6 +21,7 @@ pub fn ticket_counts(
     let mut extra_data: HashMap<String, serde_json::Value> = HashMap::new();
     Event::event_payload_data(&event, &mut extra_data, conn)?;
     extra_data.insert("report".to_string(), json!(ticket_count_report));
+    extra_data.insert("timestamp".to_string(), json!(Utc::now().timestamp()));
 
     Communication::new(
         CommunicationType::EmailTemplate,

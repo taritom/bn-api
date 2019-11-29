@@ -169,6 +169,10 @@ pub fn customer_io_send_email(
         &config.customer_io.base_url,
     )?;
 
+    if !template_data.contains_key("timestamp") {
+        template_data.insert("timestamp".to_string(), json!(domain_action.scheduled_at.timestamp()));
+    }
+
     template_data.insert("subject".to_string(), json!(title));
 
     if let Some(b) = body {
