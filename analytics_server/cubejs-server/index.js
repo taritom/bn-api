@@ -3,7 +3,8 @@ const CubejsServer = require('@cubejs-backend/server');
 const server = new CubejsServer({
     queryTransformer: (query, { authInfo }) => {
         const user = authInfo.u;
-        if (user.event_id) {
+        // Todo: require auth
+        if (user && user.event_id) {
             query.filters.push({
                 dimension: 'Events.id',
                 operator: 'equals',

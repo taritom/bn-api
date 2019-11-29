@@ -11,15 +11,20 @@ cube(`Orders`, {
   measures: {
     count: {
       type: `count`,
-      drillMembers: [id, userId, onBehalfOfUserId, settlementId, createdAt, updatedAt, orderDate, paidAt]
-    }
+    },
+      revenue: {
+        type: `number`,
+          sql: `${OrderItems.revenue}`,
+          format: `currency`
+      }
   },
 
   dimensions: {
     id: {
       sql: `id`,
       type: `string`,
-      primaryKey: true
+      primaryKey: true,
+        shown: false
     },
 
     userId: {
