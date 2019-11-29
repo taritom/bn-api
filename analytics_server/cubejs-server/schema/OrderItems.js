@@ -1,5 +1,5 @@
 cube(`OrderItems`, {
-  sql: `SELECT * FROM public.order_items`,
+  sql: `SELECT * FROM public.order_items `,
 
   joins: {
     Orders: {
@@ -7,10 +7,10 @@ cube(`OrderItems`, {
       relationship: `belongsTo`
     },
 
-    TicketTypes: {
-      sql: `${CUBE}.ticket_type_id = ${TicketTypes}.id`,
-      relationship: `belongsTo`
-    },
+    // TicketTypes: {
+    //   sql: `${CUBE}.ticket_type_id = ${TicketTypes}.id`,
+    //   relationship: `belongsTo`
+    // },
 
 
   },
@@ -18,7 +18,7 @@ cube(`OrderItems`, {
   measures: {
     count: {
       type: `count`,
-      drillMembers: [id, orderId, ticketTypeId, eventId, ticketPricingId, feeScheduleRangeId, parentId, holdId, codeId, createdAt, updatedAt]
+      drillMembers: [id, orderId, ticketTypeId,  ticketPricingId, feeScheduleRangeId, parentId, holdId, codeId, createdAt, updatedAt]
     },
 
     quantity: {
@@ -41,14 +41,23 @@ cube(`OrderItems`, {
         sql: `Round((quantity - refunded_quantity) * unit_price_in_cents / 100.0,2)`,
         type: `sum`,
         format: `currency`
-    }
+    },
+      faceValueRevenue: {
+          sql: `Round((quantity - refunded_quantity) * unit_price_in_cents / 100.0,2)`,
+          type: `sum`,
+          format: `currency`,
+          filters: [
+              {sql: `${CUBE}.item_type NOT IN ('PerUnitFees', 'EventFees','CreditCardFees')`}
+          ]
+      }
   },
 
   dimensions: {
     id: {
       sql: `id`,
       type: `string`,
-      primaryKey: true
+      primaryKey: true,
+
     },
 
     orderId: {
@@ -66,10 +75,6 @@ cube(`OrderItems`, {
       type: `string`
     },
 
-    eventId: {
-      sql: `event_id`,
-      type: `string`
-    },
 
     ticketPricingId: {
       sql: `ticket_pricing_id`,

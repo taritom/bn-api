@@ -14,8 +14,8 @@ cube(`Events`, {
 
   measures: {
     count: {
-      type: `count`,
-      drillMembers: [id, name, organizationId, venueId, videoUrl, overrideStatus, slugId, facebookEventId, createdAt, updatedAt, publishDate, redeemDate]
+      type: `count`
+
     }
   },
 
@@ -23,7 +23,8 @@ cube(`Events`, {
     id: {
       sql: `id`,
       type: `string`,
-      primaryKey: true
+      primaryKey: true,
+        shown: true
     },
 
     name: {
@@ -31,55 +32,25 @@ cube(`Events`, {
       type: `string`
     },
 
-    organizationId: {
-      sql: `organization_id`,
-      type: `string`
-    },
 
-    venueId: {
-      sql: `venue_id`,
-      type: `string`
-    },
 
     status: {
       sql: `status`,
       type: `string`
     },
 
-    promoImageUrl: {
-      sql: `promo_image_url`,
-      type: `string`
-    },
-
-    additionalInfo: {
-      sql: `additional_info`,
-      type: `string`
-    },
 
     ageLimit: {
       sql: `age_limit`,
       type: `string`
     },
 
-    topLineInfo: {
-      sql: `top_line_info`,
-      type: `string`
-    },
-
-    videoUrl: {
-      sql: `video_url`,
-      type: `string`
-    },
 
     isExternal: {
       sql: `is_external`,
       type: `string`
     },
 
-    externalUrl: {
-      sql: `external_url`,
-      type: `string`
-    },
 
     overrideStatus: {
       sql: `override_status`,
@@ -91,33 +62,12 @@ cube(`Events`, {
       type: `string`
     },
 
-    coverImageUrl: {
-      sql: `cover_image_url`,
-      type: `string`
-    },
 
-    privateAccessCode: {
-      sql: `private_access_code`,
-      type: `string`
-    },
 
-    facebookPixelKey: {
-      sql: `facebook_pixel_key`,
-      type: `string`
-    },
 
-    extraAdminData: {
-      sql: `extra_admin_data`,
-      type: `string`
-    },
 
     slugId: {
       sql: `slug_id`,
-      type: `string`
-    },
-
-    facebookEventId: {
-      sql: `facebook_event_id`,
       type: `string`
     },
 
@@ -126,10 +76,6 @@ cube(`Events`, {
       type: `time`
     },
 
-    updatedAt: {
-      sql: `updated_at`,
-      type: `time`
-    },
 
     eventStart: {
       sql: `event_start`,

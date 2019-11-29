@@ -5,7 +5,12 @@ cube(`Orders`, {
     OrderItems: {
         sql: `${Orders}.id  = ${OrderItems}.order_id`,
         relationship: `hasMany`
-    }
+    },
+      OrderTicketTypes: {
+          sql: `${OrderTicketTypes}.order_id = ${Orders}.id`,
+          relationship: `hasMany`
+      }
+
   },
 
   measures: {
@@ -16,7 +21,13 @@ cube(`Orders`, {
         type: `number`,
           sql: `${OrderItems.revenue}`,
           format: `currency`
-      }
+      },
+
+      faceValueRevenue: {
+          type: `number`,
+          sql: `${OrderItems.faceValueRevenue}`,
+          format: `currency`,
+      },
   },
 
   dimensions: {
@@ -24,8 +35,14 @@ cube(`Orders`, {
       sql: `id`,
       type: `string`,
       primaryKey: true,
-        shown: false
+        shown: true
     },
+
+       number: {
+        sql: `'#' || substring(${CUBE}.id::text, 29)`,
+           type: `string`
+       },
+
 
     userId: {
       sql: `user_id`,
