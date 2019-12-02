@@ -13,6 +13,7 @@ use utils::expo;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
+use std::borrow::Borrow;
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -169,12 +170,25 @@ pub fn customer_io_send_email(
 
     if domain_action.main_table == Some(Tables::Events) && domain_action.main_table_id.is_some() {
         let event = Event::find(domain_action.main_table_id.unwrap(), conn)?;
+        let venue = event.venue(conn)?;
+        let localized_times = event.get_all_localized_times(venue.as_ref());
 
         template_data.insert("show_name".to_string(), event.name.clone());
 
-        if let Some(start_datetime) = event.event_start {
-            template_data.insert("show_start_date".to_string(), start_datetime.date().to_string());
-            template_data.insert("show_start_time".to_string(), start_datetime.time().to_string());
+        if let Some(event_start) = localized_times.event_start {
+            template_data.insert(
+                "show_start_date".to_string(),
+                format!(
+                    "{} {}",
+                    event_start.format("%A,"),
+                    event_start.format("%e %B %Y").to_string().trim()
+                )
+                .to_string(),
+            );
+            template_data.insert(
+                "show_start_time".to_string(),
+                event_start.format("%l:%M %p %Z").to_string().trim().to_string(),
+            );
         }
 
         // parse the venue address if venue
@@ -185,7 +199,10 @@ pub fn customer_io_send_email(
 
             template_data.insert("show_venue_address".to_string(), venue.address.to_string());
             template_data.insert("show_venue_city".to_string(), venue.city.to_string());
-            template_data.insert("show_venue_state".to_string(), venue.state.to_string());
+
+            // need to convert state to 2 letter abbreviation
+            let venue_state = convert_state(&venue.state).unwrap_or(venue.state.to_string());
+            template_data.insert("show_venue_state".to_string(), venue_state);
             template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
         }
     }
@@ -202,3 +219,85 @@ pub fn customer_io_send_email(
     }
     Ok(())
 }
+
+fn convert_state(state: &str) -> Option<String>{
+    let mut cities = HashMap::new();
+    cities.insert("arizona", "AZ");
+    cities.insert("alabama", "AL");
+    cities.insert("alaska", "AK");
+    cities.insert("arkansas", "AR");
+    cities.insert("california", "CA");
+    cities.insert("colorado", "CO");
+    cities.insert("connecticut", "CT");
+    cities.insert("delaware", "DE");
+    cities.insert("florida", "FL");
+    cities.insert("georgia", "GA");
+    cities.insert("hawaii", "HI");
+    cities.insert("idaho", "ID");
+    cities.insert("illinois", "IL");
+    cities.insert("indiana", "IN");
+    cities.insert("iowa","IA");
+    cities.insert("kansas", "KS");
+    cities.insert("kentucky", "KY");
+    cities.insert("louisiana", "LA");
+    cities.insert("maine", "ME");
+    cities.insert("maryland", "MD");
+    cities.insert("massachusetts", "MA");
+    cities.insert("michigan", "MI");
+    cities.insert("minnesota", "MN");
+    cities.insert("mississippi", "MS");
+    cities.insert("missouri", "MO");
+    cities.insert("montana", "MT");
+    cities.insert("nebraska", "NE");
+    cities.insert("nevada", "NV");
+    cities.insert("new hampshire", "NH");
+    cities.insert("new jersey", "NJ");
+    cities.insert("new mexico", "NM");
+    cities.insert("new york", "NY");
+    cities.insert("north carolina", "NC");
+    cities.insert("north dakota", "ND");
+    cities.insert("ohio","OH");
+    cities.insert("oklahoma", "OK");
+    cities.insert("oregon", "OR");
+    cities.insert("pennsylvania", "PA");
+    cities.insert("rhode island", "RI");
+    cities.insert("south carolina", "SC");
+    cities.insert("south dakota", "SD");
+    cities.insert("tennessee", "TN");
+    cities.insert("texas", "TX");
+    cities.insert("utah", "UT");
+    cities.insert("vermont", "VT");
+    cities.insert("virginia", "VA");
+    cities.insert("washington", "WA");
+    cities.insert("west virginia", "WV");
+    cities.insert("wisconsin", "WI");
+    cities.insert("wyomin", "WY");
+
+    let mod_state = state.to_lowercase();
+    let mod_state = mod_state.trim();
+    if mod_state.is_empty() {
+        // this should not be empty, should be handled by the caller 
+        return None
+    }
+    if mod_state.len() == 2 {
+        // if only 2 letters is giving, assume that this is the state
+        return Some(mod_state.to_uppercase());
+    }
+    match cities.get(&mod_state.borrow()) {
+        Some(&s) => Some(s.to_string()),
+        _ => None
+    }
+}
+
+ #[cfg(test)]
+ mod tests {
+     use super::convert_state;
+     #[test]
+     fn convert_states_test() {
+         assert_eq!(convert_state(" utah ").unwrap(), "UT");
+         assert_eq!(convert_state(" ut ").unwrap(), "UT");
+         assert_eq!(convert_state(" West Virginia ").unwrap(), "WV");
+         assert_eq!(convert_state("southdakota"), None); // failing misspelled state
+     }
+ }
+ 
