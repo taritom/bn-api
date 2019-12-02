@@ -7,13 +7,13 @@ use errors::*;
 use futures::future::Either;
 use futures::Future;
 use log::Level::Trace;
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use tokio::prelude::*;
 use utils::expo;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
-use std::borrow::Borrow;
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -220,7 +220,7 @@ pub fn customer_io_send_email(
     Ok(())
 }
 
-fn convert_state(state: &str) -> Option<String>{
+fn convert_state(state: &str) -> Option<String> {
     let mut cities = HashMap::new();
     cities.insert("arizona", "AZ");
     cities.insert("alabama", "AL");
@@ -236,7 +236,7 @@ fn convert_state(state: &str) -> Option<String>{
     cities.insert("idaho", "ID");
     cities.insert("illinois", "IL");
     cities.insert("indiana", "IN");
-    cities.insert("iowa","IA");
+    cities.insert("iowa", "IA");
     cities.insert("kansas", "KS");
     cities.insert("kentucky", "KY");
     cities.insert("louisiana", "LA");
@@ -256,7 +256,7 @@ fn convert_state(state: &str) -> Option<String>{
     cities.insert("new york", "NY");
     cities.insert("north carolina", "NC");
     cities.insert("north dakota", "ND");
-    cities.insert("ohio","OH");
+    cities.insert("ohio", "OH");
     cities.insert("oklahoma", "OK");
     cities.insert("oregon", "OR");
     cities.insert("pennsylvania", "PA");
@@ -276,8 +276,8 @@ fn convert_state(state: &str) -> Option<String>{
     let mod_state = state.to_lowercase();
     let mod_state = mod_state.trim();
     if mod_state.is_empty() {
-        // this should not be empty, should be handled by the caller 
-        return None
+        // this should not be empty, should be handled by the caller
+        return None;
     }
     if mod_state.len() == 2 {
         // if only 2 letters is giving, assume that this is the state
@@ -285,19 +285,18 @@ fn convert_state(state: &str) -> Option<String>{
     }
     match cities.get(&mod_state.borrow()) {
         Some(&s) => Some(s.to_string()),
-        _ => None
+        _ => None,
     }
 }
 
- #[cfg(test)]
- mod tests {
-     use super::convert_state;
-     #[test]
-     fn convert_states_test() {
-         assert_eq!(convert_state(" utah ").unwrap(), "UT");
-         assert_eq!(convert_state(" ut ").unwrap(), "UT");
-         assert_eq!(convert_state(" West Virginia ").unwrap(), "WV");
-         assert_eq!(convert_state("southdakota"), None); // failing misspelled state
-     }
- }
- 
+#[cfg(test)]
+mod tests {
+    use super::convert_state;
+    #[test]
+    fn convert_states_test() {
+        assert_eq!(convert_state(" utah ").unwrap(), "UT");
+        assert_eq!(convert_state(" ut ").unwrap(), "UT");
+        assert_eq!(convert_state(" West Virginia ").unwrap(), "WV");
+        assert_eq!(convert_state("southdakota"), None); // failing misspelled state
+    }
+}
