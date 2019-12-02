@@ -5,8 +5,8 @@ use uuid::Uuid;
 pub struct UserBuilder<'a> {
     first_name: String,
     last_name: String,
-    email: String,
-    phone: String,
+    email: Option<String>,
+    phone: Option<String>,
     password: String,
     connection: &'a PgConnection,
 }
@@ -17,8 +17,8 @@ impl<'a> UserBuilder<'a> {
         UserBuilder {
             first_name: "Jeff".into(),
             last_name: "Wilco".into(),
-            email: format!("jeff{}@tari.com", x).into(),
-            phone: "555-555-5555".into(),
+            email: Some(format!("jeff{}@tari.com", x).into()),
+            phone: Some("555-555-5555".into()),
             password: "examplePassword".into(),
             connection,
         }
@@ -40,12 +40,22 @@ impl<'a> UserBuilder<'a> {
     }
 
     pub fn with_email(mut self, email: String) -> Self {
-        self.email = email;
+        self.email = Some(email);
         self
     }
 
     pub fn with_phone(mut self, phone: String) -> Self {
-        self.phone = phone;
+        self.phone = Some(phone);
+        self
+    }
+
+    pub fn with_no_email(mut self) -> Self {
+        self.email = None;
+        self
+    }
+
+    pub fn with_no_phone(mut self) -> Self {
+        self.phone = None;
         self
     }
 
@@ -53,8 +63,8 @@ impl<'a> UserBuilder<'a> {
         User::create(
             Some(self.first_name.to_string()),
             Some(self.last_name.to_string()),
-            Some(self.email.to_string()),
-            Some(self.phone.to_string()),
+            self.email.clone(),
+            self.phone.clone(),
             &self.password,
         )
         .commit(None, self.connection)

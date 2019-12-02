@@ -7,6 +7,7 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::sql_types::{BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level;
@@ -122,6 +123,12 @@ pub struct NewEvent {
     pub extra_admin_data: Option<Value>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_event_id: Option<String>,
+}
+
+pub enum TicketHoldersCountType {
+    All,
+    WithEmailAddress,
+    WithPhoneNumber,
 }
 
 impl NewEvent {
@@ -956,11 +963,38 @@ impl Event {
         None
     }
 
+    pub fn find_all_ticket_holders_count(
+        event_id: Uuid,
+        conn: &PgConnection,
+        ticket_holders_type: TicketHoldersCountType,
+    ) -> Result<i64, DatabaseError> {
+        let mut query = events::table
+            .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+            .filter(events::id.eq(event_id))
+            .into_boxed();
+        query = match ticket_holders_type {
+            TicketHoldersCountType::WithEmailAddress => query.filter(users::email.is_not_null()),
+            TicketHoldersCountType::WithPhoneNumber => query.filter(users::phone.is_not_null()),
+            TicketHoldersCountType::All => query,
+        };
+        let count = query
+            .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
+            .select(sql::<sql_types::BigInt>("COALESCE(COUNT(DISTINCT users.id),0)"))
+            .first::<i64>(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load total")?;
+        Ok(count)
+    }
+
     pub fn find_all_ticket_holders(
         event_id: Uuid,
         conn: &PgConnection,
+        ticket_holders_type: TicketHoldersCountType,
     ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
-        let result: Vec<(TicketInstance, User, Uuid)> = events::table
+        let mut query = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -969,6 +1003,13 @@ impl Event {
             .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(events::id.eq(event_id))
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
+            .into_boxed();
+        query = match ticket_holders_type {
+            TicketHoldersCountType::WithEmailAddress => query.filter(users::email.is_not_null()),
+            TicketHoldersCountType::WithPhoneNumber => query.filter(users::phone.is_not_null()),
+            TicketHoldersCountType::All => query,
+        };
+        let result: Vec<(TicketInstance, User, Uuid)> = query
             .order_by(users::id)
             .select((ticket_instances::all_columns, users::all_columns, order_items::order_id))
             .load(conn)
