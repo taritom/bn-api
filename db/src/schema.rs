@@ -3,7 +3,7 @@ table! {
         id -> Uuid,
         date -> Date,
         hour -> Time,
-        event_id -> Text,
+        event_id -> Uuid,
         source -> Text,
         medium -> Text,
         term -> Text,
@@ -16,6 +16,8 @@ table! {
         user_agent -> Text,
         ip_address -> Text,
         count -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

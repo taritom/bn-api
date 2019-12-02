@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use diesel::pg::upsert::on_constraint;
 use diesel::prelude::*;
-use diesel::PgConnection;
+use diesel::{dsl, PgConnection};
 use schema::analytics_page_views;
 use utils::errors::*;
 use uuid::Uuid;
@@ -12,7 +12,7 @@ pub struct PageView {
     pub id: Uuid,
     pub date: NaiveDate,
     pub hour: NaiveTime,
-    pub event_id: String,
+    pub event_id: Uuid,
     pub source: String,
     pub medium: String,
     pub term: String,
@@ -25,12 +25,14 @@ pub struct PageView {
     pub user_agent: String,
     pub ip_address: String,
     pub count: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl PageView {
     pub fn create(
         date: NaiveDateTime,
-        event_id: String,
+        event_id: Uuid,
         source: String,
         medium: String,
         term: String,
@@ -68,7 +70,7 @@ impl PageView {
 pub struct NewPageView {
     pub date: NaiveDate,
     pub hour: NaiveTime,
-    pub event_id: String,
+    pub event_id: Uuid,
     pub source: String,
     pub medium: String,
     pub term: String,
@@ -91,7 +93,10 @@ impl NewPageView {
             .values(&self)
             .on_conflict(on_constraint("analytics_page_views_unique"))
             .do_update()
-            .set(analytics_page_views::count.eq(analytics_page_views::count + 1))
+            .set((
+                analytics_page_views::count.eq(analytics_page_views::count + 1),
+                analytics_page_views::updated_at.eq(dsl::now),
+            ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not update/insert page view analytics")
     }

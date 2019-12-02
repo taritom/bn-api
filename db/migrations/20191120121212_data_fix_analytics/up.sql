@@ -1,6 +1,14 @@
 alter table analytics_page_views
 alter column event_id type uuid using event_id::uuid;
 
+alter table analytics_page_views
+add created_at TIMESTAMP not null default now();
+
+alter table analytics_page_views
+add updated_at TIMESTAMP not null default now();
+
+
+
 update analytics_page_views
 set source = 'facebook'
 where url like '%fbclid%';
