@@ -6,23 +6,21 @@ use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
 use db::ReadonlyConnection;
-use db::{Connection, ConnectionRedis, RedisCommands};
+use db::{Connection, ConnectionRedis};
 use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
 use models::*;
+use serde::Serialize;
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
-use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
-use serde::Serialize;
-use config::Config;
 
 #[derive(Deserialize, Clone, Serialize)]
 pub struct SearchParameters {
@@ -245,36 +243,19 @@ pub fn index_cached(
 
     let config = state.config.clone();
     if user.is_none() {
-        return get_cached_value(redis_connection.clone(), config, search_params);
-    }
-    let index_value = index((state, connection, query, auth_user))?;
-    set_cached_value(redis_connection.clone(), &config, &index_value, &search_params)?;
-
-    return Ok(index_value);
-}
-
-fn  set_cached_value<T: Serialize>(redis_connection: ConnectionRedis, config: &Config, http_response: &HttpResponse, query: &T) -> Result<(), BigNeonError>{
-    let mut redis_connection = redis_connection.conn()?;
-    let body = ConnectionRedis::unwrap_body_to_string(http_response);
-    let cache_period = config.cache_period_milli.clone();
-    let query_serialized = serde_json::to_string(query)?;
-    if let Some(body) = body.ok() {
-        if cache_period.is_some() {
-            let payload_json = serde_json::to_string(body.borrow())?;
-            redis_connection.set_cache_value(query_serialized.borrow(), payload_json.borrow());
+        // if there is a error in the cache, the value does not exist
+        match application::get_cached_value(redis_connection.clone(), &config, &search_params) {
+            Ok(result) => {
+                println!("using cached value");
+                return Ok(result)
+            },
+            Err(_) => ()
         }
     }
-    Ok(())
-}
+    let index_value = index((state, connection, query, auth_user))?;
+    application::set_cached_value(redis_connection.clone(), &config, &index_value, &search_params)?;
 
-fn  get_cached_value<T: Serialize>(redis_connection: ConnectionRedis, config: Config, query: T) -> Result<HttpResponse, BigNeonError> {
-    let mut redis_connection = redis_connection.conn()?;
-    let cache_period = config.cache_period_milli.clone();
-    let query_serialized = serde_json::to_string(&query)?;
-    // only look for cached value if a cached_period is giving
-    cache_period
-        .and_then(|period| redis_connection.get_cache_value(query_serialized.borrow(), period as i64))
-        .map(|cached_value| Ok(HttpResponse::Ok().json(&cached_value))).unwrap_or_else(|| Err(ApplicationError::new("could not retrieve value from cache".to_string()).into()))
+    return Ok(index_value);
 }
 
 pub fn index(

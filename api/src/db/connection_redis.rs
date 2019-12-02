@@ -45,7 +45,7 @@ impl RedisCommands for r2d2_redis::r2d2::PooledConnection<RedisConnectionManager
         self.set(key, value)
     }
     fn delete(&mut self, key: &str) {
-        let _ : () = self.del(key.to_string()).unwrap_or_default();
+        let _: () = self.del(key.to_string()).unwrap_or_default();
     }
 
     // start_time: this is measured in Unix time, the time in milliseconds from 1970-01-01
@@ -105,5 +105,25 @@ impl FromRequest<AppState> for ConnectionRedis {
 
         request.extensions_mut().insert(connection.clone());
         Ok(connection.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use r2d2_redis::RedisConnectionManager;
+    use errors::BigNeonError;
+
+    fn create_redis_connection_pool(
+        database_url: &str,
+    ) -> Result<r2d2_redis::r2d2::Pool<RedisConnectionManager>, BigNeonError> {
+        let manager = RedisConnectionManager::new(database_url)?;
+        let pool = r2d2_redis::r2d2::Pool::builder().build(manager)?;
+        Ok(pool)
+    }
+    #[test]
+    fn test_caching() {
+        let conn = create_redis_connection_pool("redis://127.0.0.1/").unwrap();
+        assert_eq!(2 + 2, 4);
     }
 }
