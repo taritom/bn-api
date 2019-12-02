@@ -992,6 +992,48 @@ fn genres() {
 }
 
 #[test]
+fn find_all_ticket_holders_count() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user_with_email = project.create_user().finish();
+    let user_with_no_email = project.create_user().with_no_email().finish();
+    let user_with_no_tel = project.create_user().with_no_phone().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user_with_email)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&user_with_no_email)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&user_with_no_tel)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+
+    let all_ticket_holders =
+        Event::find_all_ticket_holders_count(event.id, connection, TicketHoldersCountType::All).unwrap();
+    let no_email_ticket_holders =
+        Event::find_all_ticket_holders_count(event.id, connection, TicketHoldersCountType::WithEmailAddress).unwrap();
+    let no_tel_ticket_holders =
+        Event::find_all_ticket_holders_count(event.id, connection, TicketHoldersCountType::WithPhoneNumber).unwrap();
+
+    assert_eq!(all_ticket_holders, 3);
+    assert_eq!(no_email_ticket_holders, 2);
+    assert_eq!(no_tel_ticket_holders, 2);
+}
+
+#[test]
 fn pending_transfers() {
     let project = TestProject::new();
     let connection = project.get_connection();
