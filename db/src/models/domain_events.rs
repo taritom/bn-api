@@ -141,7 +141,6 @@ impl DomainEvent {
             DomainEventTypes::TransferTicketStarted
             | DomainEventTypes::TransferTicketCancelled
             | DomainEventTypes::TransferTicketCompleted => {
-                Add recipient email address always
                 // Sender is associated with their main account
                 // Receiver is associated with the v3 UUID of their destination address
                 // Receiver has a temp account made for them in the customer system on TransferTicketStarted
