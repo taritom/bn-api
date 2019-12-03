@@ -379,6 +379,12 @@ impl DomainEvent {
         data.insert("transferer_email".to_string(), json!(transferer.email));
         data.insert("transferer_phone".to_string(), json!(transferer.phone));
 
+        if transfer.transfer_message_type == Some(TransferMessageType::Email) {
+            data.insert("recipient_email".to_string(), json!(transfer.transfer_address));
+        };
+        if transfer.transfer_message_type == Some(TransferMessageType::Phone) {
+            data.insert("recipient_phone".to_string(), json!(transfer.transfer_address));
+        };
         Ok(())
     }
 
