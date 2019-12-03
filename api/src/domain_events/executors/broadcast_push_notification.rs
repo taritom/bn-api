@@ -58,7 +58,9 @@ impl BroadcastPushNotificationExecutor {
                 .into_iter()
                 .map(|u| (u, Vec::new(), None))
                 .collect_vec(),
-            BroadcastAudience::TicketHolders => Event::find_all_ticket_holders(broadcast.event_id, conn)?,
+            BroadcastAudience::TicketHolders => {
+                Event::find_all_ticket_holders(broadcast.event_id, conn, TicketHoldersCountType::WithEmailAddress)?
+            }
         }
         .into_iter()
         .map(|aud| aud.0)
