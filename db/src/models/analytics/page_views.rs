@@ -27,6 +27,7 @@ pub struct PageView {
     pub count: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub referrer: String,
 }
 
 impl PageView {
@@ -44,6 +45,7 @@ impl PageView {
         code: String,
         ip_address: String,
         user_agent: String,
+        referrer: String,
     ) -> NewPageView {
         NewPageView {
             date: date.date(),
@@ -60,6 +62,7 @@ impl PageView {
             code,
             user_agent,
             ip_address,
+            referrer,
             count: 1,
         }
     }
@@ -83,6 +86,7 @@ pub struct NewPageView {
     pub user_agent: String,
     pub ip_address: String,
     pub count: i64,
+    pub referrer: String,
 }
 
 impl NewPageView {

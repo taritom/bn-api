@@ -29,6 +29,8 @@ pub struct PageViewTrackingData {
     code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     client_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    referrer: Option<String>,
 }
 
 pub fn track(
@@ -88,6 +90,7 @@ pub fn track(
         query.code.clone().or(utm_code).unwrap_or("".to_string()),
         ip_address.unwrap_or("".to_string()),
         user_agent.unwrap_or("".to_string()),
+        referrer.unwrap_or("".to_string()),
     )
     .commit(conn)?;
 

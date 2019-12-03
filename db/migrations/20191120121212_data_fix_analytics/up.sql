@@ -7,7 +7,8 @@ add created_at TIMESTAMP not null default now();
 alter table analytics_page_views
 add updated_at TIMESTAMP not null default now();
 
-
+alter table analytics_page_views
+add referrer TEXT not null default '';
 
 update analytics_page_views
 set source = 'facebook'
