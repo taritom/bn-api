@@ -390,7 +390,7 @@ fn is_expired() {
 }
 
 #[test]
-fn set_user_agent() {
+fn set_browser_data() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
@@ -405,35 +405,40 @@ fn set_user_agent() {
     assert!(cart.purchase_user_agent.is_none());
     assert!(cart.platform.is_none());
 
-    cart.set_user_agent(user_agent.clone(), false, connection).unwrap();
+    cart.set_browser_data(user_agent.clone(), false, connection).unwrap();
     let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent.clone(), cart.create_user_agent);
     assert!(cart.purchase_user_agent.is_none());
-    assert!(cart.platform.is_none());
+    assert_eq!(cart.platform, Some(Platforms::Web.to_string()));
 
-    cart.set_user_agent(user_agent2.clone(), false, connection).unwrap();
+    cart.set_browser_data(user_agent2.clone(), false, connection).unwrap();
     let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent2.clone(), cart.create_user_agent);
     assert!(cart.purchase_user_agent.is_none());
-    assert!(cart.platform.is_none());
+    assert_eq!(cart.platform, Some(Platforms::Web.to_string()));
 
-    cart.set_user_agent(user_agent3.clone(), true, connection).unwrap();
+    cart.set_browser_data(user_agent3.clone(), true, connection).unwrap();
     let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent2, cart.create_user_agent);
     assert_eq!(user_agent3, cart.purchase_user_agent);
-    assert!(cart.platform.is_none());
-
-    cart.set_user_agent(user_agent4.clone(), true, connection).unwrap();
-    let mut cart = Order::find(cart.id, connection).unwrap();
-    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
-
-    cart.set_user_agent(user_agent5.clone(), true, connection).unwrap();
-    let mut cart = Order::find(cart.id, connection).unwrap();
-    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
-
-    cart.set_user_agent(user_agent6.clone(), true, connection).unwrap();
-    let cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(cart.platform, Some(Platforms::Web.to_string()));
+
+    cart.set_browser_data(user_agent4.clone(), true, connection).unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
+
+    cart.set_browser_data(user_agent5.clone(), true, connection).unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
+
+    cart.set_browser_data(user_agent6.clone(), true, connection).unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::Web.to_string()));
+
+    cart.update_quantities(user.id, &[], true, false, connection).unwrap();
+    cart.set_browser_data(user_agent6.clone(), true, connection).unwrap();
+    let cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::BoxOffice.to_string()));
 }
 
 #[test]
