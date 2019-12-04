@@ -1,5 +1,6 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
+use bigneon_db::services::CountryLookup;
 use config::{Config, EmailTemplate};
 use customer_io;
 use diesel::PgConnection;
@@ -191,7 +192,6 @@ pub fn customer_io_send_email(
             );
         }
 
-        // parse the venue address if venue
         if let Some(venue_id) = event.venue_id {
             let venue = Venue::find(venue_id, conn)?;
 
@@ -201,7 +201,7 @@ pub fn customer_io_send_email(
             template_data.insert("show_venue_city".to_string(), venue.city.to_string());
 
             // need to convert state to 2 letter abbreviation
-            let venue_state = convert_state(&venue.state).unwrap_or(venue.state.to_string());
+            let venue_state = parse_state((&venue.state).borrow());
             template_data.insert("show_venue_state".to_string(), venue_state);
             template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
         }
@@ -220,83 +220,22 @@ pub fn customer_io_send_email(
     Ok(())
 }
 
-fn convert_state(state: &str) -> Option<String> {
-    let mut cities = HashMap::new();
-    cities.insert("arizona", "AZ");
-    cities.insert("alabama", "AL");
-    cities.insert("alaska", "AK");
-    cities.insert("arkansas", "AR");
-    cities.insert("california", "CA");
-    cities.insert("colorado", "CO");
-    cities.insert("connecticut", "CT");
-    cities.insert("delaware", "DE");
-    cities.insert("florida", "FL");
-    cities.insert("georgia", "GA");
-    cities.insert("hawaii", "HI");
-    cities.insert("idaho", "ID");
-    cities.insert("illinois", "IL");
-    cities.insert("indiana", "IN");
-    cities.insert("iowa", "IA");
-    cities.insert("kansas", "KS");
-    cities.insert("kentucky", "KY");
-    cities.insert("louisiana", "LA");
-    cities.insert("maine", "ME");
-    cities.insert("maryland", "MD");
-    cities.insert("massachusetts", "MA");
-    cities.insert("michigan", "MI");
-    cities.insert("minnesota", "MN");
-    cities.insert("mississippi", "MS");
-    cities.insert("missouri", "MO");
-    cities.insert("montana", "MT");
-    cities.insert("nebraska", "NE");
-    cities.insert("nevada", "NV");
-    cities.insert("new hampshire", "NH");
-    cities.insert("new jersey", "NJ");
-    cities.insert("new mexico", "NM");
-    cities.insert("new york", "NY");
-    cities.insert("north carolina", "NC");
-    cities.insert("north dakota", "ND");
-    cities.insert("ohio", "OH");
-    cities.insert("oklahoma", "OK");
-    cities.insert("oregon", "OR");
-    cities.insert("pennsylvania", "PA");
-    cities.insert("rhode island", "RI");
-    cities.insert("south carolina", "SC");
-    cities.insert("south dakota", "SD");
-    cities.insert("tennessee", "TN");
-    cities.insert("texas", "TX");
-    cities.insert("utah", "UT");
-    cities.insert("vermont", "VT");
-    cities.insert("virginia", "VA");
-    cities.insert("washington", "WA");
-    cities.insert("west virginia", "WV");
-    cities.insert("wisconsin", "WI");
-    cities.insert("wyomin", "WY");
-
-    let mod_state = state.to_lowercase();
-    let mod_state = mod_state.trim();
-    if mod_state.is_empty() {
-        // this should not be empty, should be handled by the caller
-        return None;
-    }
-    if mod_state.len() == 2 {
-        // if only 2 letters is giving, assume that this is the state
-        return Some(mod_state.to_uppercase());
-    }
-    match cities.get(&mod_state.borrow()) {
-        Some(&s) => Some(s.to_string()),
-        _ => None,
-    }
+fn parse_state(state_to_parse: &str) -> String {
+    CountryLookup::new()
+        .ok()
+        .and_then(|c| c.find("US"))
+        .and_then(|countre_dat| countre_dat.convert_state(state_to_parse))
+        .unwrap_or(state_to_parse.to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::convert_state;
+    use super::parse_state;
     #[test]
     fn convert_states_test() {
-        assert_eq!(convert_state(" utah ").unwrap(), "UT");
-        assert_eq!(convert_state(" ut ").unwrap(), "UT");
-        assert_eq!(convert_state(" West Virginia ").unwrap(), "WV");
-        assert_eq!(convert_state("southdakota"), None); // failing misspelled state
+        assert_eq!(parse_state(" utah "), "UT");
+        assert_eq!(parse_state(" ut "), "UT");
+        assert_eq!(parse_state(" West Virginia "), "WV");
+        assert_eq!(parse_state("southdakota"), "southdakota"); // failing misspelled state
     }
 }
