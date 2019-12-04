@@ -212,7 +212,7 @@ impl DomainEventPublisher {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         // Mark domain event published for this publisher
-        diesel::insert_into(domain_event_published::table)
+        let rows_affected = diesel::insert_into(domain_event_published::table)
             .values((
                 domain_event_published::domain_event_publisher_id.eq(self.id),
                 domain_event_published::domain_event_id.eq(domain_event.id),
@@ -220,6 +220,10 @@ impl DomainEventPublisher {
             .on_conflict_do_nothing()
             .execute(conn)
             .to_db_error(ErrorCode::InsertError, "Could not insert domain event published")?;
+
+        if rows_affected == 0 {
+            return Ok(());
+        }
 
         for webhook_payload in domain_event.webhook_payloads(front_end_url, conn)? {
             let mut comms = Communication::new(
