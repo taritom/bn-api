@@ -8,7 +8,6 @@ use errors::*;
 use futures::future::Either;
 use futures::Future;
 use log::Level::Trace;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use tokio::prelude::*;
 use utils::expo;
