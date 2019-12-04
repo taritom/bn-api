@@ -203,6 +203,17 @@ table! {
 }
 
 table! {
+    event_report_subscribers (id) {
+        id -> Uuid,
+        event_id -> Uuid,
+        email -> Text,
+        report_type -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     events (id) {
         id -> Uuid,
         name -> Text,
@@ -830,6 +841,7 @@ joinable!(event_genres -> events (event_id));
 joinable!(event_genres -> genres (genre_id));
 joinable!(event_interest -> events (event_id));
 joinable!(event_interest -> users (user_id));
+joinable!(event_report_subscribers -> events (event_id));
 joinable!(event_users -> events (event_id));
 joinable!(event_users -> users (user_id));
 joinable!(events -> organizations (organization_id));
@@ -904,6 +916,7 @@ allow_tables_to_appear_in_same_query!(
     event_artists,
     event_genres,
     event_interest,
+    event_report_subscribers,
     events,
     event_users,
     external_logins,
