@@ -1,5 +1,6 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
+use bigneon_db::services::CountryLookup;
 use config::{Config, EmailTemplate};
 use customer_io;
 use diesel::PgConnection;
@@ -181,24 +182,39 @@ pub fn customer_io_send_email(
 
     if domain_action.main_table == Some(Tables::Events) && domain_action.main_table_id.is_some() {
         let event = Event::find(domain_action.main_table_id.unwrap(), conn)?;
+        let venue = event.venue(conn)?;
+        let localized_times = event.get_all_localized_times(venue.as_ref());
 
         template_data.insert("show_name".to_string(), json!(event.name.clone()));
 
-        if let Some(start_datetime) = event.event_start {
-            template_data.insert("show_start_date".to_string(), json!(start_datetime.date().to_string()));
-            template_data.insert("show_start_time".to_string(), json!(start_datetime.time().to_string()));
+        if let Some(event_start) = localized_times.event_start {
+            template_data.insert(
+                "show_start_date".to_string(),
+                format!(
+                    "{} {}",
+                    event_start.format("%A,"),
+                    event_start.format("%e %B %Y").to_string().trim()
+                )
+                .to_string(),
+            );
+            template_data.insert(
+                "show_start_time".to_string(),
+                event_start.format("%l:%M %p %Z").to_string().trim().to_string(),
+            );
         }
 
-        // parse the venue address if venue
         if let Some(venue_id) = event.venue_id {
             let venue = Venue::find(venue_id, conn)?;
 
             template_data.insert("show_venue_name".to_string(), json!(venue.name.clone()));
 
-            template_data.insert("show_venue_address".to_string(), json!(venue.address));
-            template_data.insert("show_venue_city".to_string(), json!(venue.city));
-            template_data.insert("show_venue_state".to_string(), json!(venue.state));
-            template_data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
+            template_data.insert("show_venue_address".to_string(), venue.address.to_string());
+            template_data.insert("show_venue_city".to_string(), venue.city.to_string());
+
+            // need to convert state to 2 letter abbreviation
+            let venue_state = parse_state(&venue.state, &venue.country);
+            template_data.insert("show_venue_state".to_string(), venue_state);
+            template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
         }
     }
     // loop dest_email_addresses, each email will be sent different email address
@@ -213,4 +229,31 @@ pub fn customer_io_send_email(
         client.create_anonymous_event(event)?;
     }
     Ok(())
+}
+
+// if Country giving is not US, just return the state, do nothing with it
+// else lookup the state if it is not a abbreviation (2 letters) and return the abbreviation
+fn parse_state(state_to_parse: &str, country: &str) -> String {
+    if country.trim().to_lowercase() == "us" || country.trim().to_lowercase() == "united states" {
+        CountryLookup::new()
+            .ok()
+            .and_then(|c| c.find("US"))
+            .and_then(|country_datum| country_datum.convert_state(state_to_parse))
+            .unwrap_or(state_to_parse.to_string())
+    } else {
+        state_to_parse.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_state;
+    #[test]
+    fn convert_states_test() {
+        assert_eq!(parse_state(" utah ", "US"), "UT");
+        assert_eq!(parse_state(" ut ", "us"), "UT");
+        assert_eq!(parse_state(" West Virginia ", "US"), "WV");
+        assert_eq!(parse_state("southdakota", "US"), "southdakota"); // failing misspelled state
+        assert_eq!(parse_state("Gauteng", "SA"), "Gauteng"); // if country is not US, just return the giving state
+    }
 }
