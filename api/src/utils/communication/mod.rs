@@ -201,7 +201,7 @@ pub fn customer_io_send_email(
             template_data.insert("show_venue_city".to_string(), venue.city.to_string());
 
             // need to convert state to 2 letter abbreviation
-            let venue_state = parse_state((&venue.state).borrow());
+            let venue_state = parse_state(&venue.state, &venue.country);
             template_data.insert("show_venue_state".to_string(), venue_state);
             template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
         }
@@ -220,12 +220,18 @@ pub fn customer_io_send_email(
     Ok(())
 }
 
-fn parse_state(state_to_parse: &str) -> String {
-    CountryLookup::new()
-        .ok()
-        .and_then(|c| c.find("US"))
-        .and_then(|country_datum| country_datum.convert_state(state_to_parse))
-        .unwrap_or(state_to_parse.to_string())
+// if Country giving is not US, just return the state, do nothing with it
+// else lookup the state if it is not a abbreviation (2 letters) and return the abbreviation
+fn parse_state(state_to_parse: &str, country: &str) -> String {
+    if country.trim().to_lowercase() == "us" || country.trim().to_lowercase() == "united states"{
+        CountryLookup::new()
+            .ok()
+            .and_then(|c| c.find("US"))
+            .and_then(|country_datum| country_datum.convert_state(state_to_parse))
+            .unwrap_or(state_to_parse.to_string())
+    } else {
+        state_to_parse.to_string()
+    }
 }
 
 #[cfg(test)]
@@ -233,9 +239,10 @@ mod tests {
     use super::parse_state;
     #[test]
     fn convert_states_test() {
-        assert_eq!(parse_state(" utah "), "UT");
-        assert_eq!(parse_state(" ut "), "UT");
-        assert_eq!(parse_state(" West Virginia "), "WV");
-        assert_eq!(parse_state("southdakota"), "southdakota"); // failing misspelled state
+        assert_eq!(parse_state(" utah ", "US"), "UT");
+        assert_eq!(parse_state(" ut ", "us"), "UT");
+        assert_eq!(parse_state(" West Virginia ", "US"), "WV");
+        assert_eq!(parse_state("southdakota", "US"), "southdakota"); // failing misspelled state
+        assert_eq!(parse_state("Gauteng", "SA"), "Gauteng"); // if country is not US, just return the giving state
     }
 }
