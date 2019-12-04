@@ -224,7 +224,7 @@ fn parse_state(state_to_parse: &str) -> String {
     CountryLookup::new()
         .ok()
         .and_then(|c| c.find("US"))
-        .and_then(|countre_dat| countre_dat.convert_state(state_to_parse))
+        .and_then(|country_datum| country_datum.convert_state(state_to_parse))
         .unwrap_or(state_to_parse.to_string())
 }
 
