@@ -7,7 +7,7 @@ use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
-use log::Level::Info;
+use log::Level::Trace;
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::prelude::*;
@@ -31,7 +31,7 @@ pub fn send_async(
     }
 
     if config.block_external_comms {
-        jlog!(Info, "Blocked communication", { "communication": communication });
+        jlog!(Trace, "Blocked communication", { "communication": communication });
 
         return Either::A(future::ok(()));
     };
@@ -82,7 +82,7 @@ fn send_email_template(
 
     // Short circuit logic if communication template and template is blank
     if template_id == "" {
-        jlog!(Info, "Blocked communication, blank template ID", {
+        jlog!(Trace, "Blocked communication, blank template ID", {
             "communication": communication
         });
         return Box::new(future::ok(()));
@@ -190,16 +190,16 @@ pub fn customer_io_send_email(
         if let Some(event_start) = localized_times.event_start {
             template_data.insert(
                 "show_start_date".to_string(),
-                format!(
+                json!(format!(
                     "{} {}",
                     event_start.format("%A,"),
                     event_start.format("%e %B %Y").to_string().trim()
                 )
-                .to_string(),
+                .to_string(),),
             );
             template_data.insert(
                 "show_start_time".to_string(),
-                event_start.format("%l:%M %p %Z").to_string().trim().to_string(),
+                json!(event_start.format("%l:%M %p %Z").to_string().trim().to_string()),
             );
         }
 
@@ -208,13 +208,13 @@ pub fn customer_io_send_email(
 
             template_data.insert("show_venue_name".to_string(), json!(venue.name.clone()));
 
-            template_data.insert("show_venue_address".to_string(), venue.address.to_string());
-            template_data.insert("show_venue_city".to_string(), venue.city.to_string());
+            template_data.insert("show_venue_address".to_string(), json!(venue.address));
+            template_data.insert("show_venue_city".to_string(), json!(venue.city));
 
             // need to convert state to 2 letter abbreviation
             let venue_state = parse_state(&venue.state, &venue.country);
-            template_data.insert("show_venue_state".to_string(), venue_state);
-            template_data.insert("show_venue_postal_code".to_string(), venue.postal_code.to_string());
+            template_data.insert("show_venue_state".to_string(), json!(venue_state));
+            template_data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
         }
     }
     // loop dest_email_addresses, each email will be sent different email address
