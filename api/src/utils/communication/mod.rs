@@ -223,7 +223,7 @@ pub fn customer_io_send_email(
 // if Country giving is not US, just return the state, do nothing with it
 // else lookup the state if it is not a abbreviation (2 letters) and return the abbreviation
 fn parse_state(state_to_parse: &str, country: &str) -> String {
-    if country.trim().to_lowercase() == "us" || country.trim().to_lowercase() == "united states"{
+    if country.trim().to_lowercase() == "us" || country.trim().to_lowercase() == "united states" {
         CountryLookup::new()
             .ok()
             .and_then(|c| c.find("US"))
