@@ -195,7 +195,7 @@ pub fn customer_io_send_email(
                     event_start.format("%A,"),
                     event_start.format("%e %B %Y").to_string().trim()
                 )
-                .to_string(),),
+                .to_string()),
             );
             template_data.insert(
                 "show_start_time".to_string(),
