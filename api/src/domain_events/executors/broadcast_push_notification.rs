@@ -66,7 +66,8 @@ impl BroadcastPushNotificationExecutor {
         .map(|aud| aud.0)
         .collect_vec();
 
-        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
+        //Set a default sent count of the audience length, this is changed if the broadcast channel is an email
+        let mut set_count = audience.length() as i64;
 
         // if preview email, only send and nothing to the audience
         if broadcast.preview_email != None {
@@ -81,25 +82,39 @@ impl BroadcastPushNotificationExecutor {
             return Ok(());
         }
 
-        for user in audience {
-            match broadcast.channel {
-                BroadcastChannel::PushNotification => {
+        match broadcast.channel {
+            BroadcastChannel::PushNotification => {
+                for user in audience {
                     queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
                 }
-                BroadcastChannel::Email => {
-                    if let Some(email_address) = &user.email {
-                        queue_email_notification(
-                            &broadcast,
-                            conn,
-                            self.template_id.clone(),
-                            message.to_string(),
-                            email_address,
-                            broadcast.preview_email.clone(),
-                        )?
-                    }
+            }
+            BroadcastChannel::Email => {
+                let mut emails: Vec<String> = audience.into_iter().filter_map(|u| u.email).collect();
+                emails.sort();
+                emails.dedup();
+                set_count = emails.length() as i64;
+                for email_address in emails {
+                    queue_email_notification(
+                        &broadcast,
+                        conn,
+                        self.template_id.clone(),
+                        message.to_string(),
+                        email_address.as_str(),
+                        broadcast.preview_email.clone(),
+                    )?
                 }
             }
         }
+
+        Broadcast::set_sent_count(broadcast_id, set_count, conn)?;
+        //        for user in audience {
+        //            match broadcast.channel {
+        //                BroadcastChannel::PushNotification => {
+        //                    queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
+        //                }
+        //                BroadcastChannel::Email => if let Some(email_address) = &user.email {},
+        //            }
+        //        }
 
         Ok(())
     }
