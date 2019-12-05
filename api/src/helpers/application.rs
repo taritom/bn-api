@@ -1,12 +1,14 @@
-use actix_web::{http, http::StatusCode, HttpResponse, Responder};
+use actix_web::{http, http::StatusCode, HttpResponse, Responder, Body::Binary};
 use auth::user::User as AuthUser;
 use errors::*;
 use serde_json::{self, Value};
 use std::collections::HashMap;
 use serde::Serialize;
-use db::{ConnectionRedis, RedisCommands};
 use config::Config;
 use std::borrow::Borrow;
+use cache::{RedisCacheConnection, CacheConnection};
+use std::str;
+use db::CacheDatabase;
 
 pub fn unauthorized<T: Responder>(
     user: Option<AuthUser>,
@@ -59,38 +61,39 @@ pub fn created(json: serde_json::Value) -> Result<HttpResponse, BigNeonError> {
 pub fn redirect(url: &str) -> Result<HttpResponse, BigNeonError> {
     Ok(HttpResponse::Found().header(http::header::LOCATION, url).finish())
 }
-
+pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static str> {
+    match response.body() {
+        Binary(binary) => Ok(str::from_utf8(binary.as_ref()).unwrap()),
+        _ => Err("Unexpected response body"),
+    }
+}
 // Redis cache helper functions
 pub(crate) fn set_cached_value<T: Serialize>(
-    redis_connection: ConnectionRedis,
+    redis_connection: CacheDatabase,
     config: &Config,
     http_response: &HttpResponse,
     query: &T,
 ) -> Result<(), BigNeonError> {
-    let mut redis_connection = redis_connection.conn()?;
-    let body = ConnectionRedis::unwrap_body_to_string(http_response);
+    let body = unwrap_body_to_string(http_response);
     let cache_period = config.cache_period_milli.clone();
     let query_serialized = serde_json::to_string(query)?;
     if let Some(body) = body.ok() {
-        if cache_period.is_some() {
             let payload_json = serde_json::to_string(body.borrow())?;
-            redis_connection.set_cache_value(query_serialized.borrow(), payload_json.borrow());
-        }
+            redis_connection.add(query_serialized.borrow(), payload_json.borrow(), cache_period);
     }
     Ok(())
 }
 
 pub(crate) fn get_cached_value<T: Serialize>(
-    redis_connection: ConnectionRedis,
+    redis_connection: CacheDatabase,
     config: &Config,
     query: T,
-) -> Result<HttpResponse, BigNeonError> {
-    let mut redis_connection = redis_connection.conn()?;
+) -> Option<HttpResponse> {
     let cache_period = config.cache_period_milli.clone();
     let query_serialized = serde_json::to_string(&query)?;
     // only look for cached value if a cached_period is giving
     cache_period
-        .and_then(|period| redis_connection.get_cache_value(query_serialized.borrow(), period as i64))
-        .map(|cached_value| Ok(HttpResponse::Ok().json(&cached_value)))
-        .unwrap_or_else(|| Err(ApplicationError::new("could not retrieve value from cache".to_string()).into()))
+        .and_then(|period| redis_connection.inner) // .get(query_serialized.borrow()).ok())
+        .and_then(|mut conn|conn.get(query_serialized.borrow()).ok())
+        .map(|cached_value| HttpResponse::Ok().json(&cached_value))
 }

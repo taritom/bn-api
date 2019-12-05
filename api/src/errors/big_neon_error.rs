@@ -53,7 +53,6 @@ error_conversion!(chrono::ParseError);
 error_conversion!(std::io::Error);
 error_conversion!(sitemap::Error);
 error_conversion!(reqwest::Error);
-error_conversion!(r2d2_redis::redis::RedisError);
 
 impl fmt::Display for BigNeonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -116,11 +115,3 @@ impl ConvertToWebError for TwilioError {
     }
 }
 
-impl ConvertToWebError for r2d2_redis::redis::RedisError {
-    fn to_response(&self) -> HttpResponse {
-        error!("RedisError error: {}", self);
-        HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .into_builder()
-            .json(json!({"error": self.to_string()}))
-    }
-}

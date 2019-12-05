@@ -5,8 +5,8 @@ use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
-use db::ReadonlyConnection;
-use db::{Connection, ConnectionRedis};
+use db::{ReadonlyConnection, CacheDatabase};
+use db::{Connection};
 use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
 use errors::*;
@@ -232,7 +232,7 @@ pub fn index_cached(
         ReadonlyConnection,
         Query<SearchParameters>,
         OptionalUser,
-        ConnectionRedis,
+        CacheDatabase,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let search_params = query.clone();
@@ -244,16 +244,10 @@ pub fn index_cached(
     let config = state.config.clone();
     if user.is_none() {
         // if there is a error in the cache, the value does not exist
-        match application::get_cached_value(redis_connection.clone(), &config, &search_params) {
-            Ok(result) => {
-                println!("using cached value");
-                return Ok(result)
-            },
-            Err(_) => ()
-        }
+        application::get_cached_value(redis_connection, &config, &search_params).and_then(|f| Ok(f));
     }
     let index_value = index((state, connection, query, auth_user))?;
-    application::set_cached_value(redis_connection.clone(), &config, &index_value, &search_params)?;
+    application::set_cached_value(redis_connection, &config, &index_value, &search_params)?;
 
     return Ok(index_value);
 }
