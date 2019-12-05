@@ -290,7 +290,11 @@ pub fn create_event(
         EventLocationType::CustomAddress => fb_event.address = data.custom_address.clone(),
     }
 
-    fb_event.ticket_uri = Some(format!("{}/tickets/{}", state.config.front_end_url, event.slug(conn)?));
+    fb_event.ticket_uri = Some(format!(
+        "{}/tickets/{}?eventref=fb_oea",
+        state.config.front_end_url,
+        event.slug(conn)?
+    ));
 
     fb_event.admins.push(data.page_id.clone());
 
