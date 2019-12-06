@@ -5,8 +5,8 @@ use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
-use db::{ReadonlyConnection, CacheDatabase};
-use db::{Connection};
+use db::Connection;
+use db::{CacheDatabase, ReadonlyConnection};
 use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
 use errors::*;
@@ -227,7 +227,7 @@ pub fn checkins(
 }
 
 pub fn index_cached(
-    (state, connection, query, auth_user, redis_connection): (
+    (state, connection, query, auth_user, cache_database): (
         State<AppState>,
         ReadonlyConnection,
         Query<SearchParameters>,
@@ -244,10 +244,17 @@ pub fn index_cached(
     let config = state.config.clone();
     if user.is_none() {
         // if there is a error in the cache, the value does not exist
-        application::get_cached_value(redis_connection, &config, &search_params).and_then(|f| Ok(f));
+        let cached_value = cache_database.inner.clone().and_then(|cache_connection| {
+            application::get_cached_value(cache_connection.clone(), &config, &search_params)
+        });
+        if let Some(response) = cached_value {
+            return Ok(response);
+        }
     }
     let index_value = index((state, connection, query, auth_user))?;
-    application::set_cached_value(redis_connection, &config, &index_value, &search_params)?;
+    if let Some(cache_connection) = cache_database.inner.clone() {
+        application::set_cached_value(cache_connection.clone(), &config, &index_value, &search_params)?;
+    }
 
     return Ok(index_value);
 }
