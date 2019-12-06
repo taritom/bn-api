@@ -56,7 +56,7 @@ pub struct Communication {
     pub template_id: Option<String>,
     pub template_data: Option<Vec<TemplateData>>,
     pub categories: Option<Vec<String>>,
-    pub extra_data: Option<HashMap<String, String>>,
+    pub extra_data: Option<HashMap<String, Value>>,
     pub main_table: Option<Tables>,
     pub main_table_id: Option<Uuid>,
 }
@@ -71,7 +71,7 @@ impl Communication {
         template_id: Option<String>,
         template_data: Option<Vec<TemplateData>>,
         categories: Option<Vec<S>>,
-        extra_data: Option<HashMap<String, String>>,
+        extra_data: Option<HashMap<String, Value>>,
     ) -> Communication {
         Communication {
             comm_type,

@@ -326,8 +326,8 @@ fn create_next_transfer_drip_action() {
         .create_next_transfer_drip_action(Environment::Test, connection)
         .unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,
@@ -421,8 +421,8 @@ fn create_next_transfer_drip_action_staging() {
         .create_next_transfer_drip_action(Environment::Staging, connection)
         .unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,
@@ -505,8 +505,8 @@ fn regenerate_drip_actions() {
         .with_event_start(dates::now().add_days(14).finish())
         .finish();
     assert!(DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
         connection,
@@ -516,8 +516,8 @@ fn regenerate_drip_actions() {
 
     event.regenerate_drip_actions(connection).unwrap();
     assert!(!DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
         connection,
@@ -1267,8 +1267,8 @@ fn update_changing_event_start() {
 
     let event = event.publish(None, connection).unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
         connection,
@@ -1289,8 +1289,8 @@ fn update_changing_event_start() {
     // New domain action is added as a result of the start time changes
     assert_eq!(
         DomainAction::find_by_resource(
-            Tables::Events,
-            event.id,
+            Some(Tables::Events),
+            Some(event.id),
             DomainActionTypes::RegenerateDripActions,
             DomainActionStatus::Pending,
             connection,
@@ -1637,8 +1637,8 @@ fn publish() {
 
     assert_eq!(
         DomainAction::find_by_resource(
-            Tables::Events,
-            event.id,
+            Some(Tables::Events),
+            Some(event.id),
             DomainActionTypes::RegenerateDripActions,
             DomainActionStatus::Pending,
             connection,
@@ -1665,8 +1665,8 @@ fn clear_pending_drip_actions() {
         .create_next_transfer_drip_action(Environment::Test, connection)
         .unwrap();
     assert!(!DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,
@@ -1677,8 +1677,8 @@ fn clear_pending_drip_actions() {
     // Method removes it
     event.clear_pending_drip_actions(connection).unwrap();
     assert!(DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,
@@ -1808,8 +1808,8 @@ fn unpublish() {
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
     assert!(!DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,
@@ -1821,8 +1821,8 @@ fn unpublish() {
     assert_eq!(event.status, EventStatus::Draft);
     assert!(event.publish_date.is_none());
     assert!(DomainAction::find_by_resource(
-        Tables::Events,
-        event.id,
+        Some(Tables::Events),
+        Some(event.id),
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
         connection,

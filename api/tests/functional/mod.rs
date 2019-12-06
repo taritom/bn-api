@@ -5,6 +5,7 @@ mod broadcast;
 mod cart;
 mod codes;
 mod comps;
+mod event_report_subscribers;
 mod events;
 mod genres;
 mod holds;
