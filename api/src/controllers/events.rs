@@ -244,17 +244,19 @@ pub fn index_cached(
     let config = state.config.clone();
     if user.is_none() {
         // if there is a error in the cache, the value does not exist
-        let cached_value = cache_database.inner.clone().and_then(|cache_connection| {
-            application::get_cached_value(cache_connection.clone(), &config, &search_params)
-        });
+        let cached_value = cache_database.clone()
+            .inner
+            .and_then(|cache_connection| cache_connection.clone_conn().ok())
+            .and_then(|conn| application::get_cached_value(conn, &config, &search_params));
         if let Some(response) = cached_value {
             return Ok(response);
         }
     }
     let index_value = index((state, connection, query, auth_user))?;
-    if let Some(cache_connection) = cache_database.inner.clone() {
-        application::set_cached_value(cache_connection.clone(), &config, &index_value, &search_params)?;
-    }
+    cache_database
+        .inner
+        .and_then(|cache_connection| cache_connection.clone_conn().ok())
+        .and_then(|conn| application::set_cached_value(conn, &config, &index_value, &search_params).ok());
 
     return Ok(index_value);
 }

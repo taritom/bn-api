@@ -47,9 +47,7 @@ impl Clone for Database {
     fn clone(&self) -> Self {
         Database {
             connection_pool: self.connection_pool.clone(),
-            cache_database: CacheDatabase {
-                inner: self.cache_database.inner.clone(),
-            },
+            cache_database: self.cache_database.clone(),
         }
     }
 }

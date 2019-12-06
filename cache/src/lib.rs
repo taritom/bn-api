@@ -18,14 +18,6 @@ pub struct RedisCacheConnection {
     conn: PooledConnection<RedisConnectionManager>,
 }
 
-impl Clone for RedisCacheConnection {
-    fn clone(&self) -> Self {
-        let pool = self.pool.clone();
-        let conn = pool.get().unwrap();
-        RedisCacheConnection { pool, conn }
-    }
-}
-
 impl RedisCacheConnection {
     pub fn create_connection_pool(database_url: &str) -> anyhow::Result<RedisCacheConnection> {
         let manager = RedisConnectionManager::new(database_url)?;
@@ -35,6 +27,11 @@ impl RedisCacheConnection {
             pool: Arc::from(pool),
             conn,
         })
+    }
+    pub fn clone_conn(&self) -> anyhow::Result<RedisCacheConnection> {
+        let pool = self.pool.clone();
+        let conn = pool.get()?;
+        Ok(RedisCacheConnection { pool, conn })
     }
 }
 
@@ -68,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_caching() {
-        if let Some(mut conn) = RedisCacheConnection::create_connection_pool("redis://127.0.0.1/").ok(){
+        if let Some(mut conn) = RedisCacheConnection::create_connection_pool("redis://127.0.0.1/").ok() {
             // store key for 10 milliseconds
             conn.add("key", "value", Some(10)).unwrap();
             assert_eq!("value", conn.get("key").unwrap());

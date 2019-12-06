@@ -9,7 +9,10 @@ pub struct CacheDatabase {
 impl Clone for CacheDatabase {
     fn clone(&self) -> Self {
         CacheDatabase {
-            inner: self.inner.clone(),
+            inner: match &self.inner{
+                Some(t) => t.clone_conn().ok(),
+                None => None
+            }
         }
     }
 }
@@ -29,4 +32,3 @@ impl FromRequest<AppState> for CacheDatabase {
         Ok(connection)
     }
 }
-
