@@ -7,6 +7,7 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::sql_types::{BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level;
@@ -32,7 +33,7 @@ use validators::*;
 
 #[derive(Associations, Identifiable, Queryable)]
 #[belongs_to(Organization)]
-#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, QueryableByName, Debug)]
 #[belongs_to(Venue)]
 #[table_name = "events"]
 pub struct Event {
@@ -122,6 +123,12 @@ pub struct NewEvent {
     pub extra_admin_data: Option<Value>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_event_id: Option<String>,
+}
+
+pub enum TicketHoldersCountType {
+    All,
+    WithEmailAddress,
+    WithPhoneNumber,
 }
 
 impl NewEvent {
@@ -297,6 +304,70 @@ impl Event {
         events.append(&mut refund_events);
         events.sort_by_key(|e| e.event_end);
         Ok(events)
+    }
+
+    pub fn event_payload_data(
+        event: &Event,
+        data: &mut HashMap<String, serde_json::Value>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let organization = event.organization(conn)?;
+        let venue = event.venue(conn)?;
+        let localized_times = event.get_all_localized_times(venue.as_ref());
+        data.insert("show_id".to_string(), json!(event.id));
+        data.insert("show_event_name".to_string(), json!(event.name.clone()));
+
+        data.insert(
+            "show_start".to_string(),
+            json!(event.event_start.map(|e| e.timestamp())),
+        );
+
+        data.insert("show_end".to_string(), json!(event.event_end.map(|e| e.timestamp())));
+
+        if let Some(event_start) = localized_times.event_start {
+            data.insert(
+                "show_start_date".to_string(),
+                json!(format!(
+                    "{} {}",
+                    event_start.format("%A,"),
+                    event_start.format("%e %B %Y").to_string().trim()
+                )),
+            );
+            data.insert(
+                "show_start_time".to_string(),
+                json!(event_start.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(door_time) = localized_times.door_time {
+            data.insert(
+                "show_doors_open_time".to_string(),
+                json!(door_time.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(event_end) = localized_times.event_end {
+            data.insert(
+                "show_end_time".to_string(),
+                json!(event_end.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+        if let Some(venue) = event.venue(conn)? {
+            data.insert("show_venue_address".to_string(), json!(venue.address));
+            data.insert("show_venue_city".to_string(), json!(venue.city));
+            data.insert("show_venue_state".to_string(), json!(venue.state));
+            data.insert("show_venue_country".to_string(), json!(venue.country));
+            data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
+            data.insert(
+                "show_venue_phone".to_string(),
+                json!(venue.phone.unwrap_or("".to_string())),
+            );
+            data.insert("show_venue_name".to_string(), json!(venue.name));
+            data.insert("show_timezone".to_string(), json!(venue.timezone));
+        }
+        data.insert("organization_id".to_string(), json!(organization.id));
+        data.insert("organization_name".to_string(), json!(organization.name));
+        Ok(())
     }
 
     pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -501,8 +572,8 @@ impl Event {
 
     pub fn clear_pending_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let drip_domain_actions = DomainAction::find_by_resource(
-            Tables::Events,
-            self.id,
+            Some(Tables::Events),
+            Some(self.id),
             DomainActionTypes::ProcessTransferDrip,
             DomainActionStatus::Pending,
             conn,
@@ -956,11 +1027,38 @@ impl Event {
         None
     }
 
+    pub fn find_all_ticket_holders_count(
+        event_id: Uuid,
+        conn: &PgConnection,
+        ticket_holders_type: TicketHoldersCountType,
+    ) -> Result<i64, DatabaseError> {
+        let mut query = events::table
+            .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+            .filter(events::id.eq(event_id))
+            .into_boxed();
+        query = match ticket_holders_type {
+            TicketHoldersCountType::WithEmailAddress => query.filter(users::email.is_not_null()),
+            TicketHoldersCountType::WithPhoneNumber => query.filter(users::phone.is_not_null()),
+            TicketHoldersCountType::All => query,
+        };
+        let count = query
+            .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
+            .select(sql::<sql_types::BigInt>("COALESCE(COUNT(DISTINCT users.id),0)"))
+            .first::<i64>(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load total")?;
+        Ok(count)
+    }
+
     pub fn find_all_ticket_holders(
         event_id: Uuid,
         conn: &PgConnection,
+        ticket_holders_type: TicketHoldersCountType,
     ) -> Result<Vec<(User, Vec<TicketInstance>, Option<Uuid>)>, DatabaseError> {
-        let result: Vec<(TicketInstance, User, Uuid)> = events::table
+        let mut query = events::table
             .inner_join(ticket_types::table.on(events::id.eq(ticket_types::event_id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(ticket_instances::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -969,6 +1067,13 @@ impl Event {
             .inner_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(events::id.eq(event_id))
             .filter(ticket_instances::status.eq_any(&[TicketInstanceStatus::Purchased, TicketInstanceStatus::Redeemed]))
+            .into_boxed();
+        query = match ticket_holders_type {
+            TicketHoldersCountType::WithEmailAddress => query.filter(users::email.is_not_null()),
+            TicketHoldersCountType::WithPhoneNumber => query.filter(users::phone.is_not_null()),
+            TicketHoldersCountType::All => query,
+        };
+        let result: Vec<(TicketInstance, User, Uuid)> = query
             .order_by(users::id)
             .select((ticket_instances::all_columns, users::all_columns, order_items::order_id))
             .load(conn)

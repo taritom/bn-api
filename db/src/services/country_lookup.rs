@@ -1,4 +1,5 @@
 use serde_json;
+use std::borrow::Borrow;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -123,7 +124,25 @@ impl Ord for CountryDatum {
     }
 }
 
+fn compare_str(state: &str, state_compare: &str) -> bool {
+    let mod_state = state_compare.to_lowercase();
+    let mod_state = mod_state.trim();
+    state.to_lowercase() == mod_state
+}
+
 impl CountryDatum {
+    // convert a long US state name to it's 2 letters abbreviations
+    pub fn convert_state(&self, state_compare: &str) -> Option<String> {
+        let found_state = self
+            .province_codes
+            .iter()
+            .find(|&t| compare_str(t.0.borrow(), state_compare));
+        if found_state.is_none() && state_compare.trim().len() == 2 {
+            return Some(state_compare.trim().to_uppercase().to_string());
+        }
+        found_state.map_or(None, |(_key, value)| Some(value.to_owned()))
+    }
+
     pub fn parse_city_state(&self, input: &str) -> Result<Vec<(Option<String>, Option<StateDatum>)>, DatabaseError> {
         let mut potential_city_states = Vec::new();
         let query_fragments: Vec<String> = input

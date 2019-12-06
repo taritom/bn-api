@@ -99,6 +99,8 @@ string_enum! { DomainEventTypes [
     EventDeleted,
     EventInterestCreated,
     EventPublished,
+    EventReportSubscriberCreated,
+    EventReportSubscriberDeleted,
     EventUpdated,
     EventUnpublished,
     ExternalLoginCreated,
@@ -164,6 +166,7 @@ string_enum! { DomainActionTypes [
     ProcessSettlementReport,
     ProcessTransferDrip,
     RegenerateDripActions,
+    SendAutomaticReportEmails,
     SendPurchaseCompletedCommunication,
     SubmitSitemapToSearchEngines,
     UpdateGenres
@@ -190,6 +193,7 @@ string_enum! { PaymentProviders [External, Globee, Free, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Platforms [Web, App, BoxOffice]}
+string_enum! { ReportTypes [TicketCounts]}
 string_enum! { Roles [Admin, DoorPerson, OrgAdmin, OrgBoxOffice, OrgMember, OrgOwner, PrismIntegration, Promoter, PromoterReadOnly, User, Super] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTypes [Rolling, PostEvent]}
@@ -198,8 +202,11 @@ string_enum! { SettlementEntryTypes [EventFees, TicketType]}
 string_enum! { SlugTypes[ Event, Organization, Venue, City ] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
-string_enum! { Tables [Artists, Broadcasts, Codes, DomainEventPublishers, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
-Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users, Venues] }
+string_enum! { Tables [
+    Artists, Broadcasts, Codes, DomainEventPublishers, Events, EventArtists, EventReportSubscribers, ExternalLogins, FeeSchedules,
+    Holds, Orders, Organizations, Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes,
+    TicketPricing, Transfers, Users, Venues
+] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }
