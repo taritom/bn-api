@@ -379,7 +379,14 @@ pub fn update_with_validation_errors() {
     assert!(ticket.clone().update(attrs.clone(), user.id, connection).is_ok());
 
     // Cannot update redeemed ticket
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     assert_eq!(
         ticket.update(attrs.clone(), user.id, connection),
@@ -769,6 +776,7 @@ fn find() {
         transfer_id: None,
         transfer_key: None,
         transfer_address: None,
+        check_in_source: None,
     };
     assert_eq!(
         (display_event, None, expected_ticket),
@@ -838,6 +846,7 @@ fn find_show_no_token() {
         transfer_id: None,
         transfer_key: None,
         transfer_address: None,
+        check_in_source: None,
     };
     let (found_event, found_user, found_ticket) = TicketInstance::find_for_display(ticket.id, connection).unwrap();
     assert_eq!(
@@ -1093,7 +1102,14 @@ fn redeem_ticket() {
     assert_eq!(0, domain_events.len());
 
     // Invalid key, does not redeem or create redeem event
-    let result1 = TicketInstance::redeem_ticket(ticket.id, "WrongKey".to_string(), admin.id, connection).unwrap();
+    let result1 = TicketInstance::redeem_ticket(
+        ticket.id,
+        "WrongKey".to_string(),
+        admin.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(result1, RedeemResults::TicketInvalid);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
@@ -1105,7 +1121,14 @@ fn redeem_ticket() {
     assert_eq!(0, domain_events.len());
 
     // Valid key, redeems and creates redeem event
-    let result2 = TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection).unwrap();
+    let result2 = TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.unwrap(),
+        admin.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
@@ -1115,6 +1138,29 @@ fn redeem_ticket() {
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
+
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_eq!(ticket.check_in_source, Some(CheckInSource::GuestList));
+
+    let result2 = TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.unwrap(),
+        admin.id,
+        CheckInSource::Scanned,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
+    let domain_events = DomainEvent::find(
+        Tables::TicketInstances,
+        Some(ticket2.id),
+        Some(DomainEventTypes::TicketInstanceRedeemed),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+    let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
+    assert_eq!(ticket2.check_in_source, Some(CheckInSource::Scanned));
 
     // Cannot redeem a transferred ticket
     let transfer = TicketInstance::create_transfer(&user, &[ticket2.id], None, None, false, connection).unwrap();

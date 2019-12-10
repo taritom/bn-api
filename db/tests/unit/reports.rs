@@ -323,7 +323,14 @@ fn ticket_count_report() {
 
     // Redeem ticket
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
 
     project
         .create_order()

@@ -4309,7 +4309,14 @@ fn checked_in_users() {
         .finish();
     let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
-    let result2 = TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection).unwrap();
+    let result2 = TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.unwrap(),
+        admin.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let users = Event::checked_in_users(event.id, connection).unwrap();
     assert_eq!(users[0], user);

@@ -41,6 +41,7 @@ pub struct TicketInstance {
     pub redeemed_at: Option<NaiveDateTime>,
     pub first_name_override: Option<String>,
     pub last_name_override: Option<String>,
+    pub check_in_source: Option<CheckInSource>,
 }
 
 #[derive(AsChangeset, Clone, Deserialize, Serialize)]
@@ -195,6 +196,7 @@ impl TicketInstance {
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
                 transfers::transfer_address.nullable(),
+                ticket_instances::check_in_source,
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -295,6 +297,7 @@ impl TicketInstance {
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
                 transfers::transfer_address.nullable(),
+                ticket_instances::check_in_source,
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
@@ -766,6 +769,7 @@ impl TicketInstance {
         ticket_id: Uuid,
         redeem_key: String,
         user_id: Uuid,
+        check_in_source: CheckInSource,
         conn: &PgConnection,
     ) -> Result<RedeemResults, DatabaseError> {
         let ticket: TicketInstance = ticket_instances::table
@@ -783,6 +787,7 @@ impl TicketInstance {
                     ticket_instances::status.eq(TicketInstanceStatus::Redeemed),
                     ticket_instances::redeemed_by_user_id.eq(user_id),
                     ticket_instances::redeemed_at.eq(dsl::now),
+                    ticket_instances::check_in_source.eq(check_in_source),
                     ticket_instances::updated_at.eq(dsl::now),
                 ))
                 .execute(conn)
@@ -1133,6 +1138,7 @@ pub struct DisplayTicket {
     pub transfer_id: Option<Uuid>,
     pub transfer_key: Option<Uuid>,
     pub transfer_address: Option<String>,
+    pub check_in_source: Option<CheckInSource>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -1173,6 +1179,8 @@ pub struct DisplayTicketIntermediary {
     pub transfer_key: Option<Uuid>,
     #[sql_type = "Nullable<Text>"]
     pub transfer_address: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub check_in_source: Option<CheckInSource>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -1214,6 +1222,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             transfer_id: ticket_intermediary.transfer_id,
             transfer_key: ticket_intermediary.transfer_key,
             transfer_address: ticket_intermediary.transfer_address,
+            check_in_source: ticket_intermediary.check_in_source,
         }
     }
 }

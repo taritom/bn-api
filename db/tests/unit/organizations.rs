@@ -1549,7 +1549,14 @@ fn regenerate_interaction_data() {
     assert_eq!(interaction_data.interaction_count, 6);
 
     // Redeem
-    TicketInstance::redeem_ticket(ticket3.id, ticket3.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket3.id,
+        ticket3.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let interaction_data = organization.interaction_data(user.id, connection).unwrap();
     assert_eq!(interaction_data.interaction_count, 7);
 }
@@ -2044,7 +2051,14 @@ fn search_fans() {
     // Redeem ticket causing user last_interaction_time to change
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     let ticket = &order5.tickets(ticket_type.id, connection).unwrap()[0];
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), order_user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        order_user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();
     assert_eq!(order_user_organization_data.interaction_count, 5);
     let search_results = organization
