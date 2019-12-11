@@ -1,7 +1,7 @@
 use log::Level::Debug;
 use logging::jlog;
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use url::{ParseError, Url};
 use uuid::Uuid;
@@ -72,7 +72,7 @@ pub struct Event {
 pub struct EventData {
     pub recipient: Option<String>,
     #[serde(flatten)]
-    pub extra: HashMap<String, String>,
+    pub extra: HashMap<String, Value>,
 }
 
 //#[cfg(test)]

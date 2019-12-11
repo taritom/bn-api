@@ -122,6 +122,10 @@ impl TestDatabase {
         EventInterestBuilder::new(self.connection.get())
     }
 
+    pub fn create_event_report_subscriber(&self) -> EventReportSubscriberBuilder {
+        EventReportSubscriberBuilder::new(self.connection.get())
+    }
+
     pub fn create_stage(&self) -> StageBuilder {
         StageBuilder::new(self.connection.get())
     }

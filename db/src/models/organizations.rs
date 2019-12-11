@@ -256,8 +256,8 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Option<DomainAction>, DatabaseError> {
         Ok(DomainAction::find_by_resource(
-            Tables::Organizations,
-            self.id,
+            Some(Tables::Organizations),
+            Some(self.id),
             DomainActionTypes::ProcessSettlementReport,
             DomainActionStatus::Pending,
             conn,
@@ -283,13 +283,12 @@ impl Organization {
     pub fn first_order_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
-            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
+            .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
             .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .filter(organizations::id.eq(self.id))
-            .select(organizations::created_at)
-            .distinct()
-            .order_by(organizations::created_at.asc())
+            .select(orders::created_at)
+            .order_by(orders::created_at.asc())
+            .limit(1)
             .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading first order date")
     }

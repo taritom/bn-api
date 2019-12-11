@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS index_event_report_subscribers_event_id;
+DROP INDEX IF EXISTS index_event_report_subscribers_email;
+DROP INDEX IF EXISTS index_event_report_subscribers_report_type_event_id_email;
+DROP TABLE IF EXISTS event_report_subscribers;
