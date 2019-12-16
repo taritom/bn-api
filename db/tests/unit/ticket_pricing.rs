@@ -161,7 +161,7 @@ fn associated_with_active_orders() {
     };
     let updated_ticket_pricing = ticket_pricing2.update(update_parameters, None, connection).unwrap();
     assert_eq!(updated_ticket_pricing.id, ticket_pricing2.id);
-    let order = project.create_order().for_tickets(ticket_type2.id).is_paid().finish();
+    project.create_order().for_tickets(ticket_type2.id).is_paid().finish();
     assert!(updated_ticket_pricing
         .associated_with_active_orders(connection)
         .unwrap());
