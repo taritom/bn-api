@@ -1716,6 +1716,8 @@ impl Event {
                 events::name
                     .ilike(query_like.clone())
                     .or(venues::name.ilike(query_like.clone()))
+                    .or(dsl::sql("REGEXP_REPLACE(venues.name, '[^a-zA-Z0-9]+', '', 'g') ILIKE ")
+                        .bind::<Text, _>(query_like.clone()))
                     .or(venues::city.ilike(query_escaped.clone().unwrap_or("%".to_string())))
                     .or(venues::state.ilike(query_escaped.clone().unwrap_or("%".to_string())))
                     .or(venues::country.ilike(query_escaped.clone().unwrap_or("%".to_string())))

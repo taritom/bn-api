@@ -3926,6 +3926,117 @@ fn find_active_for_venue() {
 }
 
 #[test]
+fn find_for_venue() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
+    let venue = project.create_venue().with_name("Venue'1".to_string()).finish();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+
+    let artist1 = project.create_artist().finish();
+    let artist2 = project.create_artist().finish();
+    //create two events
+    let event = project
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event.add_artist(None, artist1.id, project.get_connection()).unwrap();
+    event.add_artist(None, artist2.id, project.get_connection()).unwrap();
+    let event2 = project
+        .create_event()
+        .with_name("Event2".into())
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event2.add_artist(None, artist1.id, project.get_connection()).unwrap();
+
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 2);
+
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue'1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 2);
+
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue 1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 0);
+}
+
+#[test]
 fn organization() {
     let project = TestProject::new();
     let user = project.create_user().finish();
