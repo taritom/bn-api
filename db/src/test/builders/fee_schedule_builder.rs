@@ -21,6 +21,11 @@ impl<'a> FeeScheduleBuilder<'a> {
             self.name,
             vec![
                 NewFeeScheduleRange {
+                    min_price_in_cents: 0,
+                    company_fee_in_cents: 0,
+                    client_fee_in_cents: 0,
+                },
+                NewFeeScheduleRange {
                     min_price_in_cents: 50,
                     company_fee_in_cents: 4,
                     client_fee_in_cents: 6,

@@ -174,8 +174,8 @@ fn create() {
 
     // Settlement report job added during creation
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Organizations,
-        organization.id,
+        Some(Tables::Organizations),
+        Some(organization.id),
         DomainActionTypes::ProcessSettlementReport,
         DomainActionStatus::Pending,
         connection,
@@ -309,8 +309,8 @@ fn schedule_domain_actions() {
     let organization = project.create_organization().finish();
 
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Organizations,
-        organization.id,
+        Some(Tables::Organizations),
+        Some(organization.id),
         DomainActionTypes::ProcessSettlementReport,
         DomainActionStatus::Pending,
         connection,
@@ -321,8 +321,8 @@ fn schedule_domain_actions() {
     // No change since action exists
     organization.schedule_domain_actions(None, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Organizations,
-        organization.id,
+        Some(Tables::Organizations),
+        Some(organization.id),
         DomainActionTypes::ProcessSettlementReport,
         DomainActionStatus::Pending,
         connection,
@@ -333,8 +333,8 @@ fn schedule_domain_actions() {
     // Delete action
     domain_actions[0].set_done(connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Organizations,
-        organization.id,
+        Some(Tables::Organizations),
+        Some(organization.id),
         DomainActionTypes::ProcessSettlementReport,
         DomainActionStatus::Pending,
         connection,
@@ -345,8 +345,8 @@ fn schedule_domain_actions() {
     // Added back as it was no longer there (the job creates the next domain action normally)
     organization.schedule_domain_actions(None, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Organizations,
-        organization.id,
+        Some(Tables::Organizations),
+        Some(organization.id),
         DomainActionTypes::ProcessSettlementReport,
         DomainActionStatus::Pending,
         connection,
@@ -1070,6 +1070,9 @@ pub fn get_scopes_for_user() {
             "event:scan",
             "event:view-guests",
             "event:write",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
             "hold:read",
             "hold:write",
             "note:delete",
@@ -1088,6 +1091,7 @@ pub fn get_scopes_for_user() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
@@ -1130,6 +1134,9 @@ pub fn get_scopes_for_user() {
             "event:scan",
             "event:view-guests",
             "event:write",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
             "hold:read",
             "hold:write",
             "note:delete",
@@ -1147,6 +1154,7 @@ pub fn get_scopes_for_user() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
@@ -1299,6 +1307,9 @@ pub fn get_scopes_for_user() {
             "event:scan",
             "event:view-guests",
             "event:write",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
             "hold:read",
             "hold:write",
             "note:read",
@@ -1351,6 +1362,9 @@ pub fn get_scopes_for_user() {
             "event:scan",
             "event:view-guests",
             "event:write",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
             "hold:read",
             "hold:write",
             "note:delete",
@@ -1369,6 +1383,7 @@ pub fn get_scopes_for_user() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "settlement:read",
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",

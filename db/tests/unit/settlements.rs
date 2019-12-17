@@ -353,6 +353,88 @@ fn create_post_event_entries() {
 }
 
 #[test]
+fn settlement_free_ticket_with_ticket_fee_behavior() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fees()
+        .with_max_additional_fee(1000)
+        .finish();
+    let ticket_type = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type()
+        .with_price(10)
+        .with_additional_fees(1000)
+        .finish()
+        .ticket_types(false, None, connection)
+        .unwrap()
+        .remove(0);
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_discount_in_cents(10)
+        .with_ticket_type_id(ticket_type.id)
+        .finish();
+    let event = Event::find(ticket_type.event_id, connection).unwrap();
+    let mut order = project
+        .create_order()
+        .for_event(&event)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+    let items = order.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    // refund one ticket bringing total of fees down to 9
+    order.refund(&refund_items, user.id, None, connection).unwrap();
+
+    let settlement = Settlement::create(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(2).finish(),
+        SettlementStatus::PendingSettlement,
+        None,
+        false,
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let display_settlement = settlement.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    let event_entries_data = &display_settlement.event_entries[0];
+    let event_entries = &event_entries_data.entries;
+    assert_eq!(event_entries.len(), 1);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::TicketType && e.ticket_type_id == Some(ticket_type.id)
+        })
+        .unwrap();
+    assert_eq!(ticket_type_entry.settlement_id, settlement.id);
+    assert_eq!(ticket_type_entry.event_id, event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 0);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 1000);
+    assert_eq!(ticket_type_entry.online_sold_quantity, 9);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, 9);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+    );
+}
+
+#[test]
 // Note this logic is only needed for a transitional period of time
 // Currently in production we're manually peforming settlement reports so order exist that have been
 // included in a settlement but not marked as such. The logic acts as though the orders prior to the
@@ -423,6 +505,17 @@ fn rolling_to_post_event_settlement_hack_behavior() {
         false,
     )
     .commit(None, connection)
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE settlements
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-3).finish())
+    .bind::<sql_types::Uuid, _>(settlement.id)
+    .execute(connection)
     .unwrap();
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();

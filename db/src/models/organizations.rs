@@ -256,8 +256,8 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Option<DomainAction>, DatabaseError> {
         Ok(DomainAction::find_by_resource(
-            Tables::Organizations,
-            self.id,
+            Some(Tables::Organizations),
+            Some(self.id),
             DomainActionTypes::ProcessSettlementReport,
             DomainActionStatus::Pending,
             conn,
@@ -283,13 +283,12 @@ impl Organization {
     pub fn first_order_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
         organizations::table
             .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
-            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
+            .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
             .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .filter(organizations::id.eq(self.id))
-            .select(organizations::created_at)
-            .distinct()
-            .order_by(organizations::created_at.asc())
+            .select(orders::created_at)
+            .order_by(orders::created_at.asc())
+            .limit(1)
             .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading first order date")
     }
@@ -452,7 +451,7 @@ impl Organization {
             query = query.filter(event_users::id.is_not_null());
         }
 
-        let users = query
+        let mut users = query
             .filter(organization_users::organization_id.eq(self.id))
             .select(organization_users::all_columns)
             .order_by(users::last_name.asc())
@@ -460,14 +459,29 @@ impl Organization {
             .load::<OrganizationUser>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve organization users")?;
 
-        let mut result = vec![];
+        let mut results = vec![];
+
+        // Search scoped to event, limit roles to event based roles
+        if let Some(event_id) = event_id {
+            let event_users = EventUser::find_all_by_event_id(event_id, conn)?;
+            let mut user_map: HashMap<Uuid, Roles> = HashMap::new();
+            for event_user in event_users {
+                user_map.insert(event_user.user_id, event_user.role);
+            }
+
+            for mut u in &mut users {
+                if let Some(role) = user_map.get(&u.user_id) {
+                    u.role = vec![*role];
+                }
+            }
+        }
 
         for u in users {
             let user = User::find(u.user_id, conn)?;
-            result.push((u, user));
+            results.push((u, user));
         }
 
-        Ok(result)
+        Ok(results)
     }
 
     pub fn pending_invites(

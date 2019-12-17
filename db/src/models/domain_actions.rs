@@ -80,19 +80,28 @@ impl DomainAction {
     }
 
     pub fn find_by_resource(
-        main_table: Tables,
-        main_table_id: Uuid,
+        main_table: Option<Tables>,
+        main_table_id: Option<Uuid>,
         domain_action_type: DomainActionTypes,
         domain_action_status: DomainActionStatus,
         conn: &PgConnection,
     ) -> Result<Vec<DomainAction>, DatabaseError> {
         let now = Utc::now().naive_utc();
-        domain_actions::table
+        let mut query = domain_actions::table
             .select(domain_actions::all_columns)
             .filter(domain_actions::status.eq(domain_action_status))
             .filter(domain_actions::domain_action_type.eq(domain_action_type))
-            .filter(domain_actions::main_table.eq(main_table))
-            .filter(domain_actions::main_table_id.eq(main_table_id))
+            .into_boxed();
+
+        if let Some(main_table) = main_table {
+            query = query.filter(domain_actions::main_table.eq(main_table));
+        }
+
+        if let Some(main_table_id) = main_table_id {
+            query = query.filter(domain_actions::main_table_id.eq(main_table_id));
+        }
+
+        query
             .filter(domain_actions::expires_at.gt(now))
             .filter(domain_actions::attempt_count.lt(domain_actions::max_attempt_count))
             .load(conn)

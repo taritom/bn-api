@@ -75,9 +75,10 @@ pub fn callback(
             payment.mark_pending_ipn(user.id(), conn)?;
         }
         application::redirect(&format!(
-            "{}/events/{}/tickets/success",
+            "{}/tickets/{}/tickets/success?order_id={}",
             state.config.front_end_url,
-            order.main_event_id(conn)?
+            order.event_slug(conn)?,
+            order.id
         ))
     } else {
         payment.mark_cancelled(
@@ -87,9 +88,9 @@ pub fn callback(
         )?;
         // order.reset_to_draft(None, conn)?;
         application::redirect(&format!(
-            "{}/events/{}/tickets/confirmation",
+            "{}/tickets/{}/tickets/confirmation",
             state.config.front_end_url,
-            order.main_event_id(conn)?
+            order.event_slug(conn)?
         ))
     }
 }

@@ -38,7 +38,7 @@ where
     fn from_request(req: &HttpRequest<AppState>, cfg: &Self::Config) -> Self::Result {
         let req2 = req.clone();
         Box::new(
-            JsonBody::new(req)
+            JsonBody::new::<()>(req, None)
                 .limit(cfg.limit)
                 .map_err(move |e| json_error(e, &req2))
                 .map(Json),

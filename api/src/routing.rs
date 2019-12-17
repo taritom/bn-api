@@ -69,6 +69,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PATCH).with(comps::update);
         r.method(Method::DELETE).with(comps::destroy);
     })
+    .resource("/event_report_subscribers/{id}", |r| {
+        r.method(Method::DELETE).with(event_report_subscribers::destroy);
+    })
     .resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
@@ -87,6 +90,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/artists", |r| {
         r.method(Method::POST).with(events::add_artist);
         r.method(Method::PUT).with(events::update_artists);
+    })
+    .resource("/events/{id}/ticket_holder_count", |r| {
+        r.method(Method::GET).with(events::ticket_holder_count);
     })
     .resource("/events/{id}/codes", |r| {
         r.method(Method::GET).with(events::codes);
@@ -119,6 +125,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
         r.method(Method::POST).with(events::redeem_ticket);
+    })
+    .resource("/events/{id}/report_subscribers", |r| {
+        r.method(Method::GET).with(event_report_subscribers::index);
+        r.method(Method::POST).with(event_report_subscribers::create);
     })
     .resource("/events/{id}/tickets", |r| {
         r.method(Method::GET).with(tickets::index);

@@ -271,7 +271,7 @@ pub fn create_event(
         .ok_or_else(|| ApplicationError::unprocessable("Cannot publish this event on Facebook without a venue"))?;
     let mut fb_event = FBEvent::new(
         data.category.parse()?,
-        event.name.clone(),
+        data.title.clone(),
         data.description.clone(),
         venue.timezone.to_string(),
         event.promo_image_url.as_ref().map(|u| CoverPhoto::new(u.to_string())),
@@ -290,7 +290,11 @@ pub fn create_event(
         EventLocationType::CustomAddress => fb_event.address = data.custom_address.clone(),
     }
 
-    fb_event.ticket_uri = Some(format!("{}/tickets/{}", state.config.front_end_url, event.slug(conn)?));
+    fb_event.ticket_uri = Some(format!(
+        "{}/tickets/{}?eventref=fb_oea",
+        state.config.front_end_url,
+        event.slug(conn)?
+    ));
 
     fb_event.admins.push(data.page_id.clone());
 
@@ -322,6 +326,7 @@ pub fn create_event(
 pub struct CreateFacebookEvent {
     event_id: Uuid,
     page_id: String,
+    title: String,
     category: String,
     description: String,
     location_type: EventLocationType,

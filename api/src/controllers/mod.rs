@@ -6,6 +6,7 @@ pub mod broadcasts;
 pub mod cart;
 pub mod codes;
 pub mod comps;
+pub mod event_report_subscribers;
 pub mod events;
 pub mod external;
 pub mod genres;

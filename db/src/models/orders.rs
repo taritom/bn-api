@@ -222,6 +222,25 @@ impl Order {
         DatabaseError::no_results("Could not find any event for this order")
     }
 
+    pub fn event_slug(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        let items = self.items(conn)?;
+        let mut event_ids: Vec<Uuid> = items.into_iter().filter_map(|i| i.event_id).collect();
+        event_ids.sort();
+        event_ids.dedup();
+
+        if event_ids.length() > 1 {
+            //Currently we only allow a single event per order, so this should never be more than 1
+            jlog!(Level::Warn, "Found more than 1 event in an order, Orders::event_slug() is at least 1 place that needs to be updated to allow for more than a single event per cart.");
+        }
+
+        if event_ids.length() > 0 {
+            let slug = Event::find(event_ids[0], conn)?.slug(conn)?;
+            return Ok(slug);
+        }
+
+        DatabaseError::no_results("Could not find any event for this order")
+    }
+
     pub fn refund(
         &mut self,
         refund_data: &[RefundItemRequest],

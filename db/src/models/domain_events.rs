@@ -159,7 +159,7 @@ impl DomainEvent {
                     let mut events = transfer.events(conn)?;
                     // TODO: lock down transfers to have only one event
                     if let Some(event) = events.pop() {
-                        DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
+                        Event::event_payload_data(&event, &mut data, conn)?;
                     }
                     let mut recipient_data = data.clone();
                     let mut transferer_data = data;
@@ -201,7 +201,7 @@ impl DomainEvent {
         order: Order,
     ) -> Result<(), DatabaseError> {
         if let Some(event) = order.events(conn)?.pop() {
-            DomainEvent::webhook_payload_event_data(&event, data, conn)?;
+            Event::event_payload_data(&event, data, conn)?;
         }
         data.insert("webhook_event_type".to_string(), json!("purchase_ticket"));
         data.insert("order_number".to_string(), json!(order.order_number()));
@@ -239,9 +239,10 @@ impl DomainEvent {
                 total: item_total,
                 refunded_total,
             });
-            count = count + item.quantity - item.refunded_quantity;
+
             match item.item_type {
                 OrderItemTypes::Tickets => {
+                    count = count + item.quantity - item.refunded_quantity;
                     sub_total = sub_total + item_total;
                     refunded_sub_total = refunded_sub_total + refunded_total;
                 }
@@ -379,70 +380,12 @@ impl DomainEvent {
         data.insert("transferer_email".to_string(), json!(transferer.email));
         data.insert("transferer_phone".to_string(), json!(transferer.phone));
 
-        Ok(())
-    }
-
-    fn webhook_payload_event_data(
-        event: &Event,
-        data: &mut HashMap<String, serde_json::Value>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        let organization = event.organization(conn)?;
-        let venue = event.venue(conn)?;
-        let localized_times = event.get_all_localized_times(venue.as_ref());
-        data.insert("show_id".to_string(), json!(event.id));
-        data.insert("show_event_name".to_string(), json!(event.name.clone()));
-
-        data.insert(
-            "show_start".to_string(),
-            json!(event.event_start.map(|e| e.timestamp())),
-        );
-
-        data.insert("show_end".to_string(), json!(event.event_end.map(|e| e.timestamp())));
-
-        if let Some(event_start) = localized_times.event_start {
-            data.insert(
-                "show_start_date".to_string(),
-                json!(format!(
-                    "{} {}",
-                    event_start.format("%A,"),
-                    event_start.format("%e %B %Y").to_string().trim()
-                )),
-            );
-            data.insert(
-                "show_start_time".to_string(),
-                json!(event_start.format("%l:%M %p %Z").to_string().trim()),
-            );
-        }
-
-        if let Some(door_time) = localized_times.door_time {
-            data.insert(
-                "show_doors_open_time".to_string(),
-                json!(door_time.format("%l:%M %p %Z").to_string().trim()),
-            );
-        }
-
-        if let Some(event_end) = localized_times.event_end {
-            data.insert(
-                "show_end_time".to_string(),
-                json!(event_end.format("%l:%M %p %Z").to_string().trim()),
-            );
-        }
-        if let Some(venue) = event.venue(conn)? {
-            data.insert("show_venue_address".to_string(), json!(venue.address));
-            data.insert("show_venue_city".to_string(), json!(venue.city));
-            data.insert("show_venue_state".to_string(), json!(venue.state));
-            data.insert("show_venue_country".to_string(), json!(venue.country));
-            data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
-            data.insert(
-                "show_venue_phone".to_string(),
-                json!(venue.phone.unwrap_or("".to_string())),
-            );
-            data.insert("show_venue_name".to_string(), json!(venue.name));
-            data.insert("show_timezone".to_string(), json!(venue.timezone));
-        }
-        data.insert("organization_id".to_string(), json!(organization.id));
-        data.insert("organization_name".to_string(), json!(organization.name));
+        if transfer.transfer_message_type == Some(TransferMessageType::Email) {
+            data.insert("recipient_email".to_string(), json!(transfer.transfer_address));
+        };
+        if transfer.transfer_message_type == Some(TransferMessageType::Phone) {
+            data.insert("recipient_phone".to_string(), json!(transfer.transfer_address));
+        };
         Ok(())
     }
 
