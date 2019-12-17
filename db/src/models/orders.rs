@@ -246,12 +246,13 @@ impl Order {
         refund_data: &[RefundItemRequest],
         user_id: Uuid,
         reason: Option<String>,
+        manual_override: bool,
         conn: &PgConnection,
     ) -> Result<(Refund, i64), DatabaseError> {
         self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
 
-        let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
+        let refund = Refund::create(self.id, user_id, reason, manual_override).commit(conn)?;
         let previous_item_refund_counts: HashMap<Uuid, i64> =
             self.items(conn)?.iter().map(|i| (i.id, i.refunded_quantity)).collect();
 
@@ -259,9 +260,7 @@ impl Order {
             let mut order_item = OrderItem::find(refund_datum.order_item_id, conn)?;
             if order_item.item_type == OrderItemTypes::Discount {
                 return DatabaseError::business_process_error("Discount order items can not be refunded");
-            }
-
-            if order_item.order_id != self.id {
+            } else if order_item.order_id != self.id {
                 return DatabaseError::business_process_error("Order item id does not belong to this order");
             }
 

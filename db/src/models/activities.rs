@@ -91,6 +91,7 @@ pub enum ActivityItem {
         refund_items: Vec<RefundActivityItem>,
         reason: Option<String>,
         total_in_cents: i64,
+        manual_override: bool,
         refunded_by: UserActivityItem,
         occurred_at: NaiveDateTime,
     },
@@ -695,6 +696,8 @@ impl ActivityItem {
             total_in_cents: i64,
             #[sql_type = "Nullable<Text>"]
             reason: Option<String>,
+            #[sql_type = "Bool"]
+            manual_override: bool,
             #[sql_type = "dUuid"]
             refunded_by: Uuid,
             #[sql_type = "Timestamp"]
@@ -730,6 +733,7 @@ impl ActivityItem {
                 refunds::order_id,
                 sql("CAST(sum(refund_items.amount) as BigInt)"),
                 refunds::reason,
+                refunds::manual_override,
                 refunds::user_id,
                 refunds::created_at,
             ))
@@ -855,6 +859,7 @@ impl ActivityItem {
                 order_number: Order::parse_order_number(refund_datum.order_id),
                 total_in_cents: refund_datum.total_in_cents,
                 occurred_at: refund_datum.occurred_at,
+                manual_override: refund_datum.manual_override,
                 refund_items,
                 refunded_by,
             });

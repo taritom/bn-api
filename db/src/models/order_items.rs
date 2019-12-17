@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Array, BigInt, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
-use schema::{codes, order_items, ticket_instances, ticket_types};
+use schema::{codes, events, order_items, ticket_instances, ticket_types};
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
@@ -42,6 +42,13 @@ pub struct OrderItem {
 }
 
 impl OrderItem {
+    pub fn event(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        events::table
+            .filter(events::id.nullable().eq(self.event_id))
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load event for order item")
+    }
+
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::parent_id.eq(self.id))

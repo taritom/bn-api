@@ -328,7 +328,7 @@ fn load_for_event() {
     }];
 
     let refund = refunding_order
-        .refund(&refund_items, user.id, None, connection)
+        .refund(&refund_items, user.id, None, false, connection)
         .unwrap();
 
     let mut refunding_order2 = Order::find(
@@ -343,7 +343,7 @@ fn load_for_event() {
         ticket_instance_id: Some(ticket4.id),
     }];
     let refund2 = refunding_order2
-        .refund(&refund_items, user3.id, None, connection)
+        .refund(&refund_items, user3.id, None, false, connection)
         .unwrap();
 
     let mut refunding_order3 = Order::find(
@@ -358,7 +358,7 @@ fn load_for_event() {
         ticket_instance_id: Some(ticket7.id),
     }];
     let refund3 = refunding_order3
-        .refund(&refund_items, user3.id, None, connection)
+        .refund(&refund_items, user3.id, None, false, connection)
         .unwrap();
 
     let note = order
@@ -536,7 +536,7 @@ fn load_for_order() {
     }];
 
     let refund = refunding_order
-        .refund(&refund_items, user.id, None, connection)
+        .refund(&refund_items, user.id, None, false, connection)
         .unwrap();
 
     let note = order
@@ -631,6 +631,7 @@ fn occurred_at() {
         ActivityItem::Refund {
             refund_id: Uuid::new_v4(),
             order_id: Uuid::new_v4(),
+            manual_override: false,
             reason: None,
             refund_items: Vec::new(),
             total_in_cents: 11,
@@ -815,11 +816,13 @@ fn verify_activity_item_data(activity_item: ActivityItem, connection: &PgConnect
             reason,
             total_in_cents,
             refunded_by,
+            manual_override,
             ..
         } => {
             let found_refund = Refund::find(refund_id, connection).unwrap();
             let refund_amount: i64 = found_refund.items(connection).unwrap().iter().map(|r| r.amount).sum();
             assert_eq!(reason, found_refund.reason);
+            assert_eq!(manual_override, found_refund.manual_override);
             assert_eq!(total_in_cents, refund_amount);
 
             let expected_refunded_by: UserActivityItem = User::find(found_refund.user_id, connection).unwrap().into();

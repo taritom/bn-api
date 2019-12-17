@@ -23,6 +23,17 @@ fn slug() {
 }
 
 #[test]
+fn mark_settled() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().finish();
+    assert!(event.settled_at.is_none());
+
+    let event = event.mark_settled(connection).unwrap();
+    assert!(event.settled_at.is_some());
+}
+
+#[test]
 fn get_all_events_with_transactions_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -79,7 +90,7 @@ fn get_all_events_with_transactions_between() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[0].id),
     }];
-    let (refund, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, _) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(6)))
         .execute(connection)
@@ -88,7 +99,7 @@ fn get_all_events_with_transactions_between() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[1].id),
     }];
-    let (refund2, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund2, _) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund2.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(8)))
         .execute(connection)

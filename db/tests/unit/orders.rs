@@ -807,6 +807,7 @@ fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
 
+    let mut redeem_key = "".to_string();
     for user in vec![user.clone(), user2, user3, user] {
         let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
         cart.update_quantities(
@@ -836,12 +837,16 @@ fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
             .find(|i| i.ticket_type_id == Some(ticket_types[0].id))
             .unwrap();
         let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+
+        // Confirm redeem key has changed since last order
+        assert_ne!(tickets[0].redeem_key, Some(redeem_key));
+        redeem_key = tickets[0].redeem_key.clone().unwrap_or("".to_string());
         let refund_items = vec![RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(tickets[0].id),
         }];
 
-        assert!(cart.refund(&refund_items, user.id, None, connection).is_ok());
+        assert!(cart.refund(&refund_items, user.id, None, false, connection).is_ok());
         let ticket = TicketInstance::find(tickets[0].id, connection).unwrap();
         assert!(ticket.order_item_id.is_none());
         let order_item = OrderItem::find_in_order(cart.id, order_item.id, connection).unwrap();
@@ -943,7 +948,9 @@ fn quantity_for_user_for_event() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    last_order.refund(&refund_items, user.id, None, connection).unwrap();
+    last_order
+        .refund(&refund_items, user.id, None, false, connection)
+        .unwrap();
     let ticket_type_quantities = Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
     let mut expected = HashMap::new();
     expected.insert(ticket_type.id, 3);
@@ -2802,7 +2809,7 @@ fn details() {
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart.refund(&refund_items, user.id, None, connection).unwrap();
+    let (_refund, amount) = cart.refund(&refund_items, user.id, None, false, connection).unwrap();
     assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
@@ -2881,7 +2888,7 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(cart.refund(&refund_items, user.id, None, connection).is_err());
+    assert!(cart.refund(&refund_items, user.id, None, false, connection).is_err());
     let order_details = cart.details(&vec![organization.id], user2.id, connection).unwrap();
     assert_eq!(expected_order_details, order_details);
 
@@ -2891,7 +2898,7 @@ fn details() {
         ticket_instance_id: Some(ticket2.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart.refund(&refund_items, user.id, None, connection).unwrap();
+    let (_refund, amount) = cart.refund(&refund_items, user.id, None, false, connection).unwrap();
     assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
@@ -3096,7 +3103,9 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    new_order.refund(&refund_items, user.id, None, connection).unwrap();
+    new_order
+        .refund(&refund_items, user.id, None, false, connection)
+        .unwrap();
 
     let new_order2 = project
         .create_order()
@@ -3275,6 +3284,55 @@ fn details() {
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
     assert_eq!(expected_order_details2, order_details);
+
+    // Mark event as settled tickets from event are refundable still
+    let event = event.mark_settled(connection).unwrap();
+    let expected_order_details2 = vec![
+        OrderDetailsLineItem {
+            ticket_instance_id: Some(ticket2.id),
+            order_item_id: order_item2.id,
+            description: format!("{} - {}", event.name, ticket_type.name),
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
+            status: "Transferred".to_string(),
+            refundable: false,
+            attendee_email: user3.email.clone(),
+            attendee_id: Some(user3.id),
+            attendee_first_name: user3.first_name.clone(),
+            attendee_last_name: user3.last_name.clone(),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+        OrderDetailsLineItem {
+            ticket_instance_id: None,
+            order_item_id: event_fee_item2.id,
+            description: format!("Event Fees - {}", event.name),
+            ticket_price_in_cents: 0,
+            fees_price_in_cents: 250,
+            total_price_in_cents: 250,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: None,
+            ticket_type_name: None,
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+    ];
+    let order_details = new_order2
+        .details(&vec![organization.id], user2.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details2, order_details);
 }
 
 #[test]
@@ -3322,7 +3380,7 @@ fn refund() {
     }];
     assert_eq!(
         DatabaseError::business_process_error("Ticket was transferred so ineligible for refund",),
-        order.refund(&refund_items, user.id, None, connection)
+        order.refund(&refund_items, user.id, None, false, connection)
     );
 
     // Able to be refunded once ticket has been transferred back to the original owner
@@ -3349,7 +3407,7 @@ fn refund() {
     ];
     let refund_amount =
         event_fee_item.unit_price_in_cents + order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (refund, amount) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, amount) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     assert_eq!(amount, refund_amount);
     assert_eq!(refund.user_id, user.id);
     assert_eq!(refund.order_id, order.id);
@@ -3411,7 +3469,7 @@ fn refund() {
     }];
     assert_eq!(
         DatabaseError::business_process_error("Order item id does not belong to this order",),
-        order.refund(&refund_items, user.id, None, connection)
+        order.refund(&refund_items, user.id, None, false, connection)
     );
 
     // Refund succeeds when refunding only ticket fee
@@ -3420,7 +3478,7 @@ fn refund() {
         order_item_id: fee_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    let (refund, amount) = order2.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, amount) = order2.refund(&refund_items, user.id, None, false, connection).unwrap();
     assert_eq!(amount, fee_item.unit_price_in_cents);
     assert_eq!(refund.user_id, user.id);
     assert_eq!(refund.order_id, order2.id);
@@ -3442,7 +3500,7 @@ fn refund() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    let (refund, amount) = order2.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, amount) = order2.refund(&refund_items, user.id, None, false, connection).unwrap();
     assert_eq!(
         amount,
         order_item.unit_price_in_cents + discount_item.unit_price_in_cents
@@ -4569,7 +4627,7 @@ fn for_display() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[0].id),
     }];
-    let (_refund, refund_ticket1_amount) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (_refund, refund_ticket1_amount) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     let display_order = order.for_display(None, user.id, connection).unwrap();
     assert_eq!(order_total, display_order.total_in_cents);
     assert_ne!(display_order.total_refunded_in_cents, display_order.total_in_cents);
@@ -4581,7 +4639,7 @@ fn for_display() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[1].id),
     }];
-    let (_refund, refund_ticket2_amount) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (_refund, refund_ticket2_amount) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     let display_order = order.for_display(None, user.id, connection).unwrap();
     assert_eq!(order_total, display_order.total_in_cents);
     assert_ne!(display_order.total_refunded_in_cents, display_order.total_in_cents);
@@ -4595,7 +4653,7 @@ fn for_display() {
         order_item_id: event_fee_item.id,
         ticket_instance_id: None,
     }];
-    let (_refund, event_fee_refund_amount) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (_refund, event_fee_refund_amount) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     let display_order = order.for_display(None, user.id, connection).unwrap();
     assert_eq!(order_total, display_order.total_in_cents);
     assert_eq!(

@@ -16,14 +16,16 @@ pub struct Refund {
     pub reason: Option<String>,
     #[serde(skip_serializing)]
     pub settlement_id: Option<Uuid>,
+    pub manual_override: bool,
 }
 
 impl Refund {
-    pub fn create(order_id: Uuid, user_id: Uuid, reason: Option<String>) -> NewRefund {
+    pub fn create(order_id: Uuid, user_id: Uuid, reason: Option<String>, manual_override: bool) -> NewRefund {
         NewRefund {
             order_id,
             user_id,
             reason,
+            manual_override,
         }
     }
 
@@ -52,6 +54,7 @@ pub struct NewRefund {
     pub order_id: Uuid,
     pub user_id: Uuid,
     pub reason: Option<String>,
+    pub manual_override: bool,
 }
 
 impl NewRefund {

@@ -319,7 +319,7 @@ fn ticket_count_report() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order.refund(&refund_items, user.id, None, connection).unwrap();
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
 
     // Redeem ticket
     let ticket2 = &tickets[1];

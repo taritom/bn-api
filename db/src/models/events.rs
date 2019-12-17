@@ -70,6 +70,7 @@ pub struct Event {
     pub extra_admin_data: Option<Value>,
     pub slug_id: Option<Uuid>,
     pub facebook_event_id: Option<String>,
+    pub settled_at: Option<NaiveDateTime>,
 }
 
 impl PartialOrd for Event {
@@ -263,6 +264,13 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
+    pub fn mark_settled(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        diesel::update(self)
+            .set((events::settled_at.eq(dsl::now), events::updated_at.eq(dsl::now)))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not mark event as having been settled")
+    }
+
     pub fn get_all_events_with_transactions_between(
         organization_id: Uuid,
         start: NaiveDateTime,
