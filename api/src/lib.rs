@@ -46,7 +46,6 @@ extern crate uuid;
 extern crate validator;
 #[macro_use]
 extern crate validator_derive;
-extern crate core;
 extern crate sitemap;
 
 pub mod auth;
