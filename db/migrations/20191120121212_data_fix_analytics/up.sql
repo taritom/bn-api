@@ -15,26 +15,26 @@ set source = 'facebook'
 where url like '%fbclid%';
 
 update analytics_page_views
-set source = substring(url from 'utm_source=([^&]*)&?')
+set source = coalesce(substring(url from 'utm_source=([^&]*)&?'),'')
 where url like '%utm_source%';
 
 update analytics_page_views
-set medium = substring(url from 'utm_medium=([^&]*)&?')
+set medium = coalesce(substring(url from 'utm_medium=([^&]*)&?'),'')
 where url like '%utm_medium%';
 
 
 update analytics_page_views
-set term = substring(url from 'utm_term=([^&]*)&?')
+set term = coalesce(substring(url from 'utm_term=([^&]*)&?'),'')
 where url like '%utm_term%';
 
 
 update analytics_page_views
-set content = substring(url from 'utm_content=([^&]*)&?')
+set content = coalesce(substring(url from 'utm_content=([^&]*)&?'),'')
 where url like '%utm_content%';
 
 
 update analytics_page_views
-set campaign = substring(url from 'utm_campaign=([^&]*)&?')
+set campaign = coalesce(substring(url from 'utm_campaign=([^&]*)&?'),'')
 where url like '%utm_campaign%';
 
 update analytics_page_views
