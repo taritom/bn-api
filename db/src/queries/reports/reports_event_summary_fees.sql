@@ -1,7 +1,7 @@
 SELECT oi.event_id,
-       oi.ticket_type_id                                                                AS ticket_type_id,
-       tp.name                                                                          AS pricing_name,
-       tt.name                                                                          AS ticket_name,
+       oi.ticket_type_id                                                                         AS ticket_type_id,
+       tp.name                                                                                   AS pricing_name,
+       CASE WHEN tt.status = 'Cancelled' THEN concat(tt.name, ' (Cancelled)') ELSE tt.name END   AS ticket_name,
        CAST(SUM(oi.quantity - oi.refunded_quantity) AS BIGINT)                                                 AS total_sold,
        CAST(
            COALESCE(SUM(oi.quantity - oi.refunded_quantity) FILTER (WHERE h.hold_type = 'Comp'), 0) AS BIGINT) AS comp_count,
@@ -29,4 +29,4 @@ WHERE orders.status = 'Paid'
   AND oi.item_type = 'Tickets'
   AND ($3 IS NULL OR orders.paid_at >= $3)
   AND ($4 IS NULL OR orders.paid_at <= $4)
-GROUP BY oi.event_id, oi.ticket_type_id, tt.name, tp.name, oi.unit_price_in_cents, oi_promo_code.unit_price_in_cents, oi_fees.company_fee_in_cents, oi_fees.client_fee_in_cents;
+GROUP BY oi.event_id, oi.ticket_type_id, tt.name, tt.status, tp.name, oi.unit_price_in_cents, oi_promo_code.unit_price_in_cents, oi_fees.company_fee_in_cents, oi_fees.client_fee_in_cents;

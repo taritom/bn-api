@@ -1,6 +1,6 @@
 SELECT COUNT(*) OVER ()                                                                                   AS total,
        e.name                                                                                             AS event_name,
-       tt.name                                                                                            AS ticket_name,
+       CASE WHEN tt.status = 'Cancelled' THEN concat(tt.name, ' (Cancelled)') ELSE tt.name END            AS ticket_name,
        CAST(oi.quantity AS BIGINT)                                                                        AS quantity,
        CAST(COALESCE(oi.refunded_quantity, 0) AS BIGINT)                                                  AS refunded_quantity,
        CAST(oi.quantity - COALESCE(oi.refunded_quantity, 0) AS BIGINT)                                    AS actual_quantity,
