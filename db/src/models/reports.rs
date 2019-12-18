@@ -201,31 +201,21 @@ pub struct TransactionReportRow {
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub gross: i64,
+    pub face_price_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub company_fee_in_cents: i64,
+    pub face_price_in_cents_total: i64,
+    #[sql_type = "BigInt"]
+    pub gross: i64,
     #[sql_type = "BigInt"]
     pub client_fee_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub gross_fee_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub gross_fee_in_cents_total: i64,
-    #[sql_type = "BigInt"]
-    pub event_fee_company_in_cents: i64,
+    pub client_fee_in_cents_total: i64,
+    #[serde(skip_serializing)]
     #[sql_type = "BigInt"]
     pub event_fee_client_in_cents: i64,
+    #[serde(skip_serializing)]
     #[sql_type = "BigInt"]
-    pub event_fee_gross_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub event_fee_gross_in_cents_total: i64,
-    #[sql_type = "BigInt"]
-    pub credit_card_fee_company_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub credit_card_fee_client_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub credit_card_fee_gross_in_cents: i64,
-    #[sql_type = "BigInt"]
-    pub credit_card_fee_gross_in_cents_total: i64,
+    pub event_fee_client_in_cents_total: i64,
     #[sql_type = "Nullable<dUuid>"]
     pub fee_range_id: Option<Uuid>,
     #[sql_type = "Text"]
