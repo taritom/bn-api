@@ -622,6 +622,10 @@ pub fn redeem_ticket(
                 None => Ok(HttpResponse::BadRequest().json(json!({ "error": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
             }
         }
+        RedeemResults::TicketTransferInProcess => {
+            Ok(HttpResponse::BadRequest()
+                .json(json!({"error": "Ticket has pending transfer in progress.".to_string()})))
+        }
         RedeemResults::TicketAlreadyRedeemed => Ok(HttpResponse::Conflict().json(json!({
         "error": "Ticket has already been redeemed.".to_string(),
         "redeemed_by": redeemable.redeemed_by,
