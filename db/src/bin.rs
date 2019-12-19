@@ -253,6 +253,8 @@ fn create_db_and_user(matches: &ArgMatches) {
     .expect("Failed to create system admin");
     user.add_role(Roles::Admin, &db_connection)
         .expect("Could not assign System Administrator role to the user");
+    user.add_role(Roles::Super, &db_connection)
+        .expect("Could not assign System Administrator role to the user");
 }
 
 fn seed_db(matches: &ArgMatches) {
