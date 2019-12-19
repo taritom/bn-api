@@ -12,6 +12,7 @@ use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
+use jwt::{encode, Header};
 use models::*;
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
@@ -697,10 +698,17 @@ pub struct DashboardParameters {
 pub struct DashboardResult {
     pub event: EventSummaryResult,
     pub day_stats: Vec<DayStats>,
+    pub cube_js_token: String,
 }
 
 pub fn dashboard(
-    (connection, path, query, user): (Connection, Path<PathParameters>, Query<DashboardParameters>, AuthUser),
+    (state, connection, path, query, user): (
+        State<AppState>,
+        Connection,
+        Path<PathParameters>,
+        Query<DashboardParameters>,
+        AuthUser,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
@@ -718,10 +726,35 @@ pub fn dashboard(
 
     let day_stats = event.get_sales_by_date_range(start_utc, end_utc, conn)?;
 
+    let cube_js_token = create_cube_js_token(event.id, &state.config.cube_js.secret)?;
     Ok(HttpResponse::Ok().json(DashboardResult {
         event: summary,
         day_stats,
+        cube_js_token,
     }))
+}
+
+fn create_cube_js_token(event_id: Uuid, cube_js_secret: &str) -> Result<String, BigNeonError> {
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Claims {
+        u: UserData,
+        iat: i64,
+        exp: i64,
+    };
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct UserData {
+        event_id: Uuid,
+    }
+    let claims = Claims {
+        u: UserData { event_id },
+        iat: Utc::now().timestamp(),
+        exp: dates::now().add_days(30).finish().timestamp(),
+    };
+
+    println!("Secret {}", cube_js_secret);
+    let token = encode(&Header::default(), &claims, cube_js_secret.as_ref())?;
+    Ok(token)
 }
 
 #[derive(Deserialize, Debug)]
