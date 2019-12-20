@@ -170,18 +170,20 @@ impl DomainAction {
         if db_blocked.blocked_until > Utc::now().naive_utc() {
             return DatabaseError::concurrency_error("Another process is busy with this action");
         };
-        let result: Result<DomainAction, DatabaseError> = diesel::update(self)
-            .filter(domain_actions::blocked_until.le(timeout))
+        let result: Option<DomainAction> = diesel::update(self)
+            .filter(domain_actions::blocked_until.le(dsl::now))
             .set((
                 domain_actions::blocked_until.eq(timeout),
                 domain_actions::updated_at.eq(dsl::now),
             ))
             .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action");
-        if let Err(i) = result {
-            return Err(i);
-        };
-        return Ok(());
+            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
+            .optional()?;
+
+        match result {
+            Some(_) => Ok(()),
+            None => DatabaseError::concurrency_error("Another process is busy with this action"),
+        }
     }
 
     pub fn set_cancelled(&self, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
