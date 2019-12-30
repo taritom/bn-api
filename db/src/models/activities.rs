@@ -196,6 +196,8 @@ impl ActivityItem {
             order_id: Uuid,
             #[sql_type = "Timestamp"]
             occurred_at: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            paid_at: Option<NaiveDateTime>,
             #[sql_type = "dUuid"]
             purchased_by: Uuid,
             #[sql_type = "dUuid"]
@@ -220,6 +222,7 @@ impl ActivityItem {
         SELECT DISTINCT
             o.id as order_id,
             o.created_at as occurred_at,
+            o.paid_at AS paid_at,
             o.user_id as purchased_by,
             COALESCE(o.on_behalf_of_user_id, o.user_id) as user_id,
             CAST(
