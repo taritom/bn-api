@@ -1516,7 +1516,10 @@ fn regenerate_interaction_data() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket1.id),
     }];
-    order.clone().refund(&refund_items, user.id, None, connection).unwrap();
+    order
+        .clone()
+        .refund(&refund_items, user.id, None, false, connection)
+        .unwrap();
     let interaction_data = organization.interaction_data(user.id, connection).unwrap();
     assert_eq!(interaction_data.interaction_count, 3);
 
@@ -1771,7 +1774,9 @@ fn search_fans() {
             ticket_instance_id: Some(t.id),
         })
         .collect();
-    order.refund(&refund_items, order_user.id, None, connection).unwrap();
+    order
+        .refund(&refund_items, order_user.id, None, false, connection)
+        .unwrap();
     let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
     let order_user_organization_data = organization.interaction_data(order_user.id, connection).unwrap();

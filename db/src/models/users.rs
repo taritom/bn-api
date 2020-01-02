@@ -503,6 +503,8 @@ impl User {
             extra_admin_data: Option<Value>,
             #[sql_type = "dUuid"]
             slug_id: Uuid,
+            #[sql_type = "Nullable<Timestamp>"]
+            settled_at: Option<NaiveDateTime>,
             #[sql_type = "BigInt"]
             total: i64,
             #[sql_type = "Nullable<Text>"]
@@ -593,6 +595,7 @@ impl User {
             facebook_pixel_key: event.facebook_pixel_key,
             deleted_at: event.deleted_at,
             extra_admin_data: event.extra_admin_data,
+            settled_at: event.settled_at,
             slug_id: Some(event.slug_id),
             facebook_event_id: event.facebook_event_id,
         });

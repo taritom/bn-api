@@ -758,6 +758,10 @@ impl TicketInstance {
         Ok(key)
     }
 
+    pub fn has_pending_transfer(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(TransferTicket::pending_transfer(self.id, conn)?.is_some())
+    }
+
     pub fn redeem_ticket(
         ticket_id: Uuid,
         redeem_key: String,
@@ -768,8 +772,9 @@ impl TicketInstance {
             .find(ticket_id)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
-
-        if ticket.status == TicketInstanceStatus::Purchased
+        if ticket.has_pending_transfer(conn)? {
+            return Ok(RedeemResults::TicketTransferInProcess);
+        } else if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
             && ticket.redeem_key.clone().unwrap() == redeem_key
         {
@@ -856,6 +861,7 @@ impl TicketInstance {
         let tickets = TicketInstance::find_for_user(user_id, conn)?;
         let mut ticket_ids_and_updated_at = vec![];
         let mut all_tickets_valid = true;
+        let mut has_redeemed_tickets = false;
         let mut wallet_id = Uuid::nil();
 
         for ti in ticket_ids {
@@ -866,6 +872,9 @@ impl TicketInstance {
                     ticket_ids_and_updated_at.push((*ti, t.updated_at));
                     wallet_id = t.wallet_id;
                     break;
+                } else if t.id == *ti && t.status == TicketInstanceStatus::Redeemed {
+                    has_redeemed_tickets = true;
+                    break;
                 }
             }
             if !found_and_purchased {
@@ -874,11 +883,10 @@ impl TicketInstance {
             }
         }
 
-        if !all_tickets_valid || tickets.len() == 0 {
-            return Err(DatabaseError::new(
-                ErrorCode::BusinessProcessError,
-                Some("User does not own all requested tickets".to_string()),
-            ));
+        if has_redeemed_tickets {
+            return DatabaseError::business_process_error("Redeemed tickets cannot be transferred");
+        } else if !all_tickets_valid || tickets.len() == 0 {
+            return DatabaseError::business_process_error("User does not own all requested tickets");
         }
 
         Ok((wallet_id, ticket_ids_and_updated_at))
@@ -1264,6 +1272,7 @@ pub enum RedeemResults {
     TicketRedeemSuccess,
     TicketAlreadyRedeemed,
     TicketInvalid,
+    TicketTransferInProcess,
 }
 
 fn generate_redeem_key(len: u32) -> String {

@@ -42,6 +42,7 @@ FROM (
                     WHEN ti.status IS NULL THEN 'Purchased'
                     ELSE ti.status
                     END                            AS status,
+                e.settled_at,
                 wallet_owner.email                 AS attendee_email,
                 wallet_owner.id                    AS attendee_id,
                 wallet_owner.first_name            AS attendee_first_name,

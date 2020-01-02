@@ -9,6 +9,7 @@ env: &env
     CUSTOMER_IO_BASE_URL: ""
     CUSTOMER_IO_API_KEY: ""
     CUSTOMER_IO_SITE_ID: ""
+    CUBE_JS_SECRET: ""
     EMAIL_TEMPLATES_TICKET_COUNT_REPORT: "CustomerIo:not-a-real-value"
     EMAIL_TEMPLATES_CUSTOM_BROADCAST: "CustomerIo:not-a-real-value"
     EMAIL_TEMPLATES_ORG_INVITE: "Sendgrid:d-19ea07c6169e4fe887b6527ef16cb1ea"
@@ -315,6 +316,6 @@ services:
 
 ---
 kind: signature
-hmac: 24a4b40f9f0fd21f4aa0e386347553c7f70a802ad68dfb1c7897e29774a1f993
+hmac: fbafc0a4e5a826d164f637f67edb13faf4ae2b349df66eb217ee982b6eaf2989
 
 ...

@@ -398,39 +398,83 @@ mod refund_tests {
 
     #[test]
     fn refund_org_member() {
-        base::orders::refund(Roles::OrgMember, true);
+        base::orders::refund(Roles::OrgMember, false, true);
     }
     #[test]
     fn refund_admin() {
-        base::orders::refund(Roles::Admin, true);
+        base::orders::refund(Roles::Admin, false, true);
+    }
+    #[test]
+    fn refund_super() {
+        base::orders::refund(Roles::Super, false, true);
     }
     #[test]
     fn refund_user() {
-        base::orders::refund(Roles::User, false);
+        base::orders::refund(Roles::User, false, false);
     }
     #[test]
     fn refund_org_owner() {
-        base::orders::refund(Roles::OrgOwner, true);
+        base::orders::refund(Roles::OrgOwner, false, true);
     }
     #[test]
     fn refund_door_person() {
-        base::orders::refund(Roles::DoorPerson, false);
+        base::orders::refund(Roles::DoorPerson, false, false);
     }
     #[test]
     fn refund_promoter() {
-        base::orders::refund(Roles::Promoter, false)
+        base::orders::refund(Roles::Promoter, false, false)
     }
     #[test]
     fn refund_promoter_read_only() {
-        base::orders::refund(Roles::PromoterReadOnly, false);
+        base::orders::refund(Roles::PromoterReadOnly, false, false);
     }
     #[test]
     fn refund_org_admin() {
-        base::orders::refund(Roles::OrgAdmin, true);
+        base::orders::refund(Roles::OrgAdmin, false, true);
     }
     #[test]
     fn refund_box_office() {
-        base::orders::refund(Roles::OrgBoxOffice, false);
+        base::orders::refund(Roles::OrgBoxOffice, false, false);
+    }
+    #[test]
+    fn refund_override_org_member() {
+        base::orders::refund(Roles::OrgMember, true, false);
+    }
+    #[test]
+    fn refund_override_admin() {
+        base::orders::refund(Roles::Admin, true, true);
+    }
+    #[test]
+    fn refund_override_super() {
+        base::orders::refund(Roles::Super, true, true);
+    }
+    #[test]
+    fn refund_override_user() {
+        base::orders::refund(Roles::User, true, false);
+    }
+    #[test]
+    fn refund_override_org_owner() {
+        base::orders::refund(Roles::OrgOwner, true, false);
+    }
+    #[test]
+    fn refund_override_door_person() {
+        base::orders::refund(Roles::DoorPerson, true, false);
+    }
+    #[test]
+    fn refund_override_promoter() {
+        base::orders::refund(Roles::Promoter, true, false)
+    }
+    #[test]
+    fn refund_override_promoter_read_only() {
+        base::orders::refund(Roles::PromoterReadOnly, true, false);
+    }
+    #[test]
+    fn refund_override_org_admin() {
+        base::orders::refund(Roles::OrgAdmin, true, false);
+    }
+    #[test]
+    fn refund_override_box_office() {
+        base::orders::refund(Roles::OrgBoxOffice, true, false);
     }
 }
 
@@ -507,6 +551,7 @@ pub fn refund_for_non_refundable_tickets() {
     let json = Json(RefundAttributes {
         items: refund_items,
         reason: None,
+        manual_override: false,
     });
 
     let test_request = TestRequest::create();
@@ -594,6 +639,7 @@ pub fn refund_hold_ticket() {
     let json = Json(RefundAttributes {
         items: refund_items,
         reason: Some("Purchased by mistake".to_string()),
+        manual_override: false,
     });
 
     let test_request = TestRequest::create();

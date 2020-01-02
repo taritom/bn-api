@@ -16,6 +16,7 @@ use phonenumber::PhoneNumber;
 use server::AppState;
 use std::cmp;
 use std::collections::HashMap;
+use utils::serializers::default_as_false;
 use uuid::Uuid;
 
 pub fn index(
@@ -128,6 +129,8 @@ pub fn details((conn, path, user): (Connection, Path<PathParameters>, User)) -> 
 pub struct RefundAttributes {
     pub items: Vec<RefundItemRequest>,
     pub reason: Option<String>,
+    #[serde(default = "default_as_false")]
+    pub manual_override: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -150,13 +153,14 @@ pub fn refund(
     let connection = conn.get();
     let reason = refund_attributes.reason;
     let items = refund_attributes.items;
+    let manual_override = refund_attributes.manual_override;
     let mut order = Order::find(path.id, connection)?;
 
     if order.status != OrderStatus::Paid {
         return application::internal_server_error("Order must have associated payments to refund order items");
     }
 
-    if !is_authorized_to_refund(&user, connection, &items)? {
+    if !is_authorized_to_refund(&user, connection, &items, manual_override)? {
         let mut details_data = HashMap::new();
         details_data.insert("order_id", json!(path.id));
         details_data.insert("items", json!(items));
@@ -170,7 +174,7 @@ pub fn refund(
         .collect::<Vec<Uuid>>();
 
     // Refund amount is fee inclusive if fee no longer applies to the order
-    let (refund, refund_due) = order.refund(&items, user.id(), reason, connection)?;
+    let (refund, refund_due) = order.refund(&items, user.id(), reason, manual_override, connection)?;
 
     // Transfer tickets back to the organization wallets
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
@@ -275,7 +279,7 @@ pub fn refund(
 
             let amount_to_refund = cmp::min(refund_due - amount_refunded, remaining_balance);
             let mut refund_data = None;
-            if payment.payment_method == PaymentMethods::CreditCard {
+            if !manual_override && payment.payment_method == PaymentMethods::CreditCard {
                 let mut organizations = order.organizations(connection)?;
                 if organizations.len() != 1 {
                     return Err(application::internal_server_error::<HttpResponse>(
@@ -379,6 +383,7 @@ fn is_authorized_to_refund(
     user: &User,
     connection: &PgConnection,
     items: &Vec<RefundItemRequest>,
+    manual_override: bool,
 ) -> Result<bool, BigNeonError> {
     // Find list of organizations related to order item id events for confirming user access
     let order_item_ids: Vec<Uuid> = items.iter().map(|refund_item| refund_item.order_item_id).collect();
@@ -390,7 +395,16 @@ fn is_authorized_to_refund(
     let mut authorized_to_refund_items = !organization_map.is_empty();
     for event in Event::find_by_order_item_ids(&order_item_ids, connection)? {
         if let Some(organization) = organization_map.get(&event.organization_id) {
-            if !user.has_scope_for_organization_event(Scopes::OrderRefund, &organization, event.id, connection)? {
+            if !user.has_scope_for_organization_event(
+                if manual_override {
+                    Scopes::OrderRefundOverride
+                } else {
+                    Scopes::OrderRefund
+                },
+                &organization,
+                event.id,
+                connection,
+            )? {
                 authorized_to_refund_items = false;
                 break;
             }
