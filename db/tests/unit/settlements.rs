@@ -242,7 +242,9 @@ fn create_post_event_entries() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order.refund(&refund_items, user.id, None, connection).unwrap();
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
+    assert!(past_event.settled_at.is_none());
+    assert!(past_event_2.settled_at.is_none());
 
     let settlement = Settlement::create(
         organization.id,
@@ -254,6 +256,10 @@ fn create_post_event_entries() {
     )
     .commit(None, connection)
     .unwrap();
+    let past_event = Event::find(past_event.id, connection).unwrap();
+    assert!(past_event.settled_at.is_none());
+    let past_event_2 = Event::find(past_event_2.id, connection).unwrap();
+    assert!(past_event_2.settled_at.is_none());
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
     assert!(display_settlement.event_entries.is_empty());
@@ -268,6 +274,10 @@ fn create_post_event_entries() {
     )
     .commit(None, connection)
     .unwrap();
+    let past_event = Event::find(past_event.id, connection).unwrap();
+    assert!(past_event.settled_at.is_some());
+    let past_event_2 = Event::find(past_event_2.id, connection).unwrap();
+    assert!(past_event_2.settled_at.is_none());
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
     assert_eq!(display_settlement.event_entries.len(), 1);
@@ -395,7 +405,7 @@ fn settlement_free_ticket_with_ticket_fee_behavior() {
         ticket_instance_id: Some(ticket.id),
     }];
     // refund one ticket bringing total of fees down to 9
-    order.refund(&refund_items, user.id, None, connection).unwrap();
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
 
     let settlement = Settlement::create(
         organization.id,
@@ -456,6 +466,7 @@ fn rolling_to_post_event_settlement_hack_behavior() {
         .with_event_start(dates::now().add_days(-14).finish())
         .with_event_end(dates::now().add_days(-1).finish())
         .finish();
+    assert!(event.settled_at.is_none());
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
 
     // First order is from before the settlement period
@@ -488,7 +499,7 @@ fn rolling_to_post_event_settlement_hack_behavior() {
         ticket_instance_id: Some(ticket.id),
     }];
     let (refund, _) = second_settlement_order
-        .refund(&refund_items, user.id, None, connection)
+        .refund(&refund_items, user.id, None, false, connection)
         .unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
         .set((refunds::created_at.eq(dates::now().add_days(-2).finish()),))
@@ -506,6 +517,8 @@ fn rolling_to_post_event_settlement_hack_behavior() {
     )
     .commit(None, connection)
     .unwrap();
+    let event = Event::find(event.id, connection).unwrap();
+    assert!(event.settled_at.is_none());
     diesel::sql_query(
         r#"
         UPDATE settlements
@@ -568,6 +581,8 @@ fn rolling_to_post_event_settlement_hack_behavior() {
     )
     .commit(None, connection)
     .unwrap();
+    let event = Event::find(event.id, connection).unwrap();
+    assert!(event.settled_at.is_some());
 
     let display_settlement = settlement2.clone().for_display(connection).unwrap();
     assert_eq!(display_settlement.event_entries.len(), 1);
@@ -716,7 +731,7 @@ fn create_rolling_entries() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order.refund(&refund_items, user.id, None, connection).unwrap();
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
 
     project.create_order().for_event(&past_event_2).is_paid().finish();
     project
@@ -772,6 +787,8 @@ fn create_rolling_entries() {
     )
     .commit(None, connection)
     .unwrap();
+    let ending_future_event = Event::find(ending_future_event.id, connection).unwrap();
+    assert!(ending_future_event.settled_at.is_none());
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
     assert_eq!(display_settlement.event_entries.len(), 2);
@@ -916,6 +933,8 @@ fn create_rolling_entries() {
     )
     .commit(None, connection)
     .unwrap();
+    let ending_future_event = Event::find(ending_future_event.id, connection).unwrap();
+    assert!(ending_future_event.settled_at.is_some());
 
     let display_settlement = settlement2.clone().for_display(connection).unwrap();
     assert_eq!(display_settlement.event_entries.len(), 1);
@@ -971,7 +990,7 @@ fn create_rolling_entries() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    let (refund, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, _) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(9)))
         .execute(connection)

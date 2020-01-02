@@ -23,6 +23,17 @@ fn slug() {
 }
 
 #[test]
+fn mark_settled() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().finish();
+    assert!(event.settled_at.is_none());
+
+    let event = event.mark_settled(connection).unwrap();
+    assert!(event.settled_at.is_some());
+}
+
+#[test]
 fn get_all_events_with_transactions_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -79,7 +90,7 @@ fn get_all_events_with_transactions_between() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[0].id),
     }];
-    let (refund, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund, _) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(6)))
         .execute(connection)
@@ -88,7 +99,7 @@ fn get_all_events_with_transactions_between() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(tickets[1].id),
     }];
-    let (refund2, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
+    let (refund2, _) = order.refund(&refund_items, user.id, None, false, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund2.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(8)))
         .execute(connection)
@@ -3912,6 +3923,117 @@ fn find_active_for_venue() {
 
     assert_eq!(found_events.len(), 1);
     assert_eq!(found_events[0].id, event2.id);
+}
+
+#[test]
+fn find_for_venue() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
+    let venue = project.create_venue().with_name("Venue'1".to_string()).finish();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+
+    let artist1 = project.create_artist().finish();
+    let artist2 = project.create_artist().finish();
+    //create two events
+    let event = project
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event.add_artist(None, artist1.id, project.get_connection()).unwrap();
+    event.add_artist(None, artist2.id, project.get_connection()).unwrap();
+    let event2 = project
+        .create_event()
+        .with_name("Event2".into())
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event2.add_artist(None, artist1.id, project.get_connection()).unwrap();
+
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 2);
+
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue'1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 2);
+
+    //find all active events via venue
+    let all_found_events = Event::search(
+        Some("Venue 1".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+
+    assert_eq!(all_found_events.1, 0);
 }
 
 #[test]

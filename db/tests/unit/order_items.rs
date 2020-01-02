@@ -41,6 +41,17 @@ fn find_fee_item() {
 }
 
 #[test]
+fn event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
+    let order = project.create_order().for_event(&event).is_paid().finish();
+    let items = order.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.item_type == OrderItemTypes::Tickets).unwrap();
+    assert_eq!(order_item.event(connection).unwrap(), event);
+}
+
+#[test]
 fn order() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -22,6 +22,61 @@ fn create_commit() {
 }
 
 #[test]
+fn pending_transfer() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut user = project.create_user().finish();
+    user = user.add_role(Roles::Super, connection).unwrap();
+    let user2 = project.create_user().finish();
+    let event = project.create_event().with_tickets().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let user_tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &user_tickets[0];
+    assert!(TransferTicket::pending_transfer(ticket.id, connection)
+        .unwrap()
+        .is_none());
+
+    // With pending transfer
+    let transfer = TicketInstance::create_transfer(&user, &[ticket.id], None, None, false, connection).unwrap();
+    assert_eq!(
+        TransferTicket::pending_transfer(ticket.id, connection).unwrap(),
+        Some(transfer.clone())
+    );
+
+    // With cancelled transfer
+    transfer.cancel(&user, None, connection).unwrap();
+    assert!(TransferTicket::pending_transfer(ticket.id, connection)
+        .unwrap()
+        .is_none());
+
+    // With completed direct transfer
+    TicketInstance::direct_transfer(
+        &user,
+        &[ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert!(TransferTicket::pending_transfer(ticket.id, connection)
+        .unwrap()
+        .is_none());
+
+    // User 2 retransfers
+    let transfer = TicketInstance::create_transfer(&user2, &[ticket.id], None, None, false, connection).unwrap();
+    assert_eq!(
+        TransferTicket::pending_transfer(ticket.id, connection).unwrap(),
+        Some(transfer)
+    );
+}
+
+#[test]
 fn create_commit_with_validation_error() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -274,7 +274,9 @@ pub fn details(role: Roles, should_succeed: bool) {
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart.refund(&refund_items, auth_user.id(), None, connection).unwrap();
+    let (_refund, amount) = cart
+        .refund(&refund_items, auth_user.id(), None, false, connection)
+        .unwrap();
     assert_eq!(amount, refund_amount);
     let ticket_type = ticket.ticket_type(connection).unwrap();
     let ticket_type2 = ticket2.ticket_type(connection).unwrap();
@@ -361,7 +363,7 @@ pub fn details(role: Roles, should_succeed: bool) {
     }
 }
 
-pub fn refund(role: Roles, should_succeed: bool) {
+pub fn refund(role: Roles, manual_override: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let organization = database.create_organization().with_event_fee().with_fees().finish();
@@ -421,6 +423,7 @@ pub fn refund(role: Roles, should_succeed: bool) {
     let json = Json(RefundAttributes {
         items: refund_items,
         reason: None,
+        manual_override,
     });
 
     let test_request = TestRequest::create();

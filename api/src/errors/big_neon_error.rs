@@ -18,6 +18,7 @@ use std::error::Error;
 use std::fmt;
 use tari_client::TariError;
 use twilio::TwilioError;
+use url;
 use uuid::ParseError as UuidParseError;
 
 #[derive(Debug)]
@@ -55,6 +56,7 @@ error_conversion!(chrono::ParseError);
 error_conversion!(std::io::Error);
 error_conversion!(sitemap::Error);
 error_conversion!(reqwest::Error);
+error_conversion!(url::ParseError);
 
 impl fmt::Display for BigNeonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

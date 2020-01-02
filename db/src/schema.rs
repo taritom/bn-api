@@ -3,7 +3,7 @@ table! {
         id -> Uuid,
         date -> Date,
         hour -> Time,
-        event_id -> Text,
+        event_id -> Uuid,
         source -> Text,
         medium -> Text,
         term -> Text,
@@ -16,6 +16,9 @@ table! {
         user_agent -> Text,
         ip_address -> Text,
         count -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        referrer -> Text,
     }
 }
 
@@ -248,6 +251,7 @@ table! {
         extra_admin_data -> Nullable<Jsonb>,
         slug_id -> Nullable<Uuid>,
         facebook_event_id -> Nullable<Text>,
+        settled_at -> Nullable<Timestamp>,
     }
 }
 
@@ -551,6 +555,7 @@ table! {
         updated_at -> Timestamp,
         reason -> Nullable<Text>,
         settlement_id -> Nullable<Uuid>,
+        manual_override -> Bool,
     }
 }
 
