@@ -33,7 +33,7 @@ const get = async function (request_body) {
 };
 
 const stripePk = pm.environment.get('stripePk');
-let requestBody = `email=test%40test.com&validation_type=card&referrer=https%3A%2F%2Fstripe.com%2Fdocs%2Fquickstart&card[number]=4242424242424242&card[exp_month]=12&card[exp_year]=19&card[cvc]=001&card[name]=test%40test.com&key=${stripePk}`;
+let requestBody = `email=test%40test.com&validation_type=card&referrer=https%3A%2F%2Fstripe.com%2Fdocs%2Fquickstart&card[number]=4242424242424242&card[exp_month]=12&card[exp_year]=30&card[cvc]=001&card[name]=test%40test.com&key=${stripePk}`;
 
 
 describe('Do STRIPE form post', function () {
@@ -64,5 +64,3 @@ describe('Do STRIPE form post', function () {
 
 
 });
-
-            
