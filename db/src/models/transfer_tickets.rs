@@ -4,9 +4,7 @@ use diesel::expression::dsl::count;
 use diesel::prelude::*;
 use models::*;
 use schema::{transfer_tickets, transfers};
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
@@ -34,6 +32,20 @@ impl TransferTicket {
             ticket_instance_id,
             transfer_id,
         }
+    }
+
+    pub fn pending_transfer(ticket_instance_id: Uuid, conn: &PgConnection) -> Result<Option<Transfer>, DatabaseError> {
+        transfers::table
+            .inner_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
+            .filter(transfer_tickets::ticket_instance_id.eq(ticket_instance_id))
+            .filter(transfers::status.eq(TransferStatus::Pending))
+            .select(transfers::all_columns)
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load pending transfer for ticket instance",
+            )
+            .optional()
     }
 
     fn validate_no_pending_transfers(
