@@ -1084,12 +1084,13 @@ fn redeem_ticket() {
         .create_order()
         .for_event(&event)
         .for_user(&user)
-        .quantity(2)
+        .quantity(3)
         .is_paid()
         .finish();
     let mut tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = tickets.remove(0);
     let ticket2 = tickets.remove(0);
+    let ticket3 = tickets.remove(0);
 
     // No domain events associated with redeeming for this ticket
     let domain_events = DomainEvent::find(
@@ -1163,14 +1164,27 @@ fn redeem_ticket() {
     assert_eq!(ticket2.check_in_source, Some(CheckInSource::Scanned));
 
     // Cannot redeem a transferred ticket
-    let transfer = TicketInstance::create_transfer(&user, &[ticket2.id], None, None, false, connection).unwrap();
-    let result =
-        TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), admin.id, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(&user, &[ticket3.id], None, None, false, connection).unwrap();
+    let result = TicketInstance::redeem_ticket(
+        ticket3.id,
+        ticket3.redeem_key.clone().unwrap(),
+        admin.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(result, RedeemResults::TicketTransferInProcess);
 
     // Cancel transfer, can redeem
     assert!(transfer.cancel(&user, None, connection).is_ok());
-    let result = TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.unwrap(), admin.id, connection).unwrap();
+    let result = TicketInstance::redeem_ticket(
+        ticket3.id,
+        ticket3.redeem_key.unwrap(),
+        admin.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(result, RedeemResults::TicketRedeemSuccess);
 }
 
@@ -1410,7 +1424,14 @@ fn create_transfer() {
     // Can't transfer a redeemed ticket
     transfer2.cancel(&user, None, connection).unwrap();
     let ticket = tickets.remove(0);
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let result = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection);
     assert_eq!(
         result,
