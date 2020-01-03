@@ -14,12 +14,12 @@ var response;
 var responseBody;
 
 
-const put = async function (request_body) {
+const del = async function (request_body) {
     return baseUrl
-        .put(pm.substitute(apiEndPoint))
+        .delete(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,20 +28,18 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .set('Accept', 'application/json')
         .send();
 };
 
-let requestBody = `{
-	"name": "New broadcast name"
-}`;
+let requestBody = ``;
 
 
-describe('OrgAdmin - Update broadcast', function () {
+describe('OrgAdmin - Cancel broadcast', function () {
     before(async function () {
-        response = await put(requestBody);
+        response = await del(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -63,13 +61,13 @@ describe('OrgAdmin - Update broadcast', function () {
     });
 
 
-    it("Name should have changed", function () {
+    it("ID should equal last_broadcast_id", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.name).to.equal("New broadcast name");
+        expect(json.id).to.equal(pm.environment.get('last_broadcast_id'));
     });
 
 
 });
 
-            
+
