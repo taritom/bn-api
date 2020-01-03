@@ -598,6 +598,7 @@ fn occurred_at() {
             ticket_quantity: 1,
             events: Vec::new(),
             occurred_at: now,
+            paid_at: now,
             purchased_by: user.clone().into(),
             user: user.clone().into(),
             total_in_cents: 10,
