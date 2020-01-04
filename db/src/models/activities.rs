@@ -55,6 +55,7 @@ pub enum ActivityItem {
         total_in_cents: i64,
         events: Vec<EventActivityItem>,
         occurred_at: NaiveDateTime,
+        paid_at: Option<NaiveDateTime>,
         purchased_by: UserActivityItem,
         user: UserActivityItem,
     },
@@ -262,6 +263,7 @@ impl ActivityItem {
                 GROUP BY
                     o.id,
                     o.created_at,
+                    o.paid_at,
                     o.user_id,
                     o.on_behalf_of_user_id,
                     e.id,
@@ -341,6 +343,7 @@ impl ActivityItem {
                     ticket_quantity: order_datum.ticket_quantity,
                     events: vec![event_activity_item],
                     occurred_at: order_datum.occurred_at,
+                    paid_at: order_datum.paid_at,
                     purchased_by: purchased_by.clone(),
                     total_in_cents: order_datum.total_in_cents,
                     user: user.clone(),
