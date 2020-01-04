@@ -7,16 +7,16 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
+const apiEndPoint = '/broadcasts/{{last_broadcast_id}}';
 
 
 var response;
 var responseBody;
 
 
-const post = async function (request_body) {
+const put = async function (request_body) {
     return baseUrl
-        .post(pm.substitute(apiEndPoint))
+        .put(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
         .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
@@ -35,15 +35,13 @@ const get = async function (request_body) {
 };
 
 let requestBody = `{
-	"name": "Last Call For Event",
-    "notification_type": "LastCall",
-    "audience": "PeopleAtTheEvent"
+	"name": "New broadcast name"
 }`;
 
 
-describe('OrgMember - Create broadcast - 401', function () {
+describe('OrgAdmin - Update broadcast', function () {
     before(async function () {
-        response = await post(requestBody);
+        response = await put(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -60,9 +58,16 @@ describe('OrgMember - Create broadcast - 401', function () {
 
     });
 
-    it("should be 401", function () {
-        expect(response.status).to.equal(401);
-    })
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
+    });
+
+
+    it("Name should have changed", function () {
+
+        let json = JSON.parse(responseBody);
+        expect(json.name).to.equal("New broadcast name");
+    });
 
 
 });
