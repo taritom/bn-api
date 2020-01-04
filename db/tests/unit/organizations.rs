@@ -1301,6 +1301,7 @@ pub fn get_scopes_for_user() {
             "comp:read",
             "comp:write",
             "dashboard:read",
+            "event:broadcast",
             "event:cancel",
             "event:delete",
             "event:interest",

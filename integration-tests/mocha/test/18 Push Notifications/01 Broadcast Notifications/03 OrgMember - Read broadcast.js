@@ -7,7 +7,7 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
+const apiEndPoint = '/broadcasts/{{last_broadcast_id}}';
 
 
 var response;
@@ -19,7 +19,7 @@ const post = async function (request_body) {
         .post(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,7 +28,7 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .set('Accept', 'application/json')
         .send();
@@ -37,7 +37,7 @@ const get = async function (request_body) {
 let requestBody = ``;
 
 
-describe('OrgAdmin - List broadcasts', function () {
+describe('OrgAdmin - Read broadcast', function () {
     before(async function () {
         response = await get(requestBody);
         log(response.request.header);
@@ -61,13 +61,13 @@ describe('OrgAdmin - List broadcasts', function () {
     });
 
 
-    it("data length should be 1", function () {
+    it("ID should equal last_broadcast_id", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.data.length).to.equal(1);
+        expect(json.id).to.equal(pm.environment.get('last_broadcast_id'));
     });
 
 
 });
 
-            
+

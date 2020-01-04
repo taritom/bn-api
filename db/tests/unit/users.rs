@@ -2023,6 +2023,7 @@ fn get_scopes_by_organization() {
             Scopes::CompRead,
             Scopes::CompWrite,
             Scopes::DashboardRead,
+            Scopes::EventBroadcast,
             Scopes::EventCancel,
             Scopes::EventDelete,
             Scopes::EventInterest,
