@@ -499,7 +499,7 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Error loading payments")
     }
 
-    pub fn set_user_agent(
+    pub fn set_browser_data(
         &mut self,
         user_agent: Option<String>,
         purchase_completed: bool,
@@ -508,12 +508,14 @@ impl Order {
         self.lock_version(conn)?;
         self.updated_at = Utc::now().naive_utc();
 
-        let mut platform: Option<String> = None;
-        if user_agent.is_some() {
-            platform = Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
-                .map(|p| p.to_string())
-                .ok();
-        }
+        let platform: Option<Platforms> = if self.box_office_pricing {
+            Some(Platforms::BoxOffice)
+        } else if user_agent.is_some() {
+            Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap()).ok()
+        } else {
+            None
+        };
+
         if purchase_completed {
             self.purchase_user_agent = user_agent;
         } else {
@@ -525,7 +527,7 @@ impl Order {
                 .set((
                     orders::purchase_user_agent.eq(self.purchase_user_agent.clone()),
                     orders::create_user_agent.eq(self.create_user_agent.clone()),
-                    orders::platform.eq(platform),
+                    orders::platform.eq(platform.unwrap_or(Platforms::Web)),
                     orders::updated_at.eq(self.updated_at),
                 ))
                 .execute(conn)

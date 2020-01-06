@@ -7,7 +7,7 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/broadcasts/{{last_broadcast_id}}';
+const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
 
 
 var response;
@@ -19,7 +19,7 @@ const post = async function (request_body) {
         .post(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_boxoffice_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,18 +28,22 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_boxoffice_token}}'))
 
         .set('Accept', 'application/json')
         .send();
 };
 
-let requestBody = ``;
+let requestBody = `{
+	"name": "Last Call For Event",
+    "notification_type": "LastCall",
+    "audience": "PeopleAtTheEvent"
+}`;
 
 
-describe('OrgAdmin - Read broadcast', function () {
+describe('OrgMember - Create broadcast - 401', function () {
     before(async function () {
-        response = await get(requestBody);
+        response = await post(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -56,18 +60,11 @@ describe('OrgAdmin - Read broadcast', function () {
 
     });
 
-    it("should be 200", function () {
-        expect(response.status).to.equal(200);
-    });
-
-
-    it("ID should equal last_broadcast_id", function () {
-
-        let json = JSON.parse(responseBody);
-        expect(json.id).to.equal(pm.environment.get('last_broadcast_id'));
-    });
+    it("should be 401", function () {
+        expect(response.status).to.equal(401);
+    })
 
 
 });
 
-            
+
