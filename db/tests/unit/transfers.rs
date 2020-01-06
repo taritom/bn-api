@@ -67,7 +67,14 @@ fn contains_redeemed_tickets() {
     assert!(!transfer.contains_redeemed_tickets(connection).unwrap());
 
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user2.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert!(transfer.contains_redeemed_tickets(connection).unwrap());
 }
 
@@ -1756,7 +1763,14 @@ fn cancel() {
     )
     .unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user2.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let result = transfer.cancel(&user, None, connection);
     assert_eq!(
         result,
