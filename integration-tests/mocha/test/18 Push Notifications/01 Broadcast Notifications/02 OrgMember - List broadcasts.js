@@ -7,19 +7,19 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/broadcasts/{{last_broadcast_id}}';
+const apiEndPoint = '/events/{{last_event_id}}/broadcasts';
 
 
 var response;
 var responseBody;
 
 
-const del = async function (request_body) {
+const post = async function (request_body) {
     return baseUrl
-        .delete(pm.substitute(apiEndPoint))
+        .post(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,7 +28,7 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .set('Accept', 'application/json')
         .send();
@@ -37,9 +37,9 @@ const get = async function (request_body) {
 let requestBody = ``;
 
 
-describe('OrgAdmin - Cancel broadcast', function () {
+describe('OrgAdmin - List broadcasts', function () {
     before(async function () {
-        response = await del(requestBody);
+        response = await get(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -61,13 +61,13 @@ describe('OrgAdmin - Cancel broadcast', function () {
     });
 
 
-    it("ID should equal last_broadcast_id", function () {
+    it("data length should be 1", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.id).to.equal(pm.environment.get('last_broadcast_id'));
+        expect(json.data.length).to.equal(1);
     });
 
 
 });
 
-            
+

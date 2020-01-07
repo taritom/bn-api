@@ -52,6 +52,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
             transfer_id: None,
             transfer_key: None,
             transfer_address: None,
+            check_in_source: None,
         };
 
         let expected_result = ShowTicketResponse {
@@ -116,6 +117,7 @@ pub fn update(role: Roles, owns_ticket: bool, should_test_succeed: bool) {
             transfer_id: None,
             transfer_key: None,
             transfer_address: None,
+            check_in_source: None,
         };
 
         let expected_result = ShowTicketResponse {
@@ -155,6 +157,7 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
     //First try when Redeem code is wrong
     let request_data = TicketRedeemRequest {
         redeem_key: "WrongKey".to_string(),
+        check_in_source: Some(CheckInSource::Scanned),
     };
 
     let response: HttpResponse = events::redeem_ticket((
@@ -171,6 +174,7 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         //Now try with redeem code being correct
         let request_data = TicketRedeemRequest {
             redeem_key: ticket.redeem_key.unwrap(),
+            check_in_source: Some(CheckInSource::Scanned),
         };
 
         let response: HttpResponse = events::redeem_ticket((
@@ -181,6 +185,8 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             request.extract_state(),
         ))
         .into();
+        let ticket = TicketInstance::find(ticket.id, conn).unwrap();
+        assert_eq!(ticket.check_in_source, Some(CheckInSource::Scanned));
 
         assert_eq!(response.status(), StatusCode::OK);
     } else {

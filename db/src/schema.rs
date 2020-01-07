@@ -671,6 +671,7 @@ table! {
         redeemed_at -> Nullable<Timestamp>,
         first_name_override -> Nullable<Text>,
         last_name_override -> Nullable<Text>,
+        check_in_source -> Nullable<Text>,
     }
 }
 
