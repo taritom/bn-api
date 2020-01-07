@@ -578,6 +578,7 @@ pub fn ticket_holder_count(
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TicketRedeemRequest {
     pub redeem_key: String,
+    pub check_in_source: Option<CheckInSource>,
 }
 
 pub fn redeem_ticket(
@@ -600,6 +601,7 @@ pub fn redeem_ticket(
         ticket.id,
         redeem_parameters.redeem_key.clone(),
         auth_user.id(),
+        redeem_parameters.check_in_source.unwrap_or(CheckInSource::GuestList),
         connection,
     )?;
 

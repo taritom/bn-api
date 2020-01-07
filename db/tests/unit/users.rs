@@ -981,8 +981,22 @@ fn get_profile_for_organization() {
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(
         user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
@@ -1020,7 +1034,14 @@ fn get_profile_for_organization() {
     let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
 
     assert_eq!(
         user.get_profile_for_organization(&organization, connection).unwrap(),
@@ -1097,7 +1118,14 @@ fn get_profile_for_organization() {
     .unwrap();
     // Reload ticket for new redeem key as ticket was transferred
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(
         user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
@@ -1158,7 +1186,14 @@ fn get_profile_for_organization() {
         .unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
 
     assert_eq!(
         user.get_profile_for_organization(&organization, connection).unwrap(),
@@ -1247,7 +1282,14 @@ fn get_profile_for_organization() {
     .unwrap();
 
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user5.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user5.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     assert_eq!(
         user4.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
@@ -2023,6 +2065,7 @@ fn get_scopes_by_organization() {
             Scopes::CompRead,
             Scopes::CompWrite,
             Scopes::DashboardRead,
+            Scopes::EventBroadcast,
             Scopes::EventCancel,
             Scopes::EventDelete,
             Scopes::EventInterest,

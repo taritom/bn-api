@@ -85,6 +85,7 @@ string_enum! { ActivityType [Purchase, Transfer, CheckIn,Refund, Note]}
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { BroadcastAudience [ PeopleAtTheEvent, TicketHolders  ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
+string_enum! { CheckInSource [GuestList, Scanned] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push, Webhook]}
 string_enum! { CommunicationType [EmailTemplate, Sms, Push, Webhook]}
