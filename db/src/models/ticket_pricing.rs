@@ -1,12 +1,11 @@
 use chrono::NaiveDateTime;
 use dev::times;
 use diesel;
-use diesel::dsl::{self, select};
+use diesel::dsl::{self, exists, select, sql};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamp, Uuid as dUuid};
-use models::domain_events::DomainEvent;
-use models::{DomainEventTypes, Tables, TicketPricingStatus, TicketType};
-use schema::{order_items, ticket_pricing};
+use models::*;
+use schema::{order_items, orders, ticket_pricing};
 use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
@@ -29,6 +28,7 @@ pub struct TicketPricing {
     pub is_box_office_only: bool,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    pub previous_ticket_pricing_id: Option<Uuid>,
 }
 
 #[derive(AsChangeset, Clone, Default, Deserialize, Serialize)]
@@ -42,6 +42,39 @@ pub struct TicketPricingEditableAttributes {
 }
 
 impl TicketPricing {
+    pub fn associated_with_active_orders(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(
+            order_items::table
+                .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
+                .filter(orders::status.eq(OrderStatus::Paid).or(orders::expires_at.ge(dsl::now)))
+                .filter(
+                    sql("
+                        order_items.ticket_pricing_id in
+                        (WITH RECURSIVE ticket_pricing_r(id) AS (
+                            SELECT tp.*
+                            FROM ticket_pricing AS tp
+                            WHERE tp.id =
+                    ")
+                    .bind::<dUuid, _>(self.id)
+                    .sql(
+                        "
+                        UNION ALL
+                        SELECT tp.*
+                        FROM ticket_pricing_r AS p, ticket_pricing AS tp
+                        WHERE p.previous_ticket_pricing_id = tp.id
+                        )
+                        SELECT id FROM ticket_pricing_r)
+                    ",
+                    ),
+                ),
+        ))
+        .get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not confirm if ticket pricing has associated orders",
+        )
+    }
+
     pub fn create(
         ticket_type_id: Uuid,
         name: String,
@@ -50,6 +83,7 @@ impl TicketPricing {
         price_in_cents: i64,
         is_box_office_only: bool,
         status: Option<TicketPricingStatus>,
+        previous_ticket_pricing_id: Option<Uuid>,
     ) -> NewTicketPricing {
         NewTicketPricing {
             ticket_type_id,
@@ -59,6 +93,7 @@ impl TicketPricing {
             end_date,
             price_in_cents,
             is_box_office_only,
+            previous_ticket_pricing_id,
         }
     }
 
@@ -74,44 +109,60 @@ impl TicketPricing {
         Ok(validation_errors?)
     }
 
+    pub fn has_changes(&self, attributes: &TicketPricingEditableAttributes) -> bool {
+        !((attributes.name.is_none() || Some(self.name.clone()) == attributes.name)
+            && (attributes.price_in_cents.is_none() || Some(self.price_in_cents) == attributes.price_in_cents)
+            && (attributes.start_date.is_none() || Some(self.start_date) == attributes.start_date)
+            && (attributes.end_date.is_none() || Some(self.end_date) == attributes.end_date)
+            && (attributes.is_box_office_only.is_none()
+                || Some(self.is_box_office_only) == attributes.is_box_office_only))
+    }
+
     pub fn update(
         &self,
         attributes: TicketPricingEditableAttributes,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        self.validate_record(&attributes)?;
+        if self.has_changes(&attributes) {
+            self.validate_record(&attributes)?;
+            if self.affected_order_count(conn)? == 0
+                || attributes.price_in_cents.is_none()
+                || attributes.price_in_cents == Some(self.price_in_cents)
+            {
+                // No orders affected or price does not change, update existing record
+                let result = diesel::update(self)
+                    .set((&attributes, ticket_pricing::updated_at.eq(dsl::now)))
+                    .get_result(conn)
+                    .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing");
 
-        if self.affected_order_count(conn)? == 0 || attributes.price_in_cents.is_none() {
-            // No orders affected or price does not change, update existing record
-            let result = diesel::update(self)
-                .set((&attributes, ticket_pricing::updated_at.eq(dsl::now)))
-                .get_result(conn)
-                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing");
-
-            DomainEvent::create(
-                DomainEventTypes::TicketPricingUpdated,
-                format!("Ticketing pricing '{}' updated", self.name),
-                Tables::TicketPricing,
-                Some(self.id),
-                current_user_id,
-                Some(json!(&attributes)),
-            )
-            .commit(conn)?;
-            result
+                DomainEvent::create(
+                    DomainEventTypes::TicketPricingUpdated,
+                    format!("Ticketing pricing '{}' updated", self.name),
+                    Tables::TicketPricing,
+                    Some(self.id),
+                    current_user_id,
+                    Some(json!(&attributes)),
+                )
+                .commit(conn)?;
+                result
+            } else {
+                // Orders affected, create new ticket pricing and delete old
+                let new_ticket_pricing = TicketPricing::create(
+                    self.ticket_type_id,
+                    attributes.name.unwrap_or(self.name.clone()),
+                    attributes.start_date.unwrap_or(self.start_date),
+                    attributes.end_date.unwrap_or(self.end_date),
+                    attributes.price_in_cents.unwrap(),
+                    attributes.is_box_office_only.unwrap_or(self.is_box_office_only),
+                    Some(self.status),
+                    Some(self.id),
+                );
+                self.destroy(current_user_id, conn)?;
+                new_ticket_pricing.commit(current_user_id, conn)
+            }
         } else {
-            // Orders affected, create new ticket pricing and delete old
-            let new_ticket_pricing = TicketPricing::create(
-                self.ticket_type_id,
-                attributes.name.unwrap_or(self.name.clone()),
-                attributes.start_date.unwrap_or(self.start_date),
-                attributes.end_date.unwrap_or(self.end_date),
-                attributes.price_in_cents.unwrap(),
-                attributes.is_box_office_only.unwrap_or(self.is_box_office_only),
-                Some(self.status),
-            );
-            self.destroy(current_user_id, conn)?;
-            new_ticket_pricing.commit(current_user_id, conn)
+            Ok(self.clone())
         }
     }
 
@@ -185,9 +236,10 @@ impl TicketPricing {
         Ok(Ok(()))
     }
 
-    fn affected_order_count(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
+    pub fn affected_order_count(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
         order_items::table
-            .filter(order_items::ticket_pricing_id.eq(self.id))
+            .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
+            .filter(order_items::ticket_pricing_id.eq(Some(self.id)))
             .select(dsl::count(order_items::id))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load order_items")
@@ -335,6 +387,7 @@ pub struct NewTicketPricing {
     is_box_office_only: bool,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    previous_ticket_pricing_id: Option<Uuid>,
 }
 
 impl NewTicketPricing {
