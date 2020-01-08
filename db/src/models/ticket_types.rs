@@ -690,6 +690,7 @@ impl TicketType {
             price_in_cents,
             is_box_office_only,
             status,
+            None,
         )
         .commit(current_user_id, conn)?;
 

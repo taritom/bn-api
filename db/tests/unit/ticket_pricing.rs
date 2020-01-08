@@ -1,9 +1,171 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::{ErrorCode::ValidationError, *};
 use chrono::NaiveDate;
 use diesel;
+use diesel::sql_types;
 use diesel::RunQueryDsl;
+
+#[test]
+fn has_changes() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
+    let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type.id, false, false, connection).unwrap();
+
+    assert!(!ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: None,
+        price_in_cents: None,
+        start_date: None,
+        end_date: None,
+        is_box_office_only: None,
+    }));
+
+    assert!(!ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: Some(ticket_pricing.name.clone()),
+        price_in_cents: Some(ticket_pricing.price_in_cents),
+        start_date: Some(ticket_pricing.start_date),
+        end_date: Some(ticket_pricing.end_date),
+        is_box_office_only: Some(ticket_pricing.is_box_office_only),
+    }));
+
+    assert!(ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: Some("New name".to_string()),
+        price_in_cents: None,
+        start_date: None,
+        end_date: None,
+        is_box_office_only: None,
+    }));
+
+    assert!(ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: None,
+        price_in_cents: Some(111),
+        start_date: None,
+        end_date: None,
+        is_box_office_only: None,
+    }));
+
+    assert!(ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: None,
+        price_in_cents: None,
+        start_date: Some(dates::now().add_days(-1).finish()),
+        end_date: None,
+        is_box_office_only: None,
+    }));
+
+    assert!(ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: None,
+        price_in_cents: None,
+        start_date: None,
+        end_date: Some(dates::now().add_days(11).finish()),
+        is_box_office_only: None,
+    }));
+
+    assert!(ticket_pricing.has_changes(&TicketPricingEditableAttributes {
+        name: None,
+        price_in_cents: None,
+        start_date: None,
+        end_date: None,
+        is_box_office_only: Some(true),
+    }));
+}
+
+#[test]
+fn associated_with_active_orders() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().with_ticket_type_count(2).finish();
+    let ticket_types = &event.ticket_types(true, None, project.get_connection()).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type.id, false, false, connection).unwrap();
+    let ticket_pricing2 = TicketPricing::get_current_ticket_pricing(ticket_type2.id, false, false, connection).unwrap();
+    assert!(!ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert!(!ticket_pricing2.associated_with_active_orders(connection).unwrap());
+    assert_eq!(ticket_pricing.affected_order_count(connection).unwrap(), 0);
+
+    // Unpaid order but in cart, not yet expired
+    let order = project.create_order().for_tickets(ticket_type.id).finish();
+    assert!(ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert_eq!(ticket_pricing.affected_order_count(connection).unwrap(), 1);
+
+    // Expire the order
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET expires_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
+    assert!(!ticket_pricing.associated_with_active_orders(connection).unwrap());
+    // Affected order count does not take into account orders expiring
+    assert_eq!(ticket_pricing.affected_order_count(connection).unwrap(), 1);
+
+    // Update the ticket pricing, both show they are not associated
+    let update_parameters = TicketPricingEditableAttributes {
+        price_in_cents: Some(44),
+        ..Default::default()
+    };
+    let updated_ticket_pricing = ticket_pricing.update(update_parameters, None, connection).unwrap();
+    assert_ne!(updated_ticket_pricing.id, ticket_pricing.id);
+    assert!(!ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert!(!updated_ticket_pricing
+        .associated_with_active_orders(connection)
+        .unwrap());
+    let ticket_pricing = updated_ticket_pricing;
+
+    // Paid order
+    let order = project.create_order().for_tickets(ticket_type.id).is_paid().finish();
+    assert!(ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert_eq!(ticket_pricing.affected_order_count(connection).unwrap(), 1);
+
+    // Expire the order but it's paid so still counts
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET expires_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
+    assert!(ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert_eq!(ticket_pricing.affected_order_count(connection).unwrap(), 1);
+
+    // Update the ticket pricing, both show they are still associated
+    let update_parameters = TicketPricingEditableAttributes {
+        price_in_cents: Some(45),
+        ..Default::default()
+    };
+    let updated_ticket_pricing = ticket_pricing.update(update_parameters, None, connection).unwrap();
+    assert_ne!(updated_ticket_pricing.id, ticket_pricing.id);
+    assert!(ticket_pricing.associated_with_active_orders(connection).unwrap());
+    assert!(updated_ticket_pricing
+        .associated_with_active_orders(connection)
+        .unwrap());
+
+    // Ticket pricing without any previous sales has an update and makes a sale
+    assert!(!ticket_pricing2.associated_with_active_orders(connection).unwrap());
+
+    let update_parameters = TicketPricingEditableAttributes {
+        price_in_cents: Some(45),
+        ..Default::default()
+    };
+    let updated_ticket_pricing = ticket_pricing2.update(update_parameters, None, connection).unwrap();
+    assert_eq!(updated_ticket_pricing.id, ticket_pricing2.id);
+    project.create_order().for_tickets(ticket_type2.id).is_paid().finish();
+    assert!(updated_ticket_pricing
+        .associated_with_active_orders(connection)
+        .unwrap());
+}
 
 #[test]
 fn create() {
@@ -15,13 +177,31 @@ fn create() {
     let sd2 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ed2 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
 
-    let ticket_pricing = TicketPricing::create(ticket_type.id, "Early Bird".to_string(), sd1, ed1, 100, false, None)
-        .commit(None, project.get_connection())
-        .unwrap();
+    let ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        sd1,
+        ed1,
+        100,
+        false,
+        None,
+        None,
+    )
+    .commit(None, project.get_connection())
+    .unwrap();
 
-    let pricing2 = TicketPricing::create(ticket_type.id, "Wormless Bird".to_string(), sd2, ed2, 500, false, None)
-        .commit(None, project.get_connection())
-        .unwrap();
+    let pricing2 = TicketPricing::create(
+        ticket_type.id,
+        "Wormless Bird".to_string(),
+        sd2,
+        ed2,
+        500,
+        false,
+        None,
+        None,
+    )
+    .commit(None, project.get_connection())
+    .unwrap();
 
     let pricing = ticket_type.ticket_pricing(false, project.get_connection()).unwrap();
     assert_eq!(pricing, vec![ticket_pricing, pricing2]);
@@ -46,6 +226,7 @@ fn ticket_pricing_no_overlapping_periods() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, project.get_connection())
     .unwrap();
@@ -58,6 +239,7 @@ fn ticket_pricing_no_overlapping_periods() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, project.get_connection())
     .unwrap();
@@ -69,6 +251,7 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date3,
         100,
         false,
+        None,
         None,
     )
     .commit(None, project.get_connection())
@@ -129,6 +312,7 @@ fn create_with_validation_errors() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, project.get_connection())
     .unwrap();
@@ -140,6 +324,7 @@ fn create_with_validation_errors() {
         end_date2,
         100,
         false,
+        None,
         None,
     );
 
@@ -193,6 +378,7 @@ fn update_with_validation_errors() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, project.get_connection())
     .unwrap();
@@ -203,6 +389,7 @@ fn update_with_validation_errors() {
         end_date2,
         100,
         false,
+        None,
         None,
     )
     .commit(None, project.get_connection())
@@ -260,6 +447,7 @@ fn update() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, connection)
     .unwrap();
@@ -301,6 +489,7 @@ fn update_with_affected_orders() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, connection)
     .unwrap();
@@ -322,6 +511,24 @@ fn update_with_affected_orders() {
     let items = cart.items(&connection).unwrap();
     let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     assert_eq!(order_item.ticket_pricing_id, Some(ticket_pricing.id));
+
+    // Unchanged but passed into update call returns unchanged ticket pricing
+    let update_parameters = TicketPricingEditableAttributes {
+        name: Some(ticket_pricing.name.clone()),
+        price_in_cents: Some(ticket_pricing.price_in_cents),
+        start_date: Some(ticket_pricing.start_date),
+        end_date: Some(ticket_pricing.end_date),
+        is_box_office_only: Some(false),
+    };
+    let updated_ticket_pricing = ticket_pricing.update(update_parameters, None, connection).unwrap();
+    assert_eq!(updated_ticket_pricing.id, ticket_pricing.id);
+    assert_eq!(updated_ticket_pricing.name, ticket_pricing.name);
+    assert_eq!(updated_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
+    assert_eq!(updated_ticket_pricing.start_date, ticket_pricing.start_date);
+    assert_eq!(updated_ticket_pricing.end_date, ticket_pricing.end_date);
+    assert_eq!(updated_ticket_pricing.is_box_office_only, false);
+    assert_eq!(updated_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
+    assert_eq!(updated_ticket_pricing.previous_ticket_pricing_id, None);
 
     //Change editable parameters and submit ticket pricing update request
     let update_name = String::from("updated_event_name");
@@ -345,6 +552,10 @@ fn update_with_affected_orders() {
     assert_eq!(updated_ticket_pricing.end_date, update_end_date);
     assert_eq!(updated_ticket_pricing.is_box_office_only, false);
     assert_eq!(updated_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
+    assert_eq!(
+        updated_ticket_pricing.previous_ticket_pricing_id,
+        Some(ticket_pricing.id)
+    );
 
     // Reloading existing should show nothing has changed but status is now deleted
     let old_ticket_pricing = TicketPricing::find(ticket_pricing.id, connection).unwrap();
@@ -356,6 +567,7 @@ fn update_with_affected_orders() {
     assert_eq!(old_ticket_pricing.is_box_office_only, ticket_pricing.is_box_office_only);
     assert_eq!(old_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
     assert_eq!(old_ticket_pricing.status, TicketPricingStatus::Deleted);
+    assert_eq!(old_ticket_pricing.previous_ticket_pricing_id, None);
 }
 
 #[test]
@@ -374,6 +586,7 @@ fn remove() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, connection)
     .unwrap();
@@ -387,6 +600,7 @@ fn remove() {
         end_date,
         200,
         false,
+        None,
         None,
     )
     .commit(None, connection)
@@ -407,9 +621,18 @@ fn find() {
     let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let sd1 = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed1 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
-    let ticket_pricing = TicketPricing::create(ticket_type.id, "Early Bird".to_string(), sd1, ed1, 100, false, None)
-        .commit(None, project.get_connection())
-        .unwrap();
+    let ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        sd1,
+        ed1,
+        100,
+        false,
+        None,
+        None,
+    )
+    .commit(None, project.get_connection())
+    .unwrap();
     let found_ticket_pricing = TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();
 
     assert_eq!(found_ticket_pricing, ticket_pricing);

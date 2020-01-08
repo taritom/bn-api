@@ -687,6 +687,7 @@ table! {
         is_box_office_only -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        previous_ticket_pricing_id -> Nullable<Uuid>,
     }
 }
 
