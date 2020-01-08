@@ -43,13 +43,13 @@ CREATE OR REPLACE FUNCTION ticket_count_per_ticket_type(event_id UUID, organizat
     )
 AS
 $body$
-SELECT o.id                                                                             AS organization_id,
-       e.id                                                                             AS event_id,
-       tt.id                                                                            AS ticket_type_id,
-       tt.name                                                                          AS ticket_name,
-       tt.status                                                                        AS ticket_status,
-       e.name                                                                           AS event_name,
-       o.name                                                                           AS organization_name,
+SELECT o.id                                                                                      AS organization_id,
+       e.id                                                                                      AS event_id,
+       tt.id                                                                                     AS ticket_type_id,
+       CASE WHEN tt.status = 'Cancelled' THEN concat(tt.name, ' (Cancelled)') ELSE tt.name END   AS ticket_name,
+       tt.status                                                                                 AS ticket_status,
+       e.name                                                                                    AS event_name,
+       o.name                                                                                    AS organization_name,
 
        -- Total Ticket Count
        CAST(COALESCE(COUNT(DISTINCT ti.id), 0) AS BIGINT)                                        AS allocation_count_including_nullified,
@@ -159,7 +159,6 @@ FROM ticket_instances ti
          LEFT JOIN orders o2 ON (o2.id = oi.order_id)
 WHERE ($1 IS NULL OR e2.id = $1)
   AND ($2 IS NULL OR e2.organization_id = $2)
-  AND (tt2.status <> 'Cancelled')
   AND (tt2.deleted_at IS NULL)
   AND (e2.deleted_at IS NULL)
 GROUP BY e.id, e.name, o.id, o.name, tt2.rank, tt.id, tt.name, tt.status
