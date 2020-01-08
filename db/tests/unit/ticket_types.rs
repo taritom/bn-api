@@ -575,6 +575,7 @@ fn validate_ticket_pricing() {
         100,
         false,
         None,
+        None,
     )
     .commit(None, project.get_connection())
     .unwrap();
@@ -585,6 +586,7 @@ fn validate_ticket_pricing() {
         end_date2,
         100,
         false,
+        None,
         None,
     )
     .commit(None, project.get_connection())
