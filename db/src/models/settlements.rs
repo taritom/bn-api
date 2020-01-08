@@ -198,17 +198,23 @@ impl Settlement {
     }
 
     fn create_entries(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let ending_events = Event::get_all_events_ending_between(
+            self.organization_id,
+            self.start_time,
+            self.end_time,
+            EventStatus::Published,
+            conn,
+        )?;
         let events = if self.only_finished_events {
-            Event::get_all_events_ending_between(
-                self.organization_id,
-                self.start_time,
-                self.end_time,
-                EventStatus::Published,
-                conn,
-            )?
+            ending_events.clone()
         } else {
             Event::get_all_events_with_transactions_between(self.organization_id, self.start_time, self.end_time, conn)?
         };
+
+        // Mark ending events as having been settled
+        for event in ending_events {
+            event.mark_settled(conn)?;
+        }
 
         for event in events {
             self.create_entries_from_event_transactions(&event, conn)?;

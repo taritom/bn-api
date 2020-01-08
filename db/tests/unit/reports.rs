@@ -319,11 +319,18 @@ fn ticket_count_report() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order.refund(&refund_items, user.id, None, connection).unwrap();
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
 
     // Redeem ticket
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
 
     project
         .create_order()
@@ -1205,8 +1212,8 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user,
-            &order,
+            &user4,
+            &order4,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1227,8 +1234,8 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user4,
-            &order4,
+            &user,
+            &order,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1246,19 +1253,8 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             4,
             &organization,
-            &user,
-            &order,
-            &event,
-            &ticket_type,
-            &fee_schedule_range,
-            2,
-            ticket_pricing.price_in_cents,
-        ),
-        build_transaction_report_row(
-            4,
-            &organization,
-            &user2,
-            &order2,
+            &user4,
+            &order4,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1279,8 +1275,19 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             4,
             &organization,
-            &user4,
-            &order4,
+            &user2,
+            &order2,
+            &event,
+            &ticket_type,
+            &fee_schedule_range,
+            2,
+            ticket_pricing.price_in_cents,
+        ),
+        build_transaction_report_row(
+            4,
+            &organization,
+            &user,
+            &order,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1300,13 +1307,13 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user,
-            &order,
-            &event,
-            &ticket_type,
-            &fee_schedule_range,
+            &user3,
+            &order3,
+            &event2,
+            &ticket_type2,
+            &fee_schedule_range2,
             2,
-            ticket_pricing.price_in_cents,
+            ticket_pricing2.price_in_cents,
         ),
         build_transaction_report_row(
             3,
@@ -1322,13 +1329,13 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user3,
-            &order3,
-            &event2,
-            &ticket_type2,
-            &fee_schedule_range2,
+            &user,
+            &order,
+            &event,
+            &ticket_type,
+            &fee_schedule_range,
             2,
-            ticket_pricing2.price_in_cents,
+            ticket_pricing.price_in_cents,
         ),
     ];
     assert_eq!(result.data, expected_results);
@@ -1396,8 +1403,8 @@ fn transaction_detail_report() {
     let expected_results = vec![build_transaction_report_row(
         4,
         &organization,
-        &user,
-        &order,
+        &user4,
+        &order4,
         &event,
         &ticket_type,
         &fee_schedule_range,
@@ -1425,8 +1432,8 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user2,
-            &order2,
+            &user4,
+            &order4,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1447,8 +1454,8 @@ fn transaction_detail_report() {
         build_transaction_report_row(
             3,
             &organization,
-            &user4,
-            &order4,
+            &user2,
+            &order2,
             &event,
             &ticket_type,
             &fee_schedule_range,
@@ -1670,24 +1677,13 @@ fn build_transaction_report_row(
         actual_quantity: quantity,
         refunded_quantity: 0,
         unit_price_in_cents: price_per_ticket,
-        gross: (price_per_ticket + fee_schedule_range.client_fee_in_cents + fee_schedule_range.company_fee_in_cents)
-            * quantity
-            + organization.company_event_fee_in_cents
-            + organization.client_event_fee_in_cents,
-        company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+        face_price_in_cents: price_per_ticket,
+        face_price_in_cents_total: price_per_ticket * quantity,
+        gross: price_per_ticket * quantity + fee_schedule_range.client_fee_in_cents * quantity,
         client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents)
-            * quantity,
-        event_fee_company_in_cents: organization.company_event_fee_in_cents,
+        client_fee_in_cents_total: fee_schedule_range.client_fee_in_cents * quantity,
         event_fee_client_in_cents: organization.client_event_fee_in_cents,
-        event_fee_gross_in_cents: organization.company_event_fee_in_cents + organization.client_event_fee_in_cents,
-        event_fee_gross_in_cents_total: organization.company_event_fee_in_cents
-            + organization.client_event_fee_in_cents,
-        credit_card_fee_company_in_cents: 0,
-        credit_card_fee_client_in_cents: 0,
-        credit_card_fee_gross_in_cents: 0,
-        credit_card_fee_gross_in_cents_total: 0,
+        event_fee_client_in_cents_total: organization.client_event_fee_in_cents,
         fee_range_id: Some(fee_schedule_range.id),
         order_type: OrderTypes::Cart,
         payment_method: Some(PaymentMethods::CreditCard.to_string()),

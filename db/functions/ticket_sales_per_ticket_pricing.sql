@@ -53,7 +53,7 @@ SELECT e.organization_id                                                        
        e.id                                                                                                     AS event_id,
        tt.id                                                                                                    AS ticket_type_id,
        COALESCE(gh.id, c.id)                                                                                    AS hold_id,
-       tt.name                                                                                                  AS ticket_name,
+       CASE WHEN tt.status = 'Cancelled' THEN concat(tt.name, ' (Cancelled)') ELSE tt.name END                  AS ticket_name,
        tt.status                                                                                                AS ticket_status,
        e.name                                                                                                   AS event_name,
        COALESCE(gh.name, c.name)                                                                                AS hold_name,--Actually hold or promo code name

@@ -1,36 +1,29 @@
 SELECT COUNT(*) OVER ()                                                                                   AS total,
        e.name                                                                                             AS event_name,
-       tt.name                                                                                            AS ticket_name,
+       CASE WHEN tt.status = 'Cancelled' THEN concat(tt.name, ' (Cancelled)') ELSE tt.name END            AS ticket_name,
        CAST(oi.quantity AS BIGINT)                                                                        AS quantity,
        CAST(COALESCE(oi.refunded_quantity, 0) AS BIGINT)                                                  AS refunded_quantity,
        CAST(oi.quantity - COALESCE(oi.refunded_quantity, 0) AS BIGINT)                                    AS actual_quantity,
        CAST(oi.unit_price_in_cents AS BIGINT)                                                             AS unit_price_in_cents,
-       CAST(COALESCE(oi_fees.company_fee_in_cents, 0) AS BIGINT)                                          AS company_fee_in_cents,
+       CAST(oi.unit_price_in_cents AS BIGINT)
+       + CAST(COALESCE(oi_promo_code.unit_price_in_cents, 0) AS BIGINT)                                   AS face_price_in_cents,
+       CAST((oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0))
+       * (COALESCE(oi.quantity, 0) - COALESCE(oi.refunded_quantity, 0)) AS BIGINT)                        AS face_price_in_cents_total,
+       CAST(((oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0))
+       * (COALESCE(oi.quantity, 0) - COALESCE(oi.refunded_quantity, 0))
+       + (COALESCE(oi_fees.client_fee_in_cents, 0) *
+       (COALESCE(oi_fees.quantity, 0) - COALESCE(oi_fees.refunded_quantity, 0)))) AS BIGINT)              AS gross,
        CAST(COALESCE(oi_fees.client_fee_in_cents, 0) AS BIGINT)                                           AS client_fee_in_cents,
-       CAST(COALESCE(oi_fees.client_fee_in_cents, 0) +
-            COALESCE(oi_fees.company_fee_in_cents, 0) AS BIGINT)                                          AS gross_fee_in_cents,
        CAST(
-               (COALESCE(oi_fees.client_fee_in_cents, 0) + COALESCE(oi_fees.company_fee_in_cents, 0)) *
+               COALESCE(oi_fees.client_fee_in_cents, 0) *
                (COALESCE(oi_fees.quantity, 0) -
-                COALESCE(oi_fees.refunded_quantity, 0)) AS BIGINT)                                          AS gross_fee_in_cents_total,
--- event fees
-       CAST(COALESCE(oi_event_fees.company_fee_in_cents, 0) AS BIGINT)                                    AS event_fee_company_in_cents,
+                COALESCE(oi_fees.refunded_quantity, 0)) AS BIGINT)                                        AS client_fee_in_cents_total,
+       -- event fees
        CAST(COALESCE(oi_event_fees.client_fee_in_cents, 0) AS BIGINT)                                     AS event_fee_client_in_cents,
-       CAST(COALESCE(oi_event_fees.client_fee_in_cents, 0) +
-            COALESCE(oi_event_fees.company_fee_in_cents, 0) AS BIGINT)                                    AS event_fee_gross_in_cents,
        CAST(
-               (COALESCE(oi_event_fees.client_fee_in_cents, 0) + COALESCE(oi_event_fees.company_fee_in_cents, 0)) *
+               COALESCE(oi_event_fees.client_fee_in_cents, 0) *
                (COALESCE(oi_event_fees.quantity, 0) -
-                COALESCE(oi_event_fees.refunded_quantity, 0)) AS BIGINT)                                    AS event_fee_gross_in_cents_total,
-       -- credit card fees
-       CAST(COALESCE(oi_credit_card_fees.company_fee_in_cents, 0) AS BIGINT)                                    AS credit_card_fee_company_in_cents,
-       CAST(COALESCE(oi_credit_card_fees.client_fee_in_cents, 0) AS BIGINT)                                     AS credit_card_fee_client_in_cents,
-       CAST(COALESCE(oi_credit_card_fees.client_fee_in_cents, 0) +
-            COALESCE(oi_credit_card_fees.company_fee_in_cents, 0) AS BIGINT)                                    AS credit_card_fee_gross_in_cents,
-       CAST(
-               (COALESCE(oi_credit_card_fees.client_fee_in_cents, 0) + COALESCE(oi_credit_card_fees.company_fee_in_cents, 0)) *
-               (COALESCE(oi_credit_card_fees.quantity, 0) -
-                COALESCE(oi_credit_card_fees.refunded_quantity, 0)) AS BIGINT)                                    AS credit_card_fee_gross_in_cents_total,
+                COALESCE(oi_event_fees.refunded_quantity, 0)) AS BIGINT)                                  AS event_fee_client_in_cents_total,
        oi_fees.fee_schedule_range_id                                                                      AS fee_range_id,
        o.paid_at                                                                                          AS transaction_date,
        o.order_type,
@@ -40,16 +33,6 @@ SELECT COUNT(*) OVER ()                                                         
        o.id                                                                                               AS order_id,
        oi.event_id,
        o.user_id,
-       CAST(
-                       (oi.quantity - oi.refunded_quantity) * oi.unit_price_in_cents +
-                       (COALESCE(oi_fees.quantity, 0) - COALESCE(oi_fees.refunded_quantity, 0)) *
-                       COALESCE(oi_fees.unit_price_in_cents, 0) +
-                       (COALESCE(oi_event_fees.quantity, 0) - COALESCE(oi_event_fees.refunded_quantity, 0)) *
-                       COALESCE(oi_event_fees.unit_price_in_cents, 0) +
-                        (COALESCE(oi_credit_card_fees.quantity, 0) - COALESCE(oi_credit_card_fees.refunded_quantity, 0)) *
-                       COALESCE(oi_credit_card_fees.unit_price_in_cents, 0) +
-                       (COALESCE(oi_promo_code.unit_price_in_cents, 0) * (COALESCE(oi_promo_code.quantity, 0) - COALESCE(oi_promo_code.refunded_quantity, 0)))
-           AS BIGINT)                                                                                       AS gross,
        COALESCE(u.first_name, '')                                                                         AS first_name,
        COALESCE(u.last_name, '')                                                                          AS last_name,
        COALESCE(u.phone, '')                                                                              AS phone,
@@ -70,8 +53,6 @@ FROM orders o
          LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)
           LEFT JOIN order_items oi_event_fees
                    ON (oi_event_fees.item_type = 'EventFees' AND o.id = oi_event_fees.order_id)
-         LEFT JOIN order_items oi_credit_card_fees
-                   ON (oi_credit_card_fees.item_type = 'CreditCardFees' AND o.id = oi_credit_card_fees.order_id)
          LEFT JOIN order_items oi_promo_code
                    ON (oi_promo_code.item_type = 'Discount' AND oi.id = oi_promo_code.parent_id)
          LEFT JOIN codes c ON oi.code_id = c.id
@@ -98,6 +79,6 @@ WHERE o.status = 'Paid'
         OR o.id::text ILIKE concat('%', $5) -- matches end of id for order number
         OR e.name ILIKE concat('%', $5, '%')
     )
-ORDER BY o.paid_at
+ORDER BY o.paid_at DESC
 LIMIT $7
     OFFSET $6;

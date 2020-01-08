@@ -106,7 +106,14 @@ fn transfer_eligible_for_cancelling() {
 
     // Redeem ticket 3
     let ticket3 = TicketInstance::find(ticket3.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket3.id, ticket3.redeem_key.clone().unwrap(), user2.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket3.id,
+        ticket3.redeem_key.clone().unwrap(),
+        user2.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
 
     let activity_items =
         ActivityItem::load_for_event(event.id, user.id, Some(ActivityType::Transfer), connection).unwrap();
@@ -310,9 +317,23 @@ fn load_for_event() {
     let transfer3 = TicketInstance::create_transfer(&user2, &[ticket8.id], None, None, false, connection).unwrap();
     let transfer3 = transfer3.cancel(&user4, None, connection).unwrap();
 
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user3.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
-    TicketInstance::redeem_ticket(ticket6.id, ticket6.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket6.id,
+        ticket6.redeem_key.clone().unwrap(),
+        user3.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let ticket6 = TicketInstance::find(ticket6.id, connection).unwrap();
 
     let mut refunding_order = Order::find(
@@ -328,7 +349,7 @@ fn load_for_event() {
     }];
 
     let refund = refunding_order
-        .refund(&refund_items, user.id, None, connection)
+        .refund(&refund_items, user.id, None, false, connection)
         .unwrap();
 
     let mut refunding_order2 = Order::find(
@@ -343,7 +364,7 @@ fn load_for_event() {
         ticket_instance_id: Some(ticket4.id),
     }];
     let refund2 = refunding_order2
-        .refund(&refund_items, user3.id, None, connection)
+        .refund(&refund_items, user3.id, None, false, connection)
         .unwrap();
 
     let mut refunding_order3 = Order::find(
@@ -358,7 +379,7 @@ fn load_for_event() {
         ticket_instance_id: Some(ticket7.id),
     }];
     let refund3 = refunding_order3
-        .refund(&refund_items, user3.id, None, connection)
+        .refund(&refund_items, user3.id, None, false, connection)
         .unwrap();
 
     let note = order
@@ -520,7 +541,14 @@ fn load_for_order() {
     )
     .unwrap();
 
-    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user3.id,
+        CheckInSource::GuestList,
+        connection,
+    )
+    .unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
 
     let mut refunding_order = Order::find(
@@ -536,7 +564,7 @@ fn load_for_order() {
     }];
 
     let refund = refunding_order
-        .refund(&refund_items, user.id, None, connection)
+        .refund(&refund_items, user.id, None, false, connection)
         .unwrap();
 
     let note = order
@@ -597,7 +625,8 @@ fn occurred_at() {
             order_number: "1234".to_string(),
             ticket_quantity: 1,
             events: Vec::new(),
-            occurred_at: now,
+            occurred_at: now.clone(),
+            paid_at: Some(now),
             purchased_by: user.clone().into(),
             user: user.clone().into(),
             total_in_cents: 10,
@@ -631,6 +660,7 @@ fn occurred_at() {
         ActivityItem::Refund {
             refund_id: Uuid::new_v4(),
             order_id: Uuid::new_v4(),
+            manual_override: false,
             reason: None,
             refund_items: Vec::new(),
             total_in_cents: 11,
@@ -815,11 +845,13 @@ fn verify_activity_item_data(activity_item: ActivityItem, connection: &PgConnect
             reason,
             total_in_cents,
             refunded_by,
+            manual_override,
             ..
         } => {
             let found_refund = Refund::find(refund_id, connection).unwrap();
             let refund_amount: i64 = found_refund.items(connection).unwrap().iter().map(|r| r.amount).sum();
             assert_eq!(reason, found_refund.reason);
+            assert_eq!(manual_override, found_refund.manual_override);
             assert_eq!(total_in_cents, refund_amount);
 
             let expected_refunded_by: UserActivityItem = User::find(found_refund.user_id, connection).unwrap().into();

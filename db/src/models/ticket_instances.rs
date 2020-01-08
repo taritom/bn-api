@@ -41,6 +41,7 @@ pub struct TicketInstance {
     pub redeemed_at: Option<NaiveDateTime>,
     pub first_name_override: Option<String>,
     pub last_name_override: Option<String>,
+    pub check_in_source: Option<CheckInSource>,
 }
 
 #[derive(AsChangeset, Clone, Deserialize, Serialize)]
@@ -195,6 +196,7 @@ impl TicketInstance {
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
                 transfers::transfer_address.nullable(),
+                ticket_instances::check_in_source,
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -295,6 +297,7 @@ impl TicketInstance {
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
                 transfers::transfer_address.nullable(),
+                ticket_instances::check_in_source,
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
@@ -758,18 +761,24 @@ impl TicketInstance {
         Ok(key)
     }
 
+    pub fn has_pending_transfer(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(TransferTicket::pending_transfer(self.id, conn)?.is_some())
+    }
+
     pub fn redeem_ticket(
         ticket_id: Uuid,
         redeem_key: String,
         user_id: Uuid,
+        check_in_source: CheckInSource,
         conn: &PgConnection,
     ) -> Result<RedeemResults, DatabaseError> {
         let ticket: TicketInstance = ticket_instances::table
             .find(ticket_id)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
-
-        if ticket.status == TicketInstanceStatus::Purchased
+        if ticket.has_pending_transfer(conn)? {
+            return Ok(RedeemResults::TicketTransferInProcess);
+        } else if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
             && ticket.redeem_key.clone().unwrap() == redeem_key
         {
@@ -778,6 +787,7 @@ impl TicketInstance {
                     ticket_instances::status.eq(TicketInstanceStatus::Redeemed),
                     ticket_instances::redeemed_by_user_id.eq(user_id),
                     ticket_instances::redeemed_at.eq(dsl::now),
+                    ticket_instances::check_in_source.eq(check_in_source),
                     ticket_instances::updated_at.eq(dsl::now),
                 ))
                 .execute(conn)
@@ -856,6 +866,7 @@ impl TicketInstance {
         let tickets = TicketInstance::find_for_user(user_id, conn)?;
         let mut ticket_ids_and_updated_at = vec![];
         let mut all_tickets_valid = true;
+        let mut has_redeemed_tickets = false;
         let mut wallet_id = Uuid::nil();
 
         for ti in ticket_ids {
@@ -866,6 +877,9 @@ impl TicketInstance {
                     ticket_ids_and_updated_at.push((*ti, t.updated_at));
                     wallet_id = t.wallet_id;
                     break;
+                } else if t.id == *ti && t.status == TicketInstanceStatus::Redeemed {
+                    has_redeemed_tickets = true;
+                    break;
                 }
             }
             if !found_and_purchased {
@@ -874,11 +888,10 @@ impl TicketInstance {
             }
         }
 
-        if !all_tickets_valid || tickets.len() == 0 {
-            return Err(DatabaseError::new(
-                ErrorCode::BusinessProcessError,
-                Some("User does not own all requested tickets".to_string()),
-            ));
+        if has_redeemed_tickets {
+            return DatabaseError::business_process_error("Redeemed tickets cannot be transferred");
+        } else if !all_tickets_valid || tickets.len() == 0 {
+            return DatabaseError::business_process_error("User does not own all requested tickets");
         }
 
         Ok((wallet_id, ticket_ids_and_updated_at))
@@ -1125,6 +1138,7 @@ pub struct DisplayTicket {
     pub transfer_id: Option<Uuid>,
     pub transfer_key: Option<Uuid>,
     pub transfer_address: Option<String>,
+    pub check_in_source: Option<CheckInSource>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -1165,6 +1179,8 @@ pub struct DisplayTicketIntermediary {
     pub transfer_key: Option<Uuid>,
     #[sql_type = "Nullable<Text>"]
     pub transfer_address: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub check_in_source: Option<CheckInSource>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -1206,6 +1222,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             transfer_id: ticket_intermediary.transfer_id,
             transfer_key: ticket_intermediary.transfer_key,
             transfer_address: ticket_intermediary.transfer_address,
+            check_in_source: ticket_intermediary.check_in_source,
         }
     }
 }
@@ -1264,6 +1281,7 @@ pub enum RedeemResults {
     TicketRedeemSuccess,
     TicketAlreadyRedeemed,
     TicketInvalid,
+    TicketTransferInProcess,
 }
 
 fn generate_redeem_key(len: u32) -> String {

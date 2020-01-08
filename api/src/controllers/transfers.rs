@@ -124,13 +124,15 @@ pub fn cancel(
     check_transfer_cancel_access(&transfer, &auth_user, connection)?;
 
     let previous_status = transfer.status;
+    let transfer_tickets = transfer.tickets(connection)?;
     let source_user = DbUser::find(transfer.source_user_id, connection)?;
+
+    let transfer = transfer.cancel(&auth_user.user, None, connection)?;
 
     // Transfer tickets back to the original wallet
     if previous_status != TransferStatus::Pending {
         let source_user_wallet = source_user.default_wallet(connection)?;
-        for (destination_user_wallet_id, tickets) in &transfer
-            .tickets(connection)?
+        for (destination_user_wallet_id, tickets) in &transfer_tickets
             .into_iter()
             .sorted_by_key(|ti| ti.wallet_id)
             .into_iter()
@@ -146,8 +148,6 @@ pub fn cancel(
             )?;
         }
     }
-
-    let transfer = transfer.cancel(&auth_user.user, None, connection)?;
 
     if let Some(transfer_message_type) = transfer.transfer_message_type {
         if let Some(transfer_address) = &transfer.transfer_address {

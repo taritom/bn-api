@@ -107,14 +107,6 @@ impl BroadcastPushNotificationExecutor {
         }
 
         Broadcast::set_sent_count(broadcast_id, set_count, conn)?;
-        //        for user in audience {
-        //            match broadcast.channel {
-        //                BroadcastChannel::PushNotification => {
-        //                    queue_push_notification(&broadcast, message.to_string(), &user, conn)?;
-        //                }
-        //                BroadcastChannel::Email => if let Some(email_address) = &user.email {},
-        //            }
-        //        }
 
         Ok(())
     }

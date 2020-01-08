@@ -623,6 +623,7 @@ fn current_user_organization_member() {
             "comp:read",
             "comp:write",
             "dashboard:read",
+            "event:broadcast",
             "event:cancel",
             "event:delete",
             "event:interest",

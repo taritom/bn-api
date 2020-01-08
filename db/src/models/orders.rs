@@ -222,17 +222,37 @@ impl Order {
         DatabaseError::no_results("Could not find any event for this order")
     }
 
+    pub fn event_slug(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        let items = self.items(conn)?;
+        let mut event_ids: Vec<Uuid> = items.into_iter().filter_map(|i| i.event_id).collect();
+        event_ids.sort();
+        event_ids.dedup();
+
+        if event_ids.length() > 1 {
+            //Currently we only allow a single event per order, so this should never be more than 1
+            jlog!(Level::Warn, "Found more than 1 event in an order, Orders::event_slug() is at least 1 place that needs to be updated to allow for more than a single event per cart.");
+        }
+
+        if event_ids.length() > 0 {
+            let slug = Event::find(event_ids[0], conn)?.slug(conn)?;
+            return Ok(slug);
+        }
+
+        DatabaseError::no_results("Could not find any event for this order")
+    }
+
     pub fn refund(
         &mut self,
         refund_data: &[RefundItemRequest],
         user_id: Uuid,
         reason: Option<String>,
+        manual_override: bool,
         conn: &PgConnection,
     ) -> Result<(Refund, i64), DatabaseError> {
         self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
 
-        let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
+        let refund = Refund::create(self.id, user_id, reason, manual_override).commit(conn)?;
         let previous_item_refund_counts: HashMap<Uuid, i64> =
             self.items(conn)?.iter().map(|i| (i.id, i.refunded_quantity)).collect();
 
@@ -240,9 +260,7 @@ impl Order {
             let mut order_item = OrderItem::find(refund_datum.order_item_id, conn)?;
             if order_item.item_type == OrderItemTypes::Discount {
                 return DatabaseError::business_process_error("Discount order items can not be refunded");
-            }
-
-            if order_item.order_id != self.id {
+            } else if order_item.order_id != self.id {
                 return DatabaseError::business_process_error("Order item id does not belong to this order");
             }
 
@@ -481,7 +499,7 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Error loading payments")
     }
 
-    pub fn set_user_agent(
+    pub fn set_browser_data(
         &mut self,
         user_agent: Option<String>,
         purchase_completed: bool,
@@ -490,12 +508,14 @@ impl Order {
         self.lock_version(conn)?;
         self.updated_at = Utc::now().naive_utc();
 
-        let mut platform: Option<String> = None;
-        if user_agent.is_some() {
-            platform = Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
-                .map(|p| p.to_string())
-                .ok();
-        }
+        let platform: Option<Platforms> = if self.box_office_pricing {
+            Some(Platforms::BoxOffice)
+        } else if user_agent.is_some() {
+            Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap()).ok()
+        } else {
+            None
+        };
+
         if purchase_completed {
             self.purchase_user_agent = user_agent;
         } else {
@@ -507,7 +527,7 @@ impl Order {
                 .set((
                     orders::purchase_user_agent.eq(self.purchase_user_agent.clone()),
                     orders::create_user_agent.eq(self.create_user_agent.clone()),
-                    orders::platform.eq(platform),
+                    orders::platform.eq(platform.unwrap_or(Platforms::Web)),
                     orders::updated_at.eq(self.updated_at),
                 ))
                 .execute(conn)

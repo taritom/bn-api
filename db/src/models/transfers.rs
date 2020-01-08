@@ -288,7 +288,7 @@ impl Transfer {
             .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading transfers")?;
 
-        if transfer.event_ended(conn)? {
+        if transfer.event_ended(conn)? && transfer.status == TransferStatus::Pending {
             transfer.status = TransferStatus::EventEnded;
         }
         Ok(transfer)
@@ -300,7 +300,7 @@ impl Transfer {
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find transfer")?;
 
-        if transfer.event_ended(conn)? {
+        if transfer.event_ended(conn)? && transfer.status == TransferStatus::Pending {
             transfer.status = TransferStatus::EventEnded;
         }
         Ok(transfer)
@@ -534,7 +534,9 @@ impl Transfer {
         new_transfer_key: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
-        let has_cancel_accepted_permission = self.status == TransferStatus::Completed
+        let has_cancel_accepted_permission = (self.status == TransferStatus::Pending
+            || self.status == TransferStatus::EventEnded
+            || self.status == TransferStatus::Completed)
             && user.get_global_scopes().contains(&Scopes::TransferCancelAccepted);
         if !has_cancel_accepted_permission && self.status != TransferStatus::Pending {
             return DatabaseError::business_process_error("Transfer cannot be cancelled as it is no longer pending");

@@ -81,7 +81,7 @@ pub fn update_cart(
 
     cart.update_quantities(user.id(), &order_items, box_office_pricing, false, connection)?;
 
-    cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
+    cart.set_browser_data(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(None, user.id(), connection)?))
@@ -137,7 +137,7 @@ pub fn replace_cart(
 
     cart.update_quantities(user.id(), &order_items, box_office_pricing, true, connection)?;
 
-    cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
+    cart.set_browser_data(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(None, user.id(), connection)?))
 }
@@ -371,7 +371,7 @@ fn checkout_free(
     order.add_free_payment(false, user.id(), conn)?;
 
     let mut order = Order::find(order.id, conn)?;
-    order.set_user_agent(request_info.user_agent.clone(), true, conn)?;
+    order.set_browser_data(request_info.user_agent.clone(), true, conn)?;
     Ok(HttpResponse::Ok().json(json!(order.for_display(None, user.id(), conn)?)))
 }
 
@@ -442,7 +442,7 @@ fn checkout_external(
     } else {
         order.add_external_payment(reference, external_payment_type, user.id(), total, conn)?;
     }
-    order.set_user_agent(request_info.user_agent.clone(), true, conn)?;
+    order.set_browser_data(request_info.user_agent.clone(), true, conn)?;
 
     let order = Order::find(order.id, conn)?;
     Ok(HttpResponse::Ok().json(json!(order.for_display(None, user.id(), conn)?)))
@@ -612,7 +612,7 @@ fn auth_then_complete(
     match payment.mark_complete(charge_result.to_json()?, Some(auth_user.id()), connection) {
         Ok(_) => {
             let mut order = Order::find(order.id, connection)?;
-            order.set_user_agent(request_info.user_agent.clone(), true, connection)?;
+            order.set_browser_data(request_info.user_agent.clone(), true, connection)?;
             Ok(HttpResponse::Ok().json(json!(order.for_display(None, auth_user.id(), connection)?)))
         }
         Err(e) => {

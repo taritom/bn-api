@@ -239,9 +239,10 @@ impl DomainEvent {
                 total: item_total,
                 refunded_total,
             });
-            count = count + item.quantity - item.refunded_quantity;
+
             match item.item_type {
                 OrderItemTypes::Tickets => {
+                    count = count + item.quantity - item.refunded_quantity;
                     sub_total = sub_total + item_total;
                     refunded_sub_total = refunded_sub_total + refunded_total;
                 }

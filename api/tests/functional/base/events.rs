@@ -511,6 +511,7 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
     path_parameters.id = event.id;
 
     let response: HttpResponse = events::dashboard((
+        test_request.extract_state(),
         database.connection.clone().into(),
         path_parameters,
         query_parameters,

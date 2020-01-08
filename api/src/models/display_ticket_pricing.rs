@@ -14,6 +14,7 @@ pub struct DisplayTicketPricing {
     pub price_in_cents: i64,
     pub fee_in_cents: i64,
     pub discount_in_cents: i64,
+    pub associated_with_active_orders: bool,
 }
 
 impl DisplayTicketPricing {
@@ -76,6 +77,7 @@ impl DisplayTicketPricing {
                 .unwrap_or(0);
         }
 
+        let associated_with_active_orders = ticket_pricing.associated_with_active_orders(conn)?;
         Ok(DisplayTicketPricing {
             id: ticket_pricing.id,
             name: ticket_pricing.name.clone(),
@@ -85,6 +87,7 @@ impl DisplayTicketPricing {
             price_in_cents: ticket_pricing.price_in_cents,
             fee_in_cents,
             discount_in_cents,
+            associated_with_active_orders,
         })
     }
 }
