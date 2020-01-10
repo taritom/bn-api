@@ -61,6 +61,192 @@ fn associated_with_active_orders() {
 }
 
 #[test]
+fn clone_record() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    // Clone event with multiple artists and ticket types
+    let artist = project.create_artist().with_name("Artist 1".to_string()).finish();
+    let artist2 = project.create_artist().with_name("Artist 2".to_string()).finish();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_name("Original Name".to_string())
+        .as_private("SECRET".to_string())
+        .with_additional_info("Additional Info".to_string())
+        .with_event_type(EventTypes::Sports)
+        .with_venue(&venue)
+        .with_door_time(dates::now().add_days(7).add_hours(-1).finish())
+        .with_event_start(dates::now().add_days(7).finish())
+        .with_event_end(dates::now().add_days(8).finish())
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_ticket_type_count(2)
+        .finish();
+    assert!(event.cloned_from_event_id.is_none());
+    let ticket_types = event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let child_ticket_type = event
+        .add_ticket_type(
+            "Child ticket type".to_string(),
+            None,
+            105,
+            None,
+            Some(dates::now().add_hours(-1).finish()),
+            TicketTypeEndDateType::Manual,
+            Some(event.issuer_wallet(connection).unwrap().id),
+            None,
+            0,
+            100,
+            TicketTypeVisibility::Always,
+            Some(ticket_type.id),
+            0,
+            true,
+            true,
+            true,
+            None,
+            connection,
+        )
+        .unwrap();
+
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist2)
+        .finish();
+
+    let clone_fields = CloneFields {
+        name: "New Event Name".to_string(),
+        event_start: dates::now().add_days(14).finish(),
+        event_end: dates::now().add_days(15).finish(),
+    };
+
+    let cloned_event = event.clone_record(&clone_fields, None, connection).unwrap();
+
+    // Newly cloned event uses fields provided by clone fields struct
+    assert_ne!(cloned_event.id, event.id);
+    assert_eq!(&cloned_event.name, &clone_fields.name);
+    assert_eq!(cloned_event.event_start, Some(clone_fields.event_start));
+    assert_eq!(cloned_event.event_end, Some(clone_fields.event_end));
+    assert_eq!(cloned_event.cloned_from_event_id, Some(event.id));
+
+    // Calculated from the original door time difference (-1 hour before event start)
+    let door_time_from_opening = event
+        .door_time
+        .unwrap()
+        .signed_duration_since(event.event_start.unwrap())
+        .num_seconds();
+    assert_eq!(
+        cloned_event.door_time,
+        Some(clone_fields.event_start + Duration::seconds(door_time_from_opening))
+    );
+
+    // Additional fields have been copied over
+    assert_eq!(cloned_event.additional_info, event.additional_info);
+    assert_eq!(cloned_event.promo_image_url, event.promo_image_url);
+    assert_eq!(cloned_event.cover_image_url, event.cover_image_url);
+    assert_eq!(cloned_event.event_type, event.event_type);
+    assert_eq!(cloned_event.age_limit, event.age_limit);
+    assert_eq!(cloned_event.top_line_info, event.top_line_info);
+    assert_eq!(cloned_event.video_url, event.video_url);
+
+    // New slug since it's a new event
+    assert_ne!(cloned_event.slug(connection).unwrap(), event.slug(connection).unwrap());
+
+    // Ticket types
+    let cloned_event_ticket_types = event.ticket_types(true, None, connection).unwrap();
+    assert_eq!(cloned_event_ticket_types.len(), 3);
+    // Names are cloned over
+    let cloned_ticket_type = cloned_event_ticket_types
+        .iter()
+        .find(|tt| tt.name == ticket_type.name)
+        .unwrap();
+    let cloned_ticket_type2 = cloned_event_ticket_types
+        .iter()
+        .find(|tt| tt.name == ticket_type2.name)
+        .unwrap();
+    let cloned_child_ticket_type = cloned_event_ticket_types
+        .iter()
+        .find(|tt| tt.parent_id.is_some())
+        .unwrap();
+
+    // Child should belong to cloned_ticket_type since its original was the original child's parent
+    assert_eq!(cloned_child_ticket_type.parent_id, Some(cloned_ticket_type.id));
+    assert_eq!(cloned_child_ticket_type.description, child_ticket_type.description);
+    assert_eq!(
+        cloned_child_ticket_type.valid_ticket_count(connection).unwrap(),
+        child_ticket_type.valid_ticket_count(connection).unwrap()
+    );
+    assert_eq!(
+        cloned_child_ticket_type.limit_per_person,
+        child_ticket_type.limit_per_person
+    );
+    assert_eq!(
+        cloned_child_ticket_type.price_in_cents,
+        child_ticket_type.price_in_cents
+    );
+    assert_eq!(cloned_child_ticket_type.visibility, child_ticket_type.visibility);
+
+    assert_eq!(cloned_ticket_type.parent_id, None);
+    assert_eq!(cloned_ticket_type.description, ticket_type.description);
+    assert_eq!(
+        cloned_ticket_type.valid_ticket_count(connection).unwrap(),
+        ticket_type.valid_ticket_count(connection).unwrap()
+    );
+    assert_eq!(cloned_ticket_type.limit_per_person, ticket_type.limit_per_person);
+    assert_eq!(cloned_ticket_type.price_in_cents, ticket_type.price_in_cents);
+    assert_eq!(cloned_ticket_type.visibility, ticket_type.visibility);
+
+    assert_eq!(cloned_ticket_type2.parent_id, None);
+    assert_eq!(cloned_ticket_type2.description, ticket_type2.description);
+    assert_eq!(
+        cloned_ticket_type2.valid_ticket_count(connection).unwrap(),
+        ticket_type2.valid_ticket_count(connection).unwrap()
+    );
+    assert_eq!(cloned_ticket_type2.limit_per_person, ticket_type2.limit_per_person);
+    assert_eq!(cloned_ticket_type2.price_in_cents, ticket_type2.price_in_cents);
+    assert_eq!(cloned_ticket_type2.visibility, ticket_type2.visibility);
+
+    // Event artists
+    let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
+    let cloned_event_artists = EventArtist::find_all_from_event(cloned_event.id, connection).unwrap();
+    assert_eq!(event_artists.len(), cloned_event_artists.len());
+    for x in 0..event_artists.len() {
+        assert_eq!(event_artists[x].event_id, event.id);
+        assert_eq!(cloned_event_artists[x].event_id, cloned_event.id);
+        assert_eq!(event_artists[x].artist.id, cloned_event_artists[x].artist.id);
+        assert_eq!(event_artists[x].rank, cloned_event_artists[x].rank);
+        assert_eq!(event_artists[x].set_time, cloned_event_artists[x].set_time);
+        assert_eq!(event_artists[x].importance, cloned_event_artists[x].importance);
+        assert_eq!(event_artists[x].stage_id, cloned_event_artists[x].stage_id);
+    }
+
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event.id),
+        Some(DomainEventTypes::EventCloned),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(cloned_event.id),
+        Some(DomainEventTypes::EventCloned),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+}
+
+#[test]
 fn slug() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -509,6 +509,8 @@ impl User {
             total: i64,
             #[sql_type = "Nullable<Text>"]
             facebook_event_id: Option<String>,
+            #[sql_type = "Nullable<dUuid>"]
+            cloned_from_event_id: Option<Uuid>,
         }
 
         let mut query = sql_query(
@@ -598,6 +600,7 @@ impl User {
             settled_at: event.settled_at,
             slug_id: Some(event.slug_id),
             facebook_event_id: event.facebook_event_id,
+            cloned_from_event_id: event.cloned_from_event_id,
         });
 
         let mut result: Vec<ActivitySummary> = Vec::new();

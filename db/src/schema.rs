@@ -252,6 +252,7 @@ table! {
         slug_id -> Nullable<Uuid>,
         facebook_event_id -> Nullable<Text>,
         settled_at -> Nullable<Timestamp>,
+        cloned_from_event_id -> Nullable<Uuid>,
     }
 }
 

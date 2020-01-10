@@ -94,6 +94,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/ticket_holder_count", |r| {
         r.method(Method::GET).with(events::ticket_holder_count);
     })
+    .resource("/events/{id}/clone", |r| {
+        r.method(Method::POST).with(events::clone);
+    })
     .resource("/events/{id}/codes", |r| {
         r.method(Method::GET).with(events::codes);
         r.method(Method::POST).with(codes::create);

@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use chrono::Utc;
 use chrono_tz::Tz;
+use dev::times;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
@@ -71,6 +72,7 @@ pub struct Event {
     pub slug_id: Option<Uuid>,
     pub facebook_event_id: Option<String>,
     pub settled_at: Option<NaiveDateTime>,
+    pub cloned_from_event_id: Option<Uuid>,
 }
 
 impl PartialOrd for Event {
@@ -124,6 +126,7 @@ pub struct NewEvent {
     pub extra_admin_data: Option<Value>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_event_id: Option<String>,
+    pub cloned_from_event_id: Option<Uuid>,
 }
 
 pub enum TicketHoldersCountType {
@@ -247,6 +250,7 @@ pub struct EventEditableAttributes {
     pub facebook_pixel_key: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub facebook_event_id: Option<Option<String>>,
+    pub cloned_from_event_id: Option<Option<Uuid>>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -263,7 +267,150 @@ pub struct EventLocalizedTimeStrings {
     pub door_time: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CloneFields {
+    pub name: String,
+    pub event_start: NaiveDateTime,
+    pub event_end: NaiveDateTime,
+}
+
 impl Event {
+    pub fn clone_record(
+        &self,
+        clone_fields: &CloneFields,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Event, DatabaseError> {
+        let calculated_door_time = match self.door_time {
+            Some(door_time) => match self.event_start {
+                Some(event_start) => {
+                    let door_time_from_opening = door_time.signed_duration_since(event_start).num_seconds();
+                    Some(clone_fields.event_start + Duration::seconds(door_time_from_opening))
+                }
+                None => None,
+            },
+            None => None,
+        };
+
+        let mut event = Event::create(
+            &clone_fields.name,
+            EventStatus::Draft,
+            self.organization_id,
+            self.venue_id,
+            Some(clone_fields.event_start),
+            calculated_door_time,
+            None,
+            Some(clone_fields.event_end),
+        );
+
+        event.cloned_from_event_id = Some(self.id);
+        event.promo_image_url = self.promo_image_url.clone();
+        event.cover_image_url = self.cover_image_url.clone();
+        event.additional_info = self.additional_info.clone();
+        event.event_type = self.event_type.clone();
+        event.age_limit = self.age_limit.clone();
+        event.top_line_info = self.top_line_info.clone();
+        event.video_url = self.video_url.clone();
+        event.is_external = self.is_external;
+        event.external_url = self.external_url.clone();
+        let event = event.commit(current_user_id, conn)?;
+
+        for event_artist in EventArtist::find_all_from_event(self.id, conn)? {
+            EventArtist::create(
+                event.id,
+                event_artist.artist.id,
+                event_artist.rank,
+                event_artist.set_time,
+                event_artist.importance,
+                event_artist.stage_id,
+            )
+            .commit(current_user_id, conn)?;
+        }
+
+        let org_wallet = Wallet::find_default_for_organization(event.organization_id, conn)?;
+        for ticket_type in self.ticket_types(false, None, conn)? {
+            // Skip any cancelled or deleted ticket type. Skip children (will be included below)
+            if ticket_type.status == TicketTypeStatus::Cancelled
+                || ticket_type.deleted_at.is_some()
+                || ticket_type.cancelled_at.is_some()
+                || ticket_type.parent_id.is_some()
+            {
+                continue;
+            }
+
+            event.clone_ticket_type(&org_wallet, None, &ticket_type, current_user_id, conn)?;
+        }
+
+        DomainEvent::create(
+            DomainEventTypes::EventCloned,
+            "Event cloned".to_string(),
+            Tables::Events,
+            Some(self.id),
+            current_user_id,
+            Some(json!({"new_event_id": event.id})),
+        )
+        .commit(conn)?;
+
+        Ok(event)
+    }
+
+    fn clone_ticket_type(
+        &self,
+        org_wallet: &Wallet,
+        parent_ticket_type: Option<&TicketType>,
+        ticket_type: &TicketType,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<TicketType, DatabaseError> {
+        let new_ticket_type = self.add_ticket_type(
+            ticket_type.name.clone(),
+            ticket_type.description.clone(),
+            ticket_type.valid_ticket_count(conn)?,
+            if parent_ticket_type.is_some() {
+                None
+            } else {
+                Some(times::zero())
+            },
+            None,
+            if ticket_type.end_date_type == TicketTypeEndDateType::Manual {
+                TicketTypeEndDateType::EventEnd
+            } else {
+                ticket_type.end_date_type
+            },
+            Some(org_wallet.id),
+            Some(ticket_type.increment),
+            ticket_type.limit_per_person,
+            ticket_type.price_in_cents,
+            ticket_type.visibility,
+            parent_ticket_type.map(|tt| tt.id),
+            0,
+            ticket_type.app_sales_enabled,
+            ticket_type.web_sales_enabled,
+            ticket_type.box_office_sales_enabled,
+            current_user_id,
+            conn,
+        )?;
+
+        for child_ticket_type in ticket_type.find_dependent_ticket_types(conn)? {
+            if child_ticket_type.status == TicketTypeStatus::Cancelled
+                || child_ticket_type.deleted_at.is_some()
+                || child_ticket_type.cancelled_at.is_some()
+            {
+                continue;
+            }
+
+            self.clone_ticket_type(
+                org_wallet,
+                Some(&new_ticket_type),
+                &child_ticket_type,
+                current_user_id,
+                conn,
+            )?;
+        }
+
+        Ok(new_ticket_type)
+    }
+
     pub fn mark_settled(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         diesel::update(self)
             .set((events::settled_at.eq(dsl::now), events::updated_at.eq(dsl::now)))
@@ -2055,6 +2202,7 @@ impl Event {
             localized_times,
             event_type: self.event_type,
             slug,
+            cloned_from_event_id: self.cloned_from_event_id,
         })
     }
 }
@@ -2082,6 +2230,7 @@ pub struct DisplayEvent {
     pub event_type: EventTypes,
     pub genres: Vec<String>,
     pub slug: String,
+    pub cloned_from_event_id: Option<Uuid>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
