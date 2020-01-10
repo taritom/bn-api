@@ -187,6 +187,7 @@ fn show_venue() {
     let expected_json = serde_json::to_string(&SlugResponse::Venue {
         venue: venue.for_display(connection).unwrap(),
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -213,6 +214,7 @@ fn show_venue() {
     let expected_json = serde_json::to_string(&SlugResponse::Venue {
         venue: venue2.for_display(connection).unwrap(),
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -278,6 +280,7 @@ fn show_organization() {
     let expected_json = serde_json::to_string(&SlugResponse::Organization {
         organization: organization.for_display(connection).unwrap(),
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -304,6 +307,7 @@ fn show_organization() {
     let expected_json = serde_json::to_string(&SlugResponse::Organization {
         organization: organization2.for_display(connection).unwrap(),
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -386,6 +390,7 @@ fn show_city() {
             timezone: venue3.timezone.clone(),
         },
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -420,6 +425,7 @@ fn show_city() {
             timezone: venue3.timezone.clone(),
         },
         events: expected_events,
+        meta: None,
     })
     .unwrap();
     assert_eq!(body, &expected_json);

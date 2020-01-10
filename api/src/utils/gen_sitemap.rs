@@ -54,21 +54,21 @@ pub fn create_sitemap_conn(conn: &PgConnection, front_end_url: &String) -> Resul
     let event_urls = create_urls(front_end_url, events_slug_ids, "tickets".to_string(), conn);
 
     // Cities
-    let city_slug_id = Slug::find_by_slug_type("City", conn)?
+    let city_slug_id = Slug::find_by_slug_type(SlugTypes::City, conn)?
         .iter()
         .map(|s| s.id)
         .collect_vec();
     let city_urls = create_urls(front_end_url, city_slug_id, "cities".to_string(), conn);
 
     // Venues
-    let venue_slugs_ids = Slug::find_by_slug_type("Venue", conn)?
+    let venue_slugs_ids = Slug::find_by_slug_type(SlugTypes::Venue, conn)?
         .iter()
         .map(|s| s.id)
         .collect_vec();
     let venue_urls = create_urls(front_end_url, venue_slugs_ids, "venues".to_string(), conn);
 
     // Organizations
-    let organizations_slugs_ids = Slug::find_by_slug_type("Organization", conn)?
+    let organizations_slugs_ids = Slug::find_by_slug_type(SlugTypes::Organization, conn)?
         .iter()
         .map(|s| s.id)
         .collect_vec();

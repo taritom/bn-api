@@ -64,10 +64,14 @@ impl Genre {
             LEFT JOIN genres g ON g.name = gn
             WHERE g.id IS NULL;
         "#;
-        diesel::sql_query(query)
+        let created_genres = diesel::sql_query(query)
             .bind::<Array<Text>, _>(formatted_genres.clone())
             .execute(conn)
             .to_db_error(ErrorCode::QueryError, "Could not set genres")?;
+
+        if created_genres > 0 {
+            Genre::generate_missing_slugs(conn)?;
+        }
 
         let query = r#"
             SELECT id FROM genres WHERE name = ANY($1);
@@ -103,7 +107,7 @@ impl Genre {
     pub fn generate_missing_slugs(conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
         let genres = Genre::all(conn)?;
 
-        let slugs = Slug::find_by_slug_type(format!("{}", SlugTypes::Genre).as_str(), conn)?;
+        let slugs = Slug::find_by_slug_type(SlugTypes::Genre, conn)?;
         let slug_genre_ids: Vec<Uuid> = slugs.iter().map(|i| i.main_table_id).collect();
 
         let missing_genres = genres.into_iter().filter(|i| !slug_genre_ids.contains(&i.id));

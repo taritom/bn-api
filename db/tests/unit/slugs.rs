@@ -11,7 +11,7 @@ fn create() {
     let main_table_id = Uuid::new_v4();
     let slug_type = SlugTypes::Venue;
 
-    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type)
+    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None)
         .commit(connection)
         .unwrap();
 
@@ -56,6 +56,31 @@ fn find_by_slug() {
     // New slug, is included with its own slug
     let found_slugs = Slug::find_by_slug(&slug3.slug, connection).unwrap();
     assert_eq!(vec![slug3.clone()], found_slugs);
+}
+
+#[test]
+fn automatic_genre_slug_creation() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let new_genres = vec!["custom-1", "custom-2"];
+    let genre_1 = project.create_genre().with_name(&new_genres[0].to_string()).finish();
+
+    let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
+    let genre_slugs = genre_slugs
+        .into_iter()
+        .filter(|i| i.slug.as_str().starts_with("custom-"))
+        .collect::<Vec<Slug>>();
+
+    assert_eq!(genre_slugs.len(), 1);
+    assert_eq!(genre_slugs[0].slug, "custom-1".to_string());
+
+    let genre_2 = project.create_genre().with_name(&new_genres[1].to_string()).finish();
+    let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
+    let genre_slugs = genre_slugs
+        .into_iter()
+        .filter(|i| i.slug.as_str().starts_with("custom-"))
+        .collect::<Vec<Slug>>();
+    assert_eq!(genre_slugs.len(), 2);
 }
 
 #[test]
