@@ -1235,6 +1235,7 @@ pub struct LinkQueryParameters {
 #[derive(Serialize)]
 pub struct LinkResult {
     pub link: String,
+    pub long_link: String,
 }
 
 pub fn create_link(
@@ -1265,5 +1266,8 @@ pub fn create_link(
     );
     let deep_linker = state.service_locator.create_deep_linker()?;
     let short_link = deep_linker.create_deep_link(&long_link)?;
-    Ok(HttpResponse::Ok().json(LinkResult { link: short_link }))
+    Ok(HttpResponse::Ok().json(LinkResult {
+        link: short_link,
+        long_link,
+    }))
 }
