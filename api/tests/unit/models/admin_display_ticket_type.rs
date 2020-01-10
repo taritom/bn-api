@@ -27,6 +27,29 @@ fn from_ticket_type() {
         )
         .unwrap();
 
+    let child_ticket_type = event
+        .add_ticket_type(
+            "Child ticket type".to_string(),
+            None,
+            105,
+            None,
+            Some(dates::now().add_hours(-1).finish()),
+            TicketTypeEndDateType::Manual,
+            Some(event.issuer_wallet(conn).unwrap().id),
+            None,
+            0,
+            100,
+            TicketTypeVisibility::Always,
+            Some(ticket_type.id),
+            0,
+            true,
+            true,
+            true,
+            None,
+            conn,
+        )
+        .unwrap();
+
     let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, conn).unwrap();
     let fee_in_cents = fee_schedule
@@ -95,4 +118,13 @@ fn from_ticket_type() {
     let display_ticket_type = AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
+    assert!(display_ticket_type.parent_id.is_none());
+    assert!(display_ticket_type.parent_name.is_none());
+
+    let display_ticket_type =
+        AdminDisplayTicketType::from_ticket_type(&child_ticket_type, &fee_schedule, conn).unwrap();
+    assert_eq!(display_ticket_type.available, 105);
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::SaleEnded);
+    assert_eq!(display_ticket_type.parent_id, Some(ticket_type.id));
+    assert_eq!(display_ticket_type.parent_name, Some(ticket_type.name));
 }
