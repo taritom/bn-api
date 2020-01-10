@@ -54,8 +54,14 @@ pub fn clone(role: Roles, should_test_succeed: bool) {
         assert_eq!(cloned_event.status, EventStatus::Draft);
         assert_ne!(cloned_event.id, event.id);
         assert_eq!(&cloned_event.name, &clone_fields.name);
-        assert_eq!(cloned_event.event_start, Some(clone_fields.event_start));
-        assert_eq!(cloned_event.event_end, Some(clone_fields.event_end));
+        assert_eq!(
+            cloned_event.event_start.unwrap().timestamp(),
+            clone_fields.event_start.timestamp()
+        );
+        assert_eq!(
+            cloned_event.event_end.unwrap().timestamp(),
+            clone_fields.event_end.timestamp()
+        );
     } else {
         support::expects_unauthorized(&response);
     }
