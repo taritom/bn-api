@@ -132,8 +132,14 @@ fn clone_record() {
     // Newly cloned event uses fields provided by clone fields struct
     assert_ne!(cloned_event.id, event.id);
     assert_eq!(&cloned_event.name, &clone_fields.name);
-    assert_eq!(cloned_event.event_start, Some(clone_fields.event_start));
-    assert_eq!(cloned_event.event_end, Some(clone_fields.event_end));
+    assert_eq!(
+        cloned_event.event_start.unwrap().timestamp(),
+        clone_fields.event_start.timestamp()
+    );
+    assert_eq!(
+        cloned_event.event_end.unwrap().timestamp(),
+        clone_fields.event_end.timestamp()
+    );
     assert_eq!(cloned_event.cloned_from_event_id, Some(event.id));
 
     // Calculated from the original door time difference (-1 hour before event start)
@@ -143,8 +149,8 @@ fn clone_record() {
         .signed_duration_since(event.event_start.unwrap())
         .num_seconds();
     assert_eq!(
-        cloned_event.door_time,
-        Some(clone_fields.event_start + Duration::seconds(door_time_from_opening))
+        cloned_event.door_time.unwrap().timestamp(),
+        (clone_fields.event_start + Duration::seconds(door_time_from_opening)).timestamp()
     );
 
     // Additional fields have been copied over
