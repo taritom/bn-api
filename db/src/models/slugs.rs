@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use models::*;
 use regex::Regex;
 use schema::slugs;
+use serde_json::Value;
 use unidecode::unidecode;
 use utils::errors::*;
 use utils::rand::random_alpha_string;
@@ -19,6 +20,7 @@ pub struct Slug {
     pub slug_type: SlugTypes,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub extra_data: Option<Value>,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -28,6 +30,13 @@ pub struct NewSlug {
     pub main_table: Tables,
     pub main_table_id: Uuid,
     pub slug_type: SlugTypes,
+    pub extra_data: Option<Value>,
+}
+
+pub struct SlugExtraData {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub secondary_filter: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,15 +57,26 @@ pub enum SlugContext {
         state: String,
         country: String,
     },
+    Genre {
+        id: Uuid,
+        name: String,
+    },
 }
 
 impl Slug {
-    pub fn create(slug: String, main_table: Tables, main_table_id: Uuid, slug_type: SlugTypes) -> NewSlug {
+    pub fn create(
+        slug: String,
+        main_table: Tables,
+        main_table_id: Uuid,
+        slug_type: SlugTypes,
+        extra_data: Option<Value>,
+    ) -> NewSlug {
         NewSlug {
             slug,
             main_table,
             main_table_id,
             slug_type,
+            extra_data,
         }
     }
 
@@ -221,6 +241,11 @@ impl Slug {
                     slug_name = Some(name.clone());
                 }
             }
+            SlugContext::Genre { id, ref name } => {
+                main_table_id = Some(*id);
+                main_table = Some(Tables::Genres);
+                slug_name = Some(name.clone())
+            }
         }
 
         // Sanity check
@@ -229,6 +254,7 @@ impl Slug {
         }
 
         let mut slug_record = None;
+        let mut extra_data = None;
         match slug_type {
             SlugTypes::City => match slug_context {
                 SlugContext::Venue {
@@ -243,9 +269,14 @@ impl Slug {
 
         // If slug record is matched duplicate it for this type
         match slug_record {
-            Some(slug_record) => {
-                Slug::create(slug_record.slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
-            }
+            Some(slug_record) => Slug::create(
+                slug_record.slug,
+                main_table.unwrap(),
+                main_table_id.unwrap(),
+                slug_type,
+                extra_data,
+            )
+            .commit(conn),
             None => {
                 let mut slug = Slug::create_slug(&slug_name.unwrap());
                 loop {
@@ -256,7 +287,7 @@ impl Slug {
                     slug = format!("{}-{}", &slug, random_alpha_string(5));
                 }
 
-                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
+                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type, extra_data).commit(conn)
             }
         }
     }

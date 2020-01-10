@@ -1,0 +1,2 @@
+ALTER TABLE slugs
+    ADD COLUMN extra_data JSONB NULL;

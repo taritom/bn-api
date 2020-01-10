@@ -55,7 +55,7 @@ impl<'a> SlugBuilder<'a> {
             .main_table_id
             .unwrap_or_else(|| VenueBuilder::new(self.connection).finish().id);
 
-        Slug::create(self.slug, self.main_table, main_table_id, self.slug_type)
+        Slug::create(self.slug, self.main_table, main_table_id, self.slug_type, None)
             .commit(self.connection)
             .unwrap()
     }

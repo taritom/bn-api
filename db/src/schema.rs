@@ -620,6 +620,7 @@ table! {
         slug_type -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        extra_data -> Nullable<Jsonb>,
     }
 }
 

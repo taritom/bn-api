@@ -6,6 +6,7 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use models::*;
+use serde_json::Value;
 use server::AppState;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -25,14 +26,22 @@ pub enum SlugResponse {
     Organization {
         organization: DisplayOrganization,
         events: Vec<EventVenueEntry>,
+        meta: Option<Value>,
     },
     City {
         city: CityData,
         events: Vec<EventVenueEntry>,
+        meta: Option<Value>,
     },
     Venue {
         venue: DisplayVenue,
         events: Vec<EventVenueEntry>,
+        meta: Option<Value>,
+    },
+    Genre {
+        genre: String,
+        events: Vec<EventVenueEntry>,
+        meta: Option<Value>,
     },
 }
 
@@ -68,6 +77,7 @@ pub fn show(
         _ => (),
     }
 
+    let extra_data = slug.extra_data.clone();
     let response = match slug.slug_type {
         SlugTypes::Event => {
             parameters.id = slug.main_table_id.to_string();
@@ -99,6 +109,7 @@ pub fn show(
             SlugResponse::Organization {
                 organization: organization.for_display(connection)?,
                 events,
+                meta: extra_data,
             }
         }
         SlugTypes::Venue => {
@@ -127,6 +138,7 @@ pub fn show(
             SlugResponse::Venue {
                 venue: venue.for_display(connection)?,
                 events,
+                meta: extra_data,
             }
         }
         SlugTypes::City => {
@@ -161,7 +173,69 @@ pub fn show(
             )?;
 
             let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
-            SlugResponse::City { city, events }
+            SlugResponse::City {
+                city,
+                events,
+                meta: extra_data,
+            }
+        }
+        SlugTypes::Genre => {
+            let genre = Genre::find(slug.main_table_id, connection)?;
+
+            let (events, _) = Event::search(
+                None,
+                None,
+                None,
+                None,
+                Some(vec![genre.name.clone()]),
+                None,
+                None,
+                None,
+                EventSearchSortField::EventStart,
+                SortingDir::Asc,
+                user.clone(),
+                PastOrUpcoming::Upcoming,
+                None,
+                &Paging::new(0, std::u32::MAX),
+                state.service_locator.country_lookup_service(),
+                connection,
+            )?;
+
+            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
+            SlugResponse::Genre {
+                genre: genre.name,
+                events,
+                meta: extra_data,
+            }
+        }
+        SlugTypes::CityGenre => {
+            let genre = Genre::find(slug.main_table_id, connection)?;
+
+            let (events, _) = Event::search(
+                None,
+                None,
+                None,
+                None,
+                Some(vec![genre.name.clone()]),
+                None,
+                None,
+                None,
+                EventSearchSortField::EventStart,
+                SortingDir::Asc,
+                user.clone(),
+                PastOrUpcoming::Upcoming,
+                None,
+                &Paging::new(0, std::u32::MAX),
+                state.service_locator.country_lookup_service(),
+                connection,
+            )?;
+
+            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
+            SlugResponse::Genre {
+                genre: genre.name,
+                events,
+                meta: extra_data,
+            }
         }
     };
 
