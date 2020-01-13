@@ -48,7 +48,7 @@ fn update_slug() {
     assert_eq!(slug.main_table_id, main_table_id);
     assert_eq!(slug.slug_type, slug_type);
     assert_eq!(slug.title, Some("New Title".to_string()));
-    assert_eq!(slug.description, Some("New Description").to_string());
+    assert_eq!(slug.description, Some("New Description".to_string()));
 }
 
 #[test]
