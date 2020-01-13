@@ -1,2 +1,3 @@
 ALTER TABLE slugs
-    ADD COLUMN extra_data JSONB NULL;
+    ADD COLUMN title TEXT NULL,
+    ADD COLUMN description TEXT NULL;

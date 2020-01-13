@@ -10,6 +10,7 @@ pub struct ArtistBuilder<'a> {
     bio: String,
     website_url: String,
     spotify_id: Option<String>,
+    genres: Option<Vec<String>>,
     connection: &'a PgConnection,
 }
 
@@ -24,6 +25,7 @@ impl<'a> ArtistBuilder<'a> {
             spotify_id: None,
             is_private: false,
             organization_id: None,
+            genres: None,
         }
     }
 
@@ -42,6 +44,11 @@ impl<'a> ArtistBuilder<'a> {
         self
     }
 
+    pub fn with_genres(mut self, genres: Vec<String>) -> Self {
+        self.genres = Some(genres);
+        self
+    }
+
     pub fn make_private(mut self) -> Self {
         self.is_private = true;
         self
@@ -52,6 +59,13 @@ impl<'a> ArtistBuilder<'a> {
         artist.spotify_id = self.spotify_id.clone();
 
         let artist = artist.commit(self.connection).unwrap();
-        artist.set_privacy(self.is_private, self.connection).unwrap()
+        artist.set_privacy(self.is_private, self.connection).unwrap();
+        match &self.genres {
+            Some(genres) => {
+                artist.set_genres(genres, None, self.connection).unwrap();
+                Artist::find(&artist.id, self.connection).unwrap()
+            }
+            None => artist,
+        }
     }
 }

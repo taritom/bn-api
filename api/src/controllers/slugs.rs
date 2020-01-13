@@ -1,12 +1,12 @@
 use actix_web::{HttpResponse, Path, Query, State};
+use auth::user::User as AuthUser;
 use bigneon_db::prelude::*;
 use controllers::events::{self, *};
-use db::ReadonlyConnection;
+use db::{Connection, ReadonlyConnection};
 use errors::*;
 use extractors::*;
 use helpers::application;
 use models::*;
-use serde_json::Value;
 use server::AppState;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -20,29 +20,50 @@ pub struct CityData {
     pub timezone: String,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct SlugMetaData {
+    pub title: Option<String>,
+    pub description: Option<String>,
+}
+
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum SlugResponse {
     Organization {
         organization: DisplayOrganization,
         events: Vec<EventVenueEntry>,
-        meta: Option<Value>,
+        meta: SlugMetaData,
     },
     City {
         city: CityData,
         events: Vec<EventVenueEntry>,
-        meta: Option<Value>,
+        meta: SlugMetaData,
     },
     Venue {
         venue: DisplayVenue,
         events: Vec<EventVenueEntry>,
-        meta: Option<Value>,
+        meta: SlugMetaData,
     },
     Genre {
         genre: String,
         events: Vec<EventVenueEntry>,
-        meta: Option<Value>,
+        meta: SlugMetaData,
     },
+}
+
+pub fn update(
+    (connection, parameters, slug_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Json<SlugEditableAttributes>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    user.requires_scope(Scopes::OrgAdmin)?;
+    let slug = Slug::find(parameters.id, connection)?;
+    let updated_slug = slug.update(slug_parameters.into_inner(), connection)?;
+    Ok(HttpResponse::Ok().json(updated_slug))
 }
 
 pub fn show(
@@ -62,6 +83,7 @@ pub fn show(
     let connection = conn.clone();
     let connection = connection.get();
     let slugs = Slug::find_by_slug(&parameters.id, connection)?;
+
     if slugs.is_empty() {
         return application::not_found();
     }
@@ -77,7 +99,11 @@ pub fn show(
         _ => (),
     }
 
-    let extra_data = slug.extra_data.clone();
+    let meta = SlugMetaData {
+        title: slug.title.clone(),
+        description: slug.description.clone(),
+    };
+
     let response = match slug.slug_type {
         SlugTypes::Event => {
             parameters.id = slug.main_table_id.to_string();
@@ -109,7 +135,7 @@ pub fn show(
             SlugResponse::Organization {
                 organization: organization.for_display(connection)?,
                 events,
-                meta: extra_data,
+                meta,
             }
         }
         SlugTypes::Venue => {
@@ -138,7 +164,7 @@ pub fn show(
             SlugResponse::Venue {
                 venue: venue.for_display(connection)?,
                 events,
-                meta: extra_data,
+                meta,
             }
         }
         SlugTypes::City => {
@@ -173,11 +199,7 @@ pub fn show(
             )?;
 
             let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
-            SlugResponse::City {
-                city,
-                events,
-                meta: extra_data,
-            }
+            SlugResponse::City { city, events, meta }
         }
         SlugTypes::Genre => {
             let genre = Genre::find(slug.main_table_id, connection)?;
@@ -205,37 +227,11 @@ pub fn show(
             SlugResponse::Genre {
                 genre: genre.name,
                 events,
-                meta: extra_data,
+                meta,
             }
         }
         SlugTypes::CityGenre => {
-            let genre = Genre::find(slug.main_table_id, connection)?;
-
-            let (events, _) = Event::search(
-                None,
-                None,
-                None,
-                None,
-                Some(vec![genre.name.clone()]),
-                None,
-                None,
-                None,
-                EventSearchSortField::EventStart,
-                SortingDir::Asc,
-                user.clone(),
-                PastOrUpcoming::Upcoming,
-                None,
-                &Paging::new(0, std::u32::MAX),
-                state.service_locator.country_lookup_service(),
-                connection,
-            )?;
-
-            let events = EventVenueEntry::event_venues_from_events(events, user, &state, connection)?;
-            SlugResponse::Genre {
-                genre: genre.name,
-                events,
-                meta: extra_data,
-            }
+            return application::not_found();
         }
     };
 

@@ -11,7 +11,7 @@ fn create() {
     let main_table_id = Uuid::new_v4();
     let slug_type = SlugTypes::Venue;
 
-    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None)
+    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None, None)
         .commit(connection)
         .unwrap();
 
@@ -19,6 +19,36 @@ fn create() {
     assert_eq!(slug.main_table, main_table);
     assert_eq!(slug.main_table_id, main_table_id);
     assert_eq!(slug.slug_type, slug_type);
+}
+
+#[test]
+fn update_slug() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let slug_text = "slug-123".to_string();
+    let main_table = Tables::Venues;
+    let main_table_id = Uuid::new_v4();
+    let slug_type = SlugTypes::Venue;
+
+    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None, None)
+        .commit(connection)
+        .unwrap();
+
+    assert_eq!(slug.slug, slug_text);
+    assert_eq!(slug.main_table, main_table);
+    assert_eq!(slug.main_table_id, main_table_id);
+    assert_eq!(slug.slug_type, slug_type);
+    let attributes = SlugEditableAttributes {
+        title: Some(Some("New Title".to_string())),
+        description: Some(Some("New Description".to_string())),
+    };
+    let updated_slug = slug.update(attributes, connection).unwrap();
+    assert_eq!(slug.slug, slug_text);
+    assert_eq!(slug.main_table, main_table);
+    assert_eq!(slug.main_table_id, main_table_id);
+    assert_eq!(slug.slug_type, slug_type);
+    assert_eq!(slug.title, Some("New Title".to_string()));
+    assert_eq!(slug.description, Some("New Description").to_string());
 }
 
 #[test]

@@ -319,6 +319,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/reports/{id}", |r| {
         r.method(Method::GET).with(reports::get_report);
     })
+    .resource("/slugs/{id}", |r| {
+        r.method(Method::GET).with(slugs::show);
+        r.method(Method::PUT).with(slugs::update);
+    })
     .resource("/status", |r| r.method(Method::GET).with(status::check))
     .resource("/stages/{id}", |r| {
         r.method(Method::GET).with(stages::show);
@@ -335,9 +339,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/settlements/{id}", |r| {
         r.method(Method::GET).with(settlements::show);
         r.method(Method::DELETE).with(settlements::destroy);
-    })
-    .resource("/slugs/{id}", |r| {
-        r.method(Method::GET).with(slugs::show);
     })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);

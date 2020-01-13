@@ -1,2 +1,3 @@
 ALTER TABLE slugs
-    DROP COLUMN extra_data;
+    DROP COLUMN title,
+    DROP COLUMN description;
