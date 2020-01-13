@@ -43,12 +43,12 @@ fn update_slug() {
         description: Some(Some("New Description".to_string())),
     };
     let updated_slug = slug.update(attributes, connection).unwrap();
-    assert_eq!(slug.slug, slug_text);
-    assert_eq!(slug.main_table, main_table);
-    assert_eq!(slug.main_table_id, main_table_id);
-    assert_eq!(slug.slug_type, slug_type);
-    assert_eq!(slug.title, Some("New Title".to_string()));
-    assert_eq!(slug.description, Some("New Description".to_string()));
+    assert_eq!(updated_slug.slug, slug_text);
+    assert_eq!(updated_slug.main_table, main_table);
+    assert_eq!(updated_slug.main_table_id, main_table_id);
+    assert_eq!(updated_slug.slug_type, slug_type);
+    assert_eq!(updated_slug.title, Some("New Title".to_string()));
+    assert_eq!(updated_slug.description, Some("New Description".to_string()));
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn automatic_genre_slug_creation() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let new_genres = vec!["custom-1", "custom-2"];
-    let genre_1 = project.create_genre().with_name(&new_genres[0].to_string()).finish();
+    project.create_genre().with_name(&new_genres[0].to_string()).finish();
 
     let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
     let genre_slugs = genre_slugs
@@ -104,7 +104,7 @@ fn automatic_genre_slug_creation() {
     assert_eq!(genre_slugs.len(), 1);
     assert_eq!(genre_slugs[0].slug, "custom-1".to_string());
 
-    let genre_2 = project.create_genre().with_name(&new_genres[1].to_string()).finish();
+    project.create_genre().with_name(&new_genres[1].to_string()).finish();
     let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
     let genre_slugs = genre_slugs
         .into_iter()
