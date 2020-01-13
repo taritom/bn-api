@@ -42,7 +42,7 @@ fn index() {
     let event_urls = gen_sitemap::create_urls(&front_end_url, events_slug_ids, "tickets".to_string(), conn);
 
     // Cities
-    let city_slug_id = Slug::find_by_slug_type("City", conn)
+    let city_slug_id = Slug::find_by_slug_type(SlugTypes::City, conn)
         .unwrap()
         .iter()
         .map(|s| s.id)
@@ -50,7 +50,7 @@ fn index() {
     let city_urls = gen_sitemap::create_urls(&front_end_url, city_slug_id, "cities".to_string(), conn);
 
     // Venues
-    let venue_slugs_ids = Slug::find_by_slug_type("Venue", conn)
+    let venue_slugs_ids = Slug::find_by_slug_type(SlugTypes::Venue, conn)
         .unwrap()
         .iter()
         .map(|s| s.id)
@@ -58,7 +58,7 @@ fn index() {
     let venue_urls = gen_sitemap::create_urls(&front_end_url, venue_slugs_ids, "venues".to_string(), conn);
 
     // Organizations
-    let organizations_slugs_ids = Slug::find_by_slug_type("Organization", conn)
+    let organizations_slugs_ids = Slug::find_by_slug_type(SlugTypes::Organization, conn)
         .unwrap()
         .iter()
         .map(|s| s.id)

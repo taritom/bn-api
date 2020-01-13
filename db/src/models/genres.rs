@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types::{Array, Text, Uuid as dUuid};
+use models::{Slug, SlugContext, SlugTypes, Tables};
 use schema::{artist_genres, genres};
 use std::collections::HashMap;
 use utils::errors::ErrorCode::QueryError;
@@ -63,10 +64,14 @@ impl Genre {
             LEFT JOIN genres g ON g.name = gn
             WHERE g.id IS NULL;
         "#;
-        diesel::sql_query(query)
+        let created_genres = diesel::sql_query(query)
             .bind::<Array<Text>, _>(formatted_genres.clone())
             .execute(conn)
             .to_db_error(ErrorCode::QueryError, "Could not set genres")?;
+
+        if created_genres > 0 {
+            Genre::generate_missing_slugs(conn)?;
+        }
 
         let query = r#"
             SELECT id FROM genres WHERE name = ANY($1);
@@ -97,5 +102,34 @@ impl Genre {
             .then_order_by(genres::name.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load all genres")
+    }
+
+    pub fn generate_missing_slugs(conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
+        let genres = Genre::all(conn)?;
+
+        let slugs = Slug::find_by_slug_type(SlugTypes::Genre, conn)?;
+        let slug_genre_ids: Vec<Uuid> = slugs.iter().map(|i| i.main_table_id).collect();
+
+        let missing_genres = genres.into_iter().filter(|i| !slug_genre_ids.contains(&i.id));
+        let mut new_slugs = vec![];
+        for missing_genre in missing_genres {
+            new_slugs.push(missing_genre.create_slug(conn)?);
+        }
+        Ok(new_slugs)
+    }
+
+    pub fn create_slug(&self, conn: &PgConnection) -> Result<Slug, DatabaseError> {
+        let slug = Slug::find_by_type(self.id, Tables::Genres, SlugTypes::Genre, conn);
+        match slug {
+            Ok(s) => Ok(s),
+            Err(_) => Ok(Slug::generate_slug(
+                &SlugContext::Genre {
+                    id: self.id,
+                    name: self.name.clone(),
+                },
+                SlugTypes::Genre,
+                conn,
+            )?),
+        }
     }
 }

@@ -58,6 +58,9 @@ pub fn main() {
             SubCommand::with_name("schedule-missing-domain-actions")
                 .about("Creates any missing reoccurring domain actions"),
         )
+        .subcommand(
+            SubCommand::with_name("generate-genre-slugs").about("Creates any missing genre and city genre slugs"),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -68,10 +71,24 @@ pub fn main() {
         }
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
         ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(config, database),
+        ("generate-genre-slugs", Some(_)) => generate_genre_slugs(database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
     }
+}
+
+fn generate_genre_slugs(database: Database) {
+    info!("Generating genre and city genre slugs");
+    let connection = database.get_connection().expect("Expected connection to establish");
+    let connection = connection.get();
+
+    let generated_slugs = Genre::generate_missing_slugs(connection).expect("Expected genres");
+    let slug_strings = generated_slugs
+        .into_iter()
+        .map(|i| i.slug.clone())
+        .collect::<Vec<String>>();
+    println!("Generated: {:?}", slug_strings);
 }
 
 fn backpopulate_temporary_user_data(database: Database) {

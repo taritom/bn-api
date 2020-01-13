@@ -11,7 +11,7 @@ fn create() {
     let main_table_id = Uuid::new_v4();
     let slug_type = SlugTypes::Venue;
 
-    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type)
+    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None, None)
         .commit(connection)
         .unwrap();
 
@@ -19,6 +19,36 @@ fn create() {
     assert_eq!(slug.main_table, main_table);
     assert_eq!(slug.main_table_id, main_table_id);
     assert_eq!(slug.slug_type, slug_type);
+}
+
+#[test]
+fn update_slug() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let slug_text = "slug-123".to_string();
+    let main_table = Tables::Venues;
+    let main_table_id = Uuid::new_v4();
+    let slug_type = SlugTypes::Venue;
+
+    let slug = Slug::create(slug_text.clone(), main_table, main_table_id, slug_type, None, None)
+        .commit(connection)
+        .unwrap();
+
+    assert_eq!(slug.slug, slug_text);
+    assert_eq!(slug.main_table, main_table);
+    assert_eq!(slug.main_table_id, main_table_id);
+    assert_eq!(slug.slug_type, slug_type);
+    let attributes = SlugEditableAttributes {
+        title: Some(Some("New Title".to_string())),
+        description: Some(Some("New Description".to_string())),
+    };
+    let updated_slug = slug.update(attributes, connection).unwrap();
+    assert_eq!(updated_slug.slug, slug_text);
+    assert_eq!(updated_slug.main_table, main_table);
+    assert_eq!(updated_slug.main_table_id, main_table_id);
+    assert_eq!(updated_slug.slug_type, slug_type);
+    assert_eq!(updated_slug.title, Some("New Title".to_string()));
+    assert_eq!(updated_slug.description, Some("New Description".to_string()));
 }
 
 #[test]
@@ -56,6 +86,31 @@ fn find_by_slug() {
     // New slug, is included with its own slug
     let found_slugs = Slug::find_by_slug(&slug3.slug, connection).unwrap();
     assert_eq!(vec![slug3.clone()], found_slugs);
+}
+
+#[test]
+fn automatic_genre_slug_creation() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let new_genres = vec!["custom-1", "custom-2"];
+    project.create_genre().with_name(&new_genres[0].to_string()).finish();
+
+    let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
+    let genre_slugs = genre_slugs
+        .into_iter()
+        .filter(|i| i.slug.as_str().starts_with("custom-"))
+        .collect::<Vec<Slug>>();
+
+    assert_eq!(genre_slugs.len(), 1);
+    assert_eq!(genre_slugs[0].slug, "custom-1".to_string());
+
+    project.create_genre().with_name(&new_genres[1].to_string()).finish();
+    let genre_slugs = Slug::find_by_slug_type(SlugTypes::Genre, connection).unwrap();
+    let genre_slugs = genre_slugs
+        .into_iter()
+        .filter(|i| i.slug.as_str().starts_with("custom-"))
+        .collect::<Vec<Slug>>();
+    assert_eq!(genre_slugs.len(), 2);
 }
 
 #[test]

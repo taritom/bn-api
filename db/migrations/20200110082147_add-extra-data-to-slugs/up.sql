@@ -1,0 +1,3 @@
+ALTER TABLE slugs
+    ADD COLUMN title TEXT NULL,
+    ADD COLUMN description TEXT NULL;
