@@ -59,7 +59,7 @@ impl<'a> ArtistBuilder<'a> {
         artist.spotify_id = self.spotify_id.clone();
 
         let artist = artist.commit(self.connection).unwrap();
-        artist.set_privacy(self.is_private, self.connection).unwrap();
+        let artist = artist.set_privacy(self.is_private, self.connection).unwrap();
         match &self.genres {
             Some(genres) => {
                 artist.set_genres(genres, None, self.connection).unwrap();
