@@ -22,6 +22,7 @@ pub struct AdminDisplayTicketType {
     pub price_in_cents: i64,
     pub visibility: TicketTypeVisibility,
     pub parent_id: Option<Uuid>,
+    pub parent_name: Option<String>,
     pub additional_fee_in_cents: i64,
     pub rank: i32,
     pub app_sales_enabled: bool,
@@ -50,6 +51,11 @@ impl AdminDisplayTicketType {
             )?);
         }
 
+        let parent_name = match ticket_type.parent_id {
+            Some(parent_id) => Some(TicketType::find(parent_id, conn)?.name),
+            None => None,
+        };
+
         let mut result = AdminDisplayTicketType {
             id: ticket_type.id,
             name: ticket_type.name.clone(),
@@ -59,6 +65,7 @@ impl AdminDisplayTicketType {
                 .start_date
                 .and_then(|sd| if sd <= times::zero() { None } else { Some(sd) }),
             parent_id: ticket_type.parent_id,
+            parent_name,
             end_date: ticket_type.end_date,
             end_date_type: ticket_type.end_date_type,
             ticket_pricing: ticket_pricing_list.clone(),
