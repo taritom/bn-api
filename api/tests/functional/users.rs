@@ -50,7 +50,7 @@ mod history_tests {
     }
     #[test]
     fn history_box_office() {
-        base::users::history(Roles::OrgBoxOffice, false);
+        base::users::history(Roles::OrgBoxOffice, true);
     }
 }
 
@@ -91,7 +91,7 @@ mod activity_tests {
     }
     #[test]
     fn activity_box_office() {
-        base::users::activity(Roles::OrgBoxOffice, false);
+        base::users::activity(Roles::OrgBoxOffice, true);
     }
 }
 
@@ -132,7 +132,7 @@ mod profile_tests {
     }
     #[test]
     fn profile_box_office() {
-        base::users::profile(Roles::OrgBoxOffice, false);
+        base::users::profile(Roles::OrgBoxOffice, true);
     }
 }
 
