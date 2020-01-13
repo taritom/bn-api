@@ -11,8 +11,8 @@ use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
 use schema::{
-    event_users, events, order_items, order_transfers, orders, organization_users, organizations, payments, transfers,
-    users,
+    event_users, events, order_items, order_transfers, orders, organization_users, organizations, payments, refunds,
+    transfers, users,
 };
 use serde_json;
 use serde_json::Value;
@@ -239,6 +239,30 @@ impl Order {
         }
 
         DatabaseError::no_results("Could not find any event for this order")
+    }
+
+    pub fn resend_order_confirmation(&self, current_user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if self.status != OrderStatus::Paid {
+            return DatabaseError::business_process_error("Cannot resend confirmation for unpaid order");
+        }
+
+        DomainEvent::create(
+            DomainEventTypes::OrderResendConfirmationTriggered,
+            "Resend order confirmation".to_string(),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn has_refunds(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(refunds::table.filter(refunds::order_id.eq(self.id))))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not check if order has associated refunds")
     }
 
     pub fn refund(

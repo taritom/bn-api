@@ -12,6 +12,65 @@ use time::Duration;
 use uuid::Uuid;
 
 #[test]
+fn has_refunds() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut order = project.create_order().for_user(&user).is_paid().finish();
+    assert!(!order.has_refunds(connection).unwrap());
+
+    let items = order.items(&connection).unwrap();
+    let order_item = items.iter().find(|i| i.item_type == OrderItemTypes::Tickets).unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(tickets[0].id),
+    }];
+    assert!(order.refund(&refund_items, user.id, None, false, connection).is_ok());
+    assert!(order.has_refunds(connection).unwrap());
+}
+
+#[test]
+fn resend_order_confirmation() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let order = project.create_order().is_paid().finish();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderResendConfirmationTriggered),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    order.resend_order_confirmation(user.id, connection).unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderResendConfirmationTriggered),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    let order = project.create_order().finish();
+    assert_eq!(
+        order.resend_order_confirmation(user.id, connection),
+        DatabaseError::business_process_error("Cannot resend confirmation for unpaid order",)
+    );
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderResendConfirmationTriggered),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+}
+
+#[test]
 fn transfers() {
     let project = TestProject::new();
     let connection = project.get_connection();

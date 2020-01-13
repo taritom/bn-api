@@ -138,6 +138,18 @@ impl DomainEvent {
                 data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
                 result.push(data);
             }
+            DomainEventTypes::OrderResendConfirmationTriggered => {
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                let order = Order::find(main_id, conn)?;
+                let order_has_refunds = order.has_refunds(conn)?;
+                DomainEvent::order_payload_data(conn, &mut data, order)?;
+
+                if order_has_refunds {
+                    data.insert("webhook_event_type".to_string(), json!("refund_completed"));
+                }
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                result.push(data);
+            }
             DomainEventTypes::TransferTicketStarted
             | DomainEventTypes::TransferTicketCancelled
             | DomainEventTypes::TransferTicketCompleted => {

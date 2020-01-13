@@ -20,6 +20,7 @@ pub static SUPPORTED_DOMAIN_EVENT_TYPES_FOR_PUBLISHING: &'static [DomainEventTyp
     DomainEventTypes::UserCreated,
     DomainEventTypes::OrderCompleted,
     DomainEventTypes::OrderRefund,
+    DomainEventTypes::OrderResendConfirmationTriggered,
     DomainEventTypes::TemporaryUserCreated,
     DomainEventTypes::PushNotificationTokenCreated,
 ];

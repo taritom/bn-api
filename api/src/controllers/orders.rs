@@ -88,10 +88,13 @@ pub fn resend_confirmation(
 
     let user = DbUser::find(order.on_behalf_of_user_id.unwrap_or(order.user_id), connection)?;
     let display_order = order.for_display(None, user.id, connection)?;
+    // Legacy resend order confirmation
     if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
         mailers::orders::confirmation_email(&first_name, email, display_order, &state.config, connection)?
             .queue(connection)?;
     }
+    // Customer.io based resend order confirmation
+    order.resend_order_confirmation(auth_user.id(), connection)?;
 
     Ok(HttpResponse::Ok().json(json!({})))
 }

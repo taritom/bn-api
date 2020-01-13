@@ -115,6 +115,7 @@ string_enum! { DomainEventTypes [
     OrderCompleted,
     OrderCreated,
     OrderRefund,
+    OrderResendConfirmationTriggered,
     OrderStatusUpdated,
     OrderUpdated,
     OrganizationCreated,

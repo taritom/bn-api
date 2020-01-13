@@ -259,7 +259,6 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventViewGuests,
                 Scopes::CodeRead,
                 Scopes::OrderRead,
-                Scopes::OrderResendConfirmation,
                 Scopes::DashboardRead,
             ];
             roles
@@ -272,6 +271,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             let mut roles = vec![
                 Scopes::EventViewGuests,
                 Scopes::OrderMakeExternalPayment,
+                Scopes::OrderResendConfirmation,
+                Scopes::OrgFans,
                 Scopes::BoxOfficeTicketRead,
             ];
             roles.extend(get_scopes_for_role(Roles::DoorPerson));
@@ -287,7 +288,6 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::HoldRead,
                 Scopes::NoteRead,
                 Scopes::OrderRead,
-                Scopes::OrderResendConfirmation,
                 Scopes::OrgReadEvents,
                 Scopes::TicketRead,
                 Scopes::TicketTypeRead,
