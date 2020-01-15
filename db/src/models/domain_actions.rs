@@ -6,6 +6,7 @@ use models::enums::*;
 use schema::*;
 use serde_json;
 use utils::dates;
+use utils::dates::IntoDateBuilder;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -244,6 +245,26 @@ impl DomainAction {
                 domain_actions::last_failure_reason.eq(reason),
                 domain_actions::status.eq(DomainActionStatus::Errored),
                 domain_actions::blocked_until.eq(dsl::now),
+                domain_actions::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
+    }
+
+    pub fn set_scheduled_at(
+        &self,
+        scheduled_at: NaiveDateTime,
+        conn: &PgConnection,
+    ) -> Result<DomainAction, DatabaseError> {
+        let date_builder = scheduled_at.clone().into_builder();
+
+        let expires_at = date_builder.clone().add_seconds(900).finish();
+        let blocked_until = date_builder.add_seconds(-30).finish();
+        diesel::update(self)
+            .set((
+                domain_actions::scheduled_at.eq(scheduled_at),
+                domain_actions::expires_at.eq(expires_at),
+                domain_actions::blocked_until.eq(blocked_until),
                 domain_actions::updated_at.eq(dsl::now),
             ))
             .get_result(conn)
