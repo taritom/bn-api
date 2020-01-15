@@ -179,7 +179,7 @@ fn broadcast_update_send_at() {
     )
     .unwrap();
 
-    assert_eq!(domain_actions.get(0).scheduled_at, new_send_at.unwrap());
+    assert_eq!(domain_actions[0].scheduled_at, new_send_at.unwrap());
 }
 
 #[test]
