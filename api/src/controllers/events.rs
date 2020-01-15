@@ -18,6 +18,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
+use url::Url;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
@@ -1254,7 +1255,7 @@ pub fn create_link(
 
     let query = query.into_inner();
     let slug = event.slug(conn).unwrap_or(path.id.to_string());
-    let long_link = format!(
+    let long_link_raw = format!(
         "{}/tickets/{}?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
         state.config.front_end_url,
         slug,
@@ -1264,10 +1265,12 @@ pub fn create_link(
         query.term.as_ref().unwrap_or(&"".to_string()),
         query.content.as_ref().unwrap_or(&"".to_string())
     );
+    let long_link_url = Url::parse(long_link_raw.as_str())?;
+
     let deep_linker = state.service_locator.create_deep_linker()?;
-    let short_link = deep_linker.create_deep_link(&long_link)?;
+    let short_link = deep_linker.create_deep_link(&long_link_raw)?;
     Ok(HttpResponse::Ok().json(LinkResult {
         link: short_link,
-        long_link,
+        long_link: long_link_url.as_str().to_string(),
     }))
 }
