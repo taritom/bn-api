@@ -79,10 +79,18 @@ pub fn create_sitemap_conn(conn: &PgConnection, front_end_url: &String) -> Resul
         conn,
     );
 
+    // Genres
+    let genre_slug_ids = Slug::find_by_slug_type(SlugTypes::Genre, conn)?
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
+    let genre_urls = create_urls(front_end_url, genre_slug_ids, "genres".to_string(), conn);
+
     let mut urls = event_urls;
     urls.extend(venue_urls);
     urls.extend(organizations_urls);
     urls.extend(city_urls);
+    urls.extend(genre_urls);
 
     let sitemap_xml = create_sitemap(&urls)?;
     Ok(sitemap_xml)

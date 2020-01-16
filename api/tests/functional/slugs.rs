@@ -41,6 +41,7 @@ fn show_event() {
         None,
         conn,
         1,
+        None,
     );
     path.id = slug.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();

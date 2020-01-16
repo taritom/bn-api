@@ -138,6 +138,15 @@ pub fn index_for_user() {
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .finish();
     event3.delete(user.id, connection).unwrap();
+    //Event that has ended
+    let _ended_event = database
+        .create_event()
+        .with_name("EndedEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2018, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2018, 7, 9).and_hms(9, 10, 11))
+        .finish();
 
     let expected_results = vec![
         event_venue_entry(&event, &venue, &vec![], Some(user.clone()), &*connection),
@@ -403,8 +412,78 @@ fn show() {
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
-    let event_expected_json =
-        base::events::expected_show_json(Roles::User, event, organization, venue, false, None, None, conn, 1);
+    let event_expected_json = base::events::expected_show_json(
+        Roles::User,
+        event,
+        organization,
+        venue,
+        false,
+        None,
+        None,
+        conn,
+        1,
+        None,
+    );
+    path.id = event_id.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+}
+
+#[test]
+fn show_ended_event() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .with_event_start(NaiveDate::from_ymd(2018, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2018, 7, 9).and_hms(9, 10, 11))
+        .finish();
+    let event_id = event.id;
+
+    let artist1 = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
+    let conn = database.connection.get();
+
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
+
+    let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
+    let test_request = TestRequest::create_with_uri(&format!("/tickets/{}", event.id));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json = base::events::expected_show_json(
+        Roles::User,
+        event,
+        organization,
+        venue,
+        false,
+        None,
+        None,
+        conn,
+        1,
+        Some(EventStatus::Closed),
+    );
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -487,6 +566,7 @@ fn show_from_slug() {
         None,
         conn,
         1,
+        None,
     );
     path.id = slug1.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -548,6 +628,7 @@ fn show_from_slug() {
         None,
         conn,
         1,
+        None,
     );
     path.id = slug2.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -595,6 +676,7 @@ fn show_future_published_with_preview() {
         None,
         connection,
         1,
+        None,
     );
 
     EventInterest::create(event_id, user.id).commit(connection).unwrap();
@@ -705,6 +787,7 @@ fn show_private() {
         None,
         conn,
         1,
+        None,
     );
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -738,6 +821,7 @@ fn show_private() {
         None,
         conn,
         2,
+        None,
     );
     path.id = private_event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -806,6 +890,7 @@ fn show_private() {
         None,
         conn,
         2,
+        None,
     );
     assert_eq!(body, event_expected_json);
 }
@@ -841,8 +926,18 @@ fn show_with_cancelled_ticket_type() {
     EventInterest::create(event.id, user.id).commit(conn).unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
-    let event_expected_json =
-        base::events::expected_show_json(Roles::User, event, organization, venue, false, None, None, conn, 1);
+    let event_expected_json = base::events::expected_show_json(
+        Roles::User,
+        event,
+        organization,
+        venue,
+        false,
+        None,
+        None,
+        conn,
+        1,
+        None,
+    );
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -910,6 +1005,7 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
         Some(vec![ticket_type.id]),
         conn,
         1,
+        None,
     );
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -982,6 +1078,7 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
         Some(vec![ticket_type.id, ticket_type2.id]),
         conn,
         1,
+        None,
     );
     path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();

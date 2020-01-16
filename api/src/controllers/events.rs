@@ -350,9 +350,7 @@ pub fn show(
 
     let event_ended = event.event_end.unwrap_or(times::infinity()) < dates::now().finish();
     if !user_has_privileges
-        && (event.publish_date.unwrap_or(times::infinity()) > dates::now().finish()
-            || event.deleted_at.is_some()
-            || event_ended)
+        && (event.publish_date.unwrap_or(times::infinity()) > dates::now().finish() || event.deleted_at.is_some())
     {
         return application::not_found();
     }
@@ -484,6 +482,13 @@ pub fn show(
             .company_fee_in_cents
             .unwrap_or(organization.company_event_fee_in_cents);
     let slug = event.slug(connection)?;
+
+    let status = if event_ended {
+        EventStatus::Closed
+    } else {
+        event.status.clone()
+    };
+
     let payload = &EventShowResult {
         id: event.id,
         response_type: "Event".to_string(),
@@ -501,7 +506,7 @@ pub fn show(
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
         fee_in_cents,
-        status: event.status,
+        status,
         publish_date: event.publish_date,
         promo_image_url: optimize_cloudinary(&event.promo_image_url),
         original_promo_image_url: event.promo_image_url,
