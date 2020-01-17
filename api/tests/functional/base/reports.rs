@@ -422,5 +422,6 @@ fn build_transaction_report_row(
         term: None,
         content: None,
         platform: None,
+        check_in_source: None,
     }
 }

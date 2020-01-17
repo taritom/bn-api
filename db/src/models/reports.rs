@@ -262,6 +262,8 @@ pub struct TransactionReportRow {
     pub content: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub platform: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub check_in_source: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
