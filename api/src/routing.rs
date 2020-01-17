@@ -15,7 +15,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/admin/orders", |r| {
         r.method(Method::GET).with(admin::orders);
     })
-    .resource("/analytics/track", |r| {
+    .resource("/a/t", |r| {
         r.method(Method::GET).with(analytics::track);
     })
     .resource("/artists/search", |r| {

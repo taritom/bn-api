@@ -12,6 +12,7 @@ use std::error::Error;
 use std::fmt;
 use std::io::Error as IoError;
 use tari_client::TariError;
+use url;
 use validator::{ValidationError, ValidationErrors};
 use validators::create_validation_error;
 
@@ -271,6 +272,12 @@ impl From<EnumParseError> for DatabaseError {
 
 impl From<ParseError> for DatabaseError {
     fn from(e: ParseError) -> Self {
+        DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
+    }
+}
+
+impl From<url::ParseError> for DatabaseError {
+    fn from(e: url::ParseError) -> Self {
         DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
     }
 }

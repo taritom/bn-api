@@ -64,7 +64,11 @@ pub fn track(
     let utm_term = extract_param(&params, "utm_term");
     let utm_campaign = extract_param(&params, "utm_campaign");
     let utm_code = extract_param(&params, "code");
-    let is_facebook = extract_param(&params, "fbclid").map(|_| "facebook".to_string());
+    let referrer_host = match query.referrer {
+        Some(ref r) => Url::parse(r)?.host_str().map(|h| h.to_string()),
+        None => None,
+    };
+    let is_facebook = extract_param(&params, "fbclid").map(|_| "facebook.com".to_string());
 
     PageView::create(
         Utc::now().naive_utc(),
@@ -73,12 +77,14 @@ pub fn track(
             .source
             .clone()
             .or(utm_source)
+            .or(referrer_host)
             .or(is_facebook.clone())
             .unwrap_or("direct".to_string()),
         query
             .medium
             .clone()
             .or(utm_medium)
+            .or(query.referrer.as_ref().map(|_| "referral".to_string()))
             .or(is_facebook.map(|_| "referral".to_string()))
             .unwrap_or("".to_string()),
         query.term.clone().or(utm_term).unwrap_or("".to_string()),

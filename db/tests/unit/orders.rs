@@ -537,7 +537,7 @@ fn set_tracking_data() {
     let mut tracking_data: HashMap<&str, &str> = HashMap::new();
     tracking_data.insert("fbclid", "abc123");
     tracking_data.insert("utm_source", "utm_source-source");
-    tracking_data.insert("referrer", "referrer-source");
+    tracking_data.insert("referrer", "http://localhost:3000/referrer-source");
     tracking_data.insert("utm_medium", "utm_medium-source");
     tracking_data.insert("utm_campaign", "utm_campaign-source");
     tracking_data.insert("utm_term", "utm_term-source");
@@ -547,7 +547,7 @@ fn set_tracking_data() {
         .unwrap();
     let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(cart.tracking_data, Some(tracking_data_value));
-    assert_eq!(cart.source, Some("facebook".to_string()));
+    assert_eq!(cart.source, Some("utm_source-source".to_string()));
     assert_eq!(cart.medium, Some("utm_medium-source".to_string()));
     assert_eq!(cart.campaign, Some("utm_campaign-source".to_string()));
     assert_eq!(cart.term, Some("utm_term-source".to_string()));
@@ -564,15 +564,16 @@ fn set_tracking_data() {
     assert_eq!(cart.tracking_data, Some(tracking_data_value));
     assert_eq!(cart.source, Some("utm_source-source".to_string()));
 
-    // No facebook id and utm_source, falls back on referrer
+    // With FB id and no source or referrer, falls back to facebook
     let mut tracking_data: HashMap<&str, &str> = HashMap::new();
-    tracking_data.insert("referrer", "referrer-source");
+    tracking_data.insert("fbclid", "2345245");
     let tracking_data_value = json!(tracking_data);
     cart.set_tracking_data(Some(tracking_data_value.clone()), Some(user.id), connection)
         .unwrap();
     let cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(cart.tracking_data, Some(tracking_data_value));
-    assert_eq!(cart.source, Some("referrer-source".to_string()));
+    assert_eq!(cart.source, Some("facebook.com".to_string()));
+    assert_eq!(cart.medium, Some("referral".to_string()));
 }
 
 #[test]

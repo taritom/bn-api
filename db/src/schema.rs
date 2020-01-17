@@ -396,6 +396,7 @@ table! {
         content -> Nullable<Text>,
         platform -> Nullable<Text>,
         settlement_id -> Nullable<Uuid>,
+        referrer -> Nullable<Text>,
     }
 }
 
