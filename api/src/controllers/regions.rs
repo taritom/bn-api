@@ -15,7 +15,7 @@ pub fn index(
 
     Ok(WebPayload::new(
         StatusCode::OK,
-        Payload::from_data(regions, query_parameters.page(), query_parameters.limit()),
+        Payload::from_data(regions, query_parameters.page(), query_parameters.limit(), None),
     ))
 }
 

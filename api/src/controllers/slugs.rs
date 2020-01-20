@@ -7,6 +7,7 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use models::*;
+use reqwest::StatusCode;
 use server::AppState;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -49,6 +50,22 @@ pub enum SlugResponse {
         events: Vec<EventVenueEntry>,
         meta: SlugMetaData,
     },
+}
+
+pub fn index(
+    (connection, query, user): (ReadonlyConnection, Query<PagingParameters>, AuthUser),
+) -> Result<WebPayload<Slug>, BigNeonError> {
+    let connection = connection.get();
+    user.requires_scope(Scopes::OrgAdmin)?;
+    let slug_type = query
+        .get_tag("type")
+        .and_then(|s| Some(s.parse::<SlugTypes>().unwrap_or(SlugTypes::Genre)));
+    let query_string = query.get_tag("query");
+    let (slugs, slug_total) = Slug::search(query_string, slug_type, query.page(), query.limit(), connection)?;
+    let mut payload = Payload::from_data(slugs, query.page(), query.limit(), Some(slug_total as u64));
+
+    payload.paging.tags = query.tags.clone();
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
 pub fn update(

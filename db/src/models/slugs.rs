@@ -7,6 +7,7 @@ use regex::Regex;
 use schema::slugs;
 use unidecode::unidecode;
 use utils::errors::*;
+use utils::pagination::Paginate;
 use utils::rand::random_alpha_string;
 use utils::regexes;
 use uuid::Uuid;
@@ -174,6 +175,29 @@ impl Slug {
             .find(id)
             .first::<Slug>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading slug")
+    }
+
+    pub fn search(
+        query_string: Option<String>,
+        slug_type: Option<SlugTypes>,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<(Vec<Slug>, i64), DatabaseError> {
+        let mut query = slugs::table.into_boxed();
+        if let Some(query_string) = query_string {
+            query = query.filter(slugs::slug.ilike(format!("%{}%", query_string)));
+        }
+        if let Some(slug_type) = slug_type {
+            query = query.filter(slugs::slug_type.eq(slug_type));
+        }
+
+        query
+            .order_by(slugs::slug.asc())
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading slugs")
     }
 
     pub fn find_by_slug_type(slug_type: SlugTypes, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {

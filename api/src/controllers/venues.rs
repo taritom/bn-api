@@ -19,6 +19,7 @@ pub fn index(
         venues,
         query_parameters.page(),
         query_parameters.limit(),
+        None,
     )))
 }
 
@@ -47,6 +48,7 @@ pub fn show_from_organizations(
         venues,
         query_parameters.page(),
         query_parameters.limit(),
+        None,
     )))
 }
 

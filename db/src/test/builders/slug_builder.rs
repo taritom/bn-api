@@ -33,6 +33,11 @@ impl<'a> SlugBuilder<'a> {
         self
     }
 
+    pub fn with_type(mut self, slug_type: SlugTypes) -> Self {
+        self.slug_type = slug_type;
+        self
+    }
+
     pub fn with_title(mut self, title: &str) -> Self {
         self.title = Some(title.to_string());
         self

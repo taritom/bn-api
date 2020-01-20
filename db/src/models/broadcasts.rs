@@ -146,8 +146,7 @@ impl Broadcast {
             .per_page(limit)
             .load_and_count_pages(connection)
             .to_db_error(ErrorCode::QueryError, "Unable to load push notification by event")?;
-        let mut payload = Payload::from_data(notifications, page as u32, limit as u32);
-        payload.paging.total = total as u64;
+        let payload = Payload::from_data(notifications, page as u32, limit as u32, Some(total as u64));
         Ok(payload)
     }
 

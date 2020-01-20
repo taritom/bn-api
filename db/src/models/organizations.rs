@@ -860,8 +860,7 @@ impl Organization {
             })
             .collect();
 
-        let mut payload = Payload::from_data(fans, page, limit);
-        payload.paging.total = record_count as u64;
+        let payload = Payload::from_data(fans, page, limit, Some(record_count as u64));
         Ok(payload)
     }
 

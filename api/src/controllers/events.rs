@@ -207,7 +207,7 @@ pub fn export_event_data(
     let export_data: Vec<EventExportData> = events.data.into_iter().map(|e| e.into()).collect();
     Ok(WebPayload::new(
         StatusCode::OK,
-        Payload::from_data(export_data, paging.page(), paging.limit()),
+        Payload::from_data(export_data, paging.page(), paging.limit(), None),
     ))
 }
 
@@ -1081,7 +1081,7 @@ pub fn codes(
 
     //TODO: remap query to use paging info
     let codes = Code::find_for_event(path.id, code_type, conn)?;
-    let mut payload = Payload::from_data(codes, query.page(), query.limit());
+    let mut payload = Payload::from_data(codes, query.page(), query.limit(), None);
     payload.paging.tags = query.tags.clone();
 
     Ok(HttpResponse::Ok().json(payload))
@@ -1159,7 +1159,7 @@ pub fn holds(
         list.push(r);
     }
 
-    Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
+    Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit(), None)))
 }
 
 pub fn users(
@@ -1201,7 +1201,7 @@ pub fn users(
         });
     }
 
-    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit());
+    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit(), None);
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 

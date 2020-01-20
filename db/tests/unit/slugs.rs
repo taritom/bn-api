@@ -62,6 +62,28 @@ fn find() {
 }
 
 #[test]
+fn search() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let slug_venue = project
+        .create_slug()
+        .with_slug("custom-slug-venue")
+        .with_type(SlugTypes::Venue)
+        .finish();
+    let found_slugs = Slug::search(Some("custom".to_string()), None, 0, 10, connection).unwrap();
+    assert_eq!(slug_venue, found_slugs.0[0]);
+    let slug_city = project
+        .create_slug()
+        .with_slug("custom-slug-city")
+        .with_type(SlugTypes::City)
+        .finish();
+    let found_slugs = Slug::search(Some("custom".to_string()), None, 0, 10, connection).unwrap();
+    assert_eq!(found_slugs.1, 2);
+    let found_slugs = Slug::search(Some("custom".to_string()), Some(SlugTypes::City), 0, 10, connection).unwrap();
+    assert_eq!(slug_city, found_slugs.0[0]);
+}
+
+#[test]
 fn find_by_slug() {
     let project = TestProject::new();
     let connection = project.get_connection();

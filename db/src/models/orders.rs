@@ -181,7 +181,7 @@ impl Order {
 
     pub fn activity(&self, conn: &PgConnection) -> Result<Payload<ActivityItem>, DatabaseError> {
         let activity_items = ActivityItem::load_for_order(&self, conn)?;
-        let payload = Payload::from_data(activity_items, 0, std::u32::MAX);
+        let payload = Payload::from_data(activity_items, 0, std::u32::MAX, None);
         Ok(payload)
     }
 

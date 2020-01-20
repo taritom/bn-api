@@ -319,6 +319,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/reports/{id}", |r| {
         r.method(Method::GET).with(reports::get_report);
     })
+    .resource("/slugs", |r| {
+        r.method(Method::GET).with(slugs::index);
+    })
     .resource("/slugs/{id}", |r| {
         r.method(Method::GET).with(slugs::show);
         r.method(Method::PUT).with(slugs::update);

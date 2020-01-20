@@ -98,8 +98,7 @@ impl Note {
             .load_and_count_pages(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading notes")?;
 
-        let mut payload = Payload::from_data(notes, page, limit);
-        payload.paging.total = record_count as u64;
+        let payload = Payload::from_data(notes, page, limit, Some(record_count as u64));
         Ok(payload)
     }
 
