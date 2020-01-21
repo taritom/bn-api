@@ -1442,13 +1442,20 @@ fn create_transfer() {
     );
 
     // Event ended cannot create transfer
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let result = TicketInstance::create_transfer(&user, &ticket_ids, None, None, false, connection);
     assert_eq!(
         result,
@@ -1622,12 +1629,19 @@ fn receive_ticket_transfer() {
     let receiver_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let transfer =
         TicketInstance::create_transfer(&user2, &[reloaded_ticket.id], None, None, false, connection).unwrap();
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let result = TicketInstance::receive_ticket_transfer(
         transfer.into_authorization(connection).unwrap(),
         &sender_wallet,

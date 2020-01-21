@@ -626,17 +626,20 @@ fn activity() {
     );
 
     // Event is now in the past
-    let event = event
-        .update(
-            None,
-            EventEditableAttributes {
-                event_start: Some(dates::now().add_days(-2).finish()),
-                event_end: Some(dates::now().add_days(-1).finish()),
-                ..Default::default()
-            },
-            connection,
-        )
-        .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-2).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
+    let event = Event::find(event.id, connection).unwrap();
 
     // Is not found via upcoming filter
     assert!(user

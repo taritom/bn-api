@@ -491,16 +491,90 @@ impl Event {
         }
     }
 
+    pub fn validate_record(
+        &self,
+        attributes: &EventEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let mut validation_errors = attributes.validate();
+        let event_start = match attributes.event_start {
+            Some(e) => Some(e.clone()),
+            None => self.event_start,
+        };
+        let event_end = match attributes.event_end {
+            Some(e) => Some(e),
+            None => self.event_end,
+        };
+
+        validation_errors = validators::append_validation_error(
+            validation_errors,
+            "event.event_end",
+            validators::n_date_valid(
+                event_start,
+                event_end,
+                "event_end_before_event_start",
+                "Event End must be after Event Start",
+                "event_start",
+                "event_end",
+            ),
+        );
+
+        let associated_with_active_orders = self.associated_with_active_orders(conn)?;
+
+        if associated_with_active_orders {
+            if let Some(updated_date) = attributes.event_start {
+                if updated_date < Utc::now().naive_utc() {
+                    validation_errors = validators::append_validation_error(
+                        validation_errors,
+                        "event.event_start",
+                        Err(create_validation_error(
+                            "cannot_move_event_dates_in_past",
+                            "Event with sales cannot move to past date.",
+                        )),
+                    );
+                }
+            }
+
+            if let Some(updated_date) = attributes.event_end {
+                if updated_date < Utc::now().naive_utc() {
+                    validation_errors = validators::append_validation_error(
+                        validation_errors,
+                        "event.event_end",
+                        Err(create_validation_error(
+                            "cannot_move_event_dates_in_past",
+                            "Event with sales cannot move to past date.",
+                        )),
+                    );
+                }
+            }
+        }
+
+        Ok(validation_errors?)
+    }
+
+    pub fn associated_with_active_orders(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(
+            order_items::table
+                .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
+                .filter(orders::status.eq(OrderStatus::Paid).or(orders::expires_at.ge(dsl::now)))
+                .filter(order_items::event_id.eq(self.id)),
+        ))
+        .get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not confirm if event has associated orders",
+        )
+    }
+
     pub fn update(
         &self,
         current_user_id: Option<Uuid>,
         attributes: EventEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
-        attributes.validate()?;
         let previous_start = self.event_start;
+        self.validate_record(&attributes, conn)?;
         let mut event = attributes;
-
         if event.private_access_code.is_some() {
             let inner_value = event.private_access_code.clone().unwrap();
             if inner_value.is_some() {
@@ -516,28 +590,6 @@ impl Event {
                 }
             }
         }
-
-        let event_start = match event.event_start {
-            Some(e) => Some(e.clone()),
-            None => self.event_start,
-        };
-        let event_end = match event.event_end {
-            Some(e) => Some(e),
-            None => self.event_end,
-        };
-
-        validators::append_validation_error(
-            Ok(()),
-            "event.event_end",
-            validators::n_date_valid(
-                event_start,
-                event_end,
-                "event_end_before_event_start",
-                "Event End must be after Event Start",
-                "event_start",
-                "event_end",
-            ),
-        )?;
 
         let result: Event = DatabaseError::wrap(
             ErrorCode::UpdateError,
