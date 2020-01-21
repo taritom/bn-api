@@ -175,13 +175,35 @@ impl Broadcast {
             )),
             _ => {
                 self.validate_record(&attributes, connection)?;
-                DatabaseError::wrap(
+                let domain_actions = DomainAction::find_by_resource(
+                    Some(Tables::Broadcasts),
+                    Some(self.id),
+                    DomainActionTypes::BroadcastPushNotification,
+                    DomainActionStatus::Pending,
+                    connection,
+                )?;
+
+                let send_at = attributes.send_at.clone();
+                let result = DatabaseError::wrap(
                     ErrorCode::UpdateError,
                     "Could not update broadcast",
                     diesel::update(self)
                         .set((attributes, broadcasts::updated_at.eq(dsl::now)))
                         .get_result(connection),
-                )
+                );
+
+                if let Some(send_at) = send_at {
+                    //Either set the send_at to the specified date, if None set it to now
+                    let send_at = match send_at {
+                        Some(send_at) => send_at,
+                        None => Utc::now().naive_utc(),
+                    };
+                    for domain_action in domain_actions {
+                        domain_action.set_scheduled_at(send_at.clone(), connection)?;
+                    }
+                }
+
+                result
             }
         }
     }
@@ -212,6 +234,17 @@ impl Broadcast {
                 conn,
             )?,
         );
+
+        //Check that we are not updating a broadcast that has already been run
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "send_at",
+            Broadcast::send_at_has_not_passed(
+                self.send_at,
+                attributes.send_at.clone().unwrap_or(self.send_at.clone()),
+                self.status,
+            ),
+        );
         Ok(validation_errors?)
     }
 
@@ -231,6 +264,42 @@ impl Broadcast {
                 let validation_error =
                     create_validation_error("custom_message_empty", "Custom messages cannot be blank");
                 return Ok(Err(validation_error));
+            }
+        }
+    }
+
+    fn send_at_has_not_passed(
+        send_at: Option<NaiveDateTime>,
+        new_send_at: Option<NaiveDateTime>,
+        status: BroadcastStatus,
+    ) -> Result<(), ValidationError> {
+        if status != BroadcastStatus::Pending {
+            return Err(create_validation_error(
+                "broadcast_not_pending",
+                "The send_at field cannot be updated if a broadcast is not pending",
+            ));
+        }
+        if new_send_at.is_none() {
+            return Ok(());
+        }
+        match send_at {
+            Some(_send_at) => {
+                if let Some(new_send_at) = new_send_at {
+                    if new_send_at <= Utc::now().naive_utc() {
+                        return Err(create_validation_error(
+                            "send_at_in_the_past",
+                            "The send_at field should be set to a time in the future",
+                        ));
+                    }
+                }
+                return Ok(());
+            }
+            None => {
+                // If the send_at is None then it was sent immediately, so you cannot update it.
+                return Err(create_validation_error(
+                    "broadcast_already_sent",
+                    "This broadcast has already been sent, you cannot update the send_at time",
+                ));
             }
         }
     }

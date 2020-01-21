@@ -99,7 +99,9 @@ pub fn update(
     let organization = Organization::find_for_event(broadcast.event_id, connection)?;
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
-    let broadcast_attributes = json.into_inner();
+    let mut broadcast_attributes = json.into_inner();
+    //Never allow an API call to update the status of a broadcast, it must either be set in the model or be cancelled specifically
+    broadcast_attributes.status = None;
     let broadcast = broadcast.update(broadcast_attributes, connection)?;
     Ok(HttpResponse::Ok().json(broadcast))
 }
