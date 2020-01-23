@@ -37,7 +37,7 @@ const get = async function (request_body) {
 let requestBody = ``;
 
 
-describe('OrgMember - Event - 401', function () {
+describe('OrgMember - Event', function () {
     before(async function () {
         response = await get(requestBody);
         log(response.request.header);
@@ -56,11 +56,11 @@ describe('OrgMember - Event - 401', function () {
 
     });
 
-    it("should be 401", function () {
-        expect(response.status).to.equal(401);
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
     });
 
 
 });
 
-            
+

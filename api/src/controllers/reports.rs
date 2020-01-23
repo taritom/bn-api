@@ -193,9 +193,9 @@ pub fn ticket_counts(
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
+        user.requires_scope_for_organization_event(Scopes::DashboardRead, &organization, &event, connection)?;
     } else {
-        user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
+        user.requires_scope_for_organization(Scopes::DashboardRead, &organization, connection)?;
     }
 
     let result = Report::ticket_count_report(query.event_id, Some(path.id), connection)?;
