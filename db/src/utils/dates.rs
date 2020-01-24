@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use chrono::Duration;
 
+#[derive(Clone)]
 pub struct DateBuilder {
     date: NaiveDateTime,
 }

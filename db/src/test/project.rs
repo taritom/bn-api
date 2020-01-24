@@ -83,6 +83,10 @@ impl TestProject {
         EventBuilder::new(&self.connection)
     }
 
+    pub fn create_genre(&self) -> GenreBuilder {
+        GenreBuilder::new(&self.connection)
+    }
+
     pub fn create_hold(&self) -> HoldBuilder {
         HoldBuilder::new(&self.connection)
     }

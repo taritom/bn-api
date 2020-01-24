@@ -47,7 +47,8 @@ SELECT COUNT(*) OVER ()                                                         
        o.campaign,
        o.term,
        o.content,
-       o.platform
+       o.platform,
+       ti_agg.check_in_source
 FROM orders o
          LEFT JOIN order_items oi ON (o.id = oi.order_id AND oi.item_type = 'Tickets')
          LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)
@@ -63,6 +64,10 @@ FROM orders o
                     FROM payments p
                     WHERE p.status IN ('Completed','Refunded')
                     GROUP BY p.order_id) AS p on o.id = p.order_id
+         LEFT JOIN (SELECT ti.order_item_id,
+                           NULLIF(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT ti.check_in_source), ', '), '') AS check_in_source
+                    FROM ticket_instances ti
+                    GROUP BY ti.order_item_id) AS ti_agg ON ti_agg.order_item_id = oi.id
          LEFT JOIN holds h on oi.hold_id = h.id
          LEFT JOIN events e on oi.event_id = e.id
          LEFT JOIN users u on coalesce(o.on_behalf_of_user_id, o.user_id) = u.id

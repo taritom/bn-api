@@ -199,12 +199,19 @@ fn event_ended() {
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     assert!(!transfer.event_ended(connection).unwrap());
 
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     assert!(transfer.event_ended(connection).unwrap());
 }
 
@@ -586,21 +593,35 @@ fn can_process_drips() {
     assert!(!transfer2.can_process_drips(connection).unwrap());
 
     // Event has ended, do not process drip
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-2).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-2).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     assert!(!transfer.can_process_drips(connection).unwrap());
 
     // Transfer not pending, do not process drip
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-2).finish()),
-        event_end: Some(dates::now().add_days(1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-2).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     assert!(transfer.can_process_drips(connection).unwrap());
 
     let transfer = transfer.complete(user.id, None, connection).unwrap();
@@ -828,12 +849,19 @@ fn events_have_not_ended() {
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     assert!(transfer.events_have_not_ended(connection).unwrap());
 
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-2).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-2).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
 
     assert!(!transfer.events_have_not_ended(connection).unwrap());
 }
@@ -1394,12 +1422,19 @@ fn find_for_user_for_display() {
     .is_empty());
 
     // Event ended marking transfer as EventEnded
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let transfers = Transfer::find_for_user_for_display(
         user.id,
         None,
@@ -1438,12 +1473,19 @@ fn find() {
     assert_eq!(transfer.status, TransferStatus::Pending);
 
     // Event ended marking transfer as EventEnded
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let transfer = Transfer::find(transfer.id, connection).unwrap();
     assert_eq!(transfer.status, TransferStatus::EventEnded);
 }
@@ -1473,12 +1515,19 @@ fn find_by_transfer_key() {
     assert_eq!(found_transfer.status, TransferStatus::Pending);
 
     // Event ended marking transfer as EventEnded
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let found_transfer = Transfer::find_by_transfer_key(transfer_key, connection).unwrap();
     assert_eq!(found_transfer.status, TransferStatus::EventEnded);
 }
@@ -1538,12 +1587,19 @@ fn find_pending() {
     assert_eq!(pending_transfers[0].id, transfer2.id);
 
     // Event end passed, no longer pending as transfer has now been marked EventEnded
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let pending_transfers = Transfer::find_pending(connection).unwrap();
     assert_eq!(pending_transfers.len(), 0);
 }
@@ -1583,12 +1639,19 @@ fn find_pending_by_ticket_instance_ids() {
     assert_eq!(pending_transfers[0].id, transfer2.id);
 
     // Event end passed, no longer pending as transfer has now been marked EventEnded
-    let parameters = EventEditableAttributes {
-        event_start: Some(dates::now().add_days(-7).finish()),
-        event_end: Some(dates::now().add_days(-1).finish()),
-        ..Default::default()
-    };
-    event.update(None, parameters, connection).unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE events
+        SET event_start = $1,
+        event_end = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-7).finish())
+    .bind::<sql_types::Timestamp, _>(dates::now().add_days(-1).finish())
+    .bind::<sql_types::Uuid, _>(event.id)
+    .execute(connection)
+    .unwrap();
     let pending_transfers =
         Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection).unwrap();
     assert_eq!(pending_transfers.len(), 0);

@@ -200,6 +200,7 @@ pub fn list_organizations(
         organization_links,
         query_parameters.page(),
         query_parameters.limit(),
+        None,
     )))
 }
 

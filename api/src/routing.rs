@@ -15,7 +15,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/admin/orders", |r| {
         r.method(Method::GET).with(admin::orders);
     })
-    .resource("/analytics/track", |r| {
+    .resource("/a/t", |r| {
         r.method(Method::GET).with(analytics::track);
     })
     .resource("/artists/search", |r| {
@@ -119,6 +119,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/broadcasts", |r| {
         r.method(Method::POST).with(broadcasts::create);
         r.method(Method::GET).with(broadcasts::index);
+        r.method(Method::PUT).with(broadcasts::update);
     })
     .resource("/events/{id}/links", |r| {
         r.method(Method::POST).with(events::create_link);
@@ -319,6 +320,13 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/reports/{id}", |r| {
         r.method(Method::GET).with(reports::get_report);
     })
+    .resource("/slugs", |r| {
+        r.method(Method::GET).with(slugs::index);
+    })
+    .resource("/slugs/{id}", |r| {
+        r.method(Method::GET).with(slugs::show);
+        r.method(Method::PUT).with(slugs::update);
+    })
     .resource("/status", |r| r.method(Method::GET).with(status::check))
     .resource("/stages/{id}", |r| {
         r.method(Method::GET).with(stages::show);
@@ -335,9 +343,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/settlements/{id}", |r| {
         r.method(Method::GET).with(settlements::show);
         r.method(Method::DELETE).with(settlements::destroy);
-    })
-    .resource("/slugs/{id}", |r| {
-        r.method(Method::GET).with(slugs::show);
     })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);

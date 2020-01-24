@@ -10,8 +10,55 @@ use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::sql_types;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+#[test]
+fn associated_with_active_orders() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().with_ticket_type_count(2).finish();
+    let ticket_types = &event.ticket_types(true, None, project.get_connection()).unwrap();
+    let ticket_type = &ticket_types[0];
+    assert!(!event.associated_with_active_orders(connection).unwrap());
+
+    // Unpaid order but in cart, not yet expired
+    let order = project.create_order().for_tickets(ticket_type.id).finish();
+    assert!(event.associated_with_active_orders(connection).unwrap());
+
+    // Expire the order
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET expires_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
+    assert!(!event.associated_with_active_orders(connection).unwrap());
+
+    // Paid order
+    let order = project.create_order().for_tickets(ticket_type.id).is_paid().finish();
+    assert!(event.associated_with_active_orders(connection).unwrap());
+
+    // Expire the order but it's paid so still counts
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET expires_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
+    assert!(event.associated_with_active_orders(connection).unwrap());
+}
 
 #[test]
 fn slug() {

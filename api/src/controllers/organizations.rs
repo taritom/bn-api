@@ -80,6 +80,7 @@ pub fn index(
         organizations,
         query_parameters.page(),
         query_parameters.limit(),
+        None,
     )))
 }
 
@@ -94,6 +95,7 @@ pub fn index_for_all_orgs(
         organizations,
         query_parameters.page(),
         query_parameters.limit(),
+        None,
     )))
 }
 
@@ -309,7 +311,7 @@ pub fn list_organization_members(
         });
     }
 
-    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit());
+    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit(), None);
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 

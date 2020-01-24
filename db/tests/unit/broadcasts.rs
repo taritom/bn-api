@@ -142,6 +142,86 @@ fn broadcast_update() {
 }
 
 #[test]
+fn broadcast_update_send_at() {
+    let project = TestProject::new();
+    let conn = project.get_connection();
+
+    let broadcast = project
+        .create_broadcast()
+        .with_channel(BroadcastChannel::PushNotification)
+        .with_send_at(Utc::now().naive_utc())
+        .with_status(BroadcastStatus::Pending)
+        .finish();
+
+    let new_send_at = Some(dates::now().add_seconds(60).finish());
+    let attributes = BroadcastEditableAttributes {
+        notification_type: None,
+        channel: None,
+        name: None,
+        message: None,
+        send_at: Some(new_send_at.clone()),
+        status: None,
+    };
+    let broadcast = broadcast.update(attributes, conn).unwrap();
+
+    assert_eq!(broadcast.status, BroadcastStatus::Pending);
+    assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
+    assert_eq!(
+        broadcast.send_at.map(|s| s.timestamp()),
+        new_send_at.clone().map(|s| s.timestamp())
+    );
+
+    let domain_actions = DomainAction::find_by_resource(
+        Some(Tables::Broadcasts),
+        Some(broadcast.id),
+        DomainActionTypes::BroadcastPushNotification,
+        DomainActionStatus::Pending,
+        conn,
+    )
+    .unwrap();
+
+    assert_eq!(
+        domain_actions[0].scheduled_at.timestamp(),
+        new_send_at.unwrap().timestamp()
+    );
+
+    let new_send_at = Some(dates::now().add_seconds(-600).finish());
+    let attributes = BroadcastEditableAttributes {
+        notification_type: None,
+        channel: None,
+        name: None,
+        message: None,
+        send_at: Some(new_send_at.clone()),
+        status: None,
+    };
+    let broadcast_err = broadcast.update(attributes, conn);
+    //Cannot set a broadcast in the past.
+    assert!(broadcast_err.is_err());
+
+    //Set the broadcast to in_progress then attempt to adjust the send_at
+    let attributes = BroadcastEditableAttributes {
+        notification_type: None,
+        channel: None,
+        name: None,
+        message: None,
+        send_at: None,
+        status: Some(BroadcastStatus::InProgress),
+    };
+    let broadcast = broadcast.update(attributes, conn).unwrap();
+    let new_send_at = Some(dates::now().add_seconds(60).finish());
+    let attributes = BroadcastEditableAttributes {
+        notification_type: None,
+        channel: None,
+        name: None,
+        message: None,
+        send_at: Some(new_send_at.clone()),
+        status: None,
+    };
+    let broadcast_err = broadcast.update(attributes, conn);
+    assert!(broadcast_err.is_err());
+}
+
+#[test]
 fn broadcast_update_if_cancelled() {
     let project = TestProject::new();
     let conn = project.get_connection();

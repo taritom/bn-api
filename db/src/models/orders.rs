@@ -11,14 +11,15 @@ use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
 use schema::{
-    event_users, events, order_items, order_transfers, orders, organization_users, organizations, payments, transfers,
-    users,
+    event_users, events, order_items, order_transfers, orders, organization_users, organizations, payments, refunds,
+    transfers, users,
 };
 use serde_json;
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
+use url::Url;
 use utils::dates::*;
 use utils::errors::*;
 use utils::iterators::*;
@@ -60,6 +61,7 @@ pub struct Order {
     pub platform: Option<String>,
     #[serde(skip_serializing)]
     pub settlement_id: Option<Uuid>,
+    pub referrer: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -179,7 +181,7 @@ impl Order {
 
     pub fn activity(&self, conn: &PgConnection) -> Result<Payload<ActivityItem>, DatabaseError> {
         let activity_items = ActivityItem::load_for_order(&self, conn)?;
-        let payload = Payload::from_data(activity_items, 0, std::u32::MAX);
+        let payload = Payload::from_data(activity_items, 0, std::u32::MAX, None);
         Ok(payload)
     }
 
@@ -239,6 +241,30 @@ impl Order {
         }
 
         DatabaseError::no_results("Could not find any event for this order")
+    }
+
+    pub fn resend_order_confirmation(&self, current_user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if self.status != OrderStatus::Paid {
+            return DatabaseError::business_process_error("Cannot resend confirmation for unpaid order");
+        }
+
+        DomainEvent::create(
+            DomainEventTypes::OrderResendConfirmationTriggered,
+            "Resend order confirmation".to_string(),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn has_refunds(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(refunds::table.filter(refunds::order_id.eq(self.id))))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not check if order has associated refunds")
     }
 
     pub fn refund(
@@ -547,19 +573,33 @@ impl Order {
     ) -> Result<(), DatabaseError> {
         self.updated_at = Utc::now().naive_utc();
 
-        let mut source: Option<&str> = None;
+        let mut source: Option<String> = None;
         let mut medium: Option<&str> = None;
         let mut campaign: Option<&str> = None;
         let mut term: Option<&str> = None;
         let mut content: Option<&str> = None;
+        let mut referrer: Option<&str> = None;
 
         if let Some(td) = tracking_data.as_ref() {
+            referrer = td.get("referrer").and_then(|r| r.as_str());
+            let referrer_host = match referrer {
+                Some(r) => match Url::parse(r) {
+                    Ok(p) => p.host_str().map(|h| h.to_string()),
+                    Err(_) => Some(r.to_string()),
+                },
+                None => None,
+            };
             source = td
-                .get("fbclid")
-                .map(|_| "facebook")
-                .or(td.get("utm_source").and_then(|s| s.as_str()))
-                .or(td.get("referrer").and_then(|r| r.as_str()));
-            medium = td.get("utm_medium").and_then(|m| m.as_str());
+                .get("utm_source")
+                .and_then(|s| s.as_str().map(|s| s.to_string()))
+                .or(referrer_host)
+                .or(td.get("fbclid").map(|_| "facebook.com".to_string()))
+                .or(Some("direct".to_string()));
+            medium = td
+                .get("utm_medium")
+                .and_then(|m| m.as_str())
+                .or(referrer.map(|_| "referral"))
+                .or(td.get("fbclid").map(|_| "referral"));
             campaign = td.get("utm_campaign").and_then(|c| c.as_str());
             term = td.get("utm_term").and_then(|t| t.as_str());
             content = td.get("utm_content").and_then(|c| c.as_str());
@@ -568,6 +608,7 @@ impl Order {
         diesel::update(orders::table.filter(orders::id.eq(self.id)))
             .set((
                 orders::tracking_data.eq(tracking_data.clone()),
+                orders::referrer.eq(referrer),
                 orders::source.eq(source),
                 orders::medium.eq(medium),
                 orders::campaign.eq(campaign),

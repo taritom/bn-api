@@ -159,7 +159,7 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
     .into();
 
     if should_test_succeed {
-        let event_expected_json = expected_show_json(role, event, organization, venue, true, None, None, conn, 1);
+        let event_expected_json = expected_show_json(role, event, organization, venue, true, None, None, conn, 1, None);
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, event_expected_json);
@@ -781,6 +781,7 @@ pub fn expected_show_json(
     filter_ticket_type_ids: Option<Vec<Uuid>>,
     connection: &PgConnection,
     interested_users: u32,
+    status: Option<EventStatus>,
 ) -> String {
     #[derive(Serialize)]
     struct ShortOrganization {
@@ -913,7 +914,7 @@ pub fn expected_show_json(
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
         fee_in_cents: Some(fee_in_cents),
-        status: event.status,
+        status: status.unwrap_or(event.status),
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url.clone(),
         original_promo_image_url: event.promo_image_url,

@@ -18,6 +18,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
+use url::Url;
 use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
@@ -206,7 +207,7 @@ pub fn export_event_data(
     let export_data: Vec<EventExportData> = events.data.into_iter().map(|e| e.into()).collect();
     Ok(WebPayload::new(
         StatusCode::OK,
-        Payload::from_data(export_data, paging.page(), paging.limit()),
+        Payload::from_data(export_data, paging.page(), paging.limit(), None),
     ))
 }
 
@@ -349,9 +350,7 @@ pub fn show(
 
     let event_ended = event.event_end.unwrap_or(times::infinity()) < dates::now().finish();
     if !user_has_privileges
-        && (event.publish_date.unwrap_or(times::infinity()) > dates::now().finish()
-            || event.deleted_at.is_some()
-            || event_ended)
+        && (event.publish_date.unwrap_or(times::infinity()) > dates::now().finish() || event.deleted_at.is_some())
     {
         return application::not_found();
     }
@@ -483,6 +482,13 @@ pub fn show(
             .company_fee_in_cents
             .unwrap_or(organization.company_event_fee_in_cents);
     let slug = event.slug(connection)?;
+
+    let status = if event_ended {
+        EventStatus::Closed
+    } else {
+        event.status.clone()
+    };
+
     let payload = &EventShowResult {
         id: event.id,
         response_type: "Event".to_string(),
@@ -500,7 +506,7 @@ pub fn show(
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
         fee_in_cents,
-        status: event.status,
+        status,
         publish_date: event.publish_date,
         promo_image_url: optimize_cloudinary(&event.promo_image_url),
         original_promo_image_url: event.promo_image_url,
@@ -1075,7 +1081,7 @@ pub fn codes(
 
     //TODO: remap query to use paging info
     let codes = Code::find_for_event(path.id, code_type, conn)?;
-    let mut payload = Payload::from_data(codes, query.page(), query.limit());
+    let mut payload = Payload::from_data(codes, query.page(), query.limit(), None);
     payload.paging.tags = query.tags.clone();
 
     Ok(HttpResponse::Ok().json(payload))
@@ -1153,7 +1159,7 @@ pub fn holds(
         list.push(r);
     }
 
-    Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
+    Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit(), None)))
 }
 
 pub fn users(
@@ -1195,7 +1201,7 @@ pub fn users(
         });
     }
 
-    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit());
+    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit(), None);
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
@@ -1235,6 +1241,7 @@ pub struct LinkQueryParameters {
 #[derive(Serialize)]
 pub struct LinkResult {
     pub link: String,
+    pub long_link: String,
 }
 
 pub fn create_link(
@@ -1253,7 +1260,7 @@ pub fn create_link(
 
     let query = query.into_inner();
     let slug = event.slug(conn).unwrap_or(path.id.to_string());
-    let long_link = format!(
+    let long_link_raw = format!(
         "{}/tickets/{}?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
         state.config.front_end_url,
         slug,
@@ -1263,7 +1270,12 @@ pub fn create_link(
         query.term.as_ref().unwrap_or(&"".to_string()),
         query.content.as_ref().unwrap_or(&"".to_string())
     );
+    let long_link_url = Url::parse(long_link_raw.as_str())?;
+
     let deep_linker = state.service_locator.create_deep_linker()?;
-    let short_link = deep_linker.create_deep_link(&long_link)?;
-    Ok(HttpResponse::Ok().json(LinkResult { link: short_link }))
+    let short_link = deep_linker.create_deep_link(&long_link_raw)?;
+    Ok(HttpResponse::Ok().json(LinkResult {
+        link: short_link,
+        long_link: long_link_url.as_str().to_string(),
+    }))
 }

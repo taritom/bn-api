@@ -67,8 +67,8 @@ impl<T> Payload<T> {
         payload
     }
 
-    pub fn from_data(data: Vec<T>, page: u32, limit: u32) -> Payload<T> {
-        let len = data.len() as u64;
+    pub fn from_data(data: Vec<T>, page: u32, limit: u32, total: Option<u64>) -> Payload<T> {
+        let len = total.unwrap_or(data.len() as u64);
 
         let mut payload = Payload {
             data,
@@ -94,7 +94,7 @@ impl<T> Payload<T> {
 impl<T> From<Vec<T>> for Payload<T> {
     fn from(vec: Vec<T>) -> Self {
         let len = vec.len() as u32;
-        Payload::from_data(vec, 0, len)
+        Payload::from_data(vec, 0, len, None)
     }
 }
 

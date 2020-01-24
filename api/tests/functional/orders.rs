@@ -134,15 +134,15 @@ mod resend_confirmation_tests {
     }
     #[test]
     fn resend_confirmation_door_person() {
-        base::orders::resend_confirmation(Roles::DoorPerson, true);
+        base::orders::resend_confirmation(Roles::DoorPerson, false);
     }
     #[test]
     fn resend_confirmation_promoter() {
-        base::orders::resend_confirmation(Roles::Promoter, true);
+        base::orders::resend_confirmation(Roles::Promoter, false);
     }
     #[test]
     fn resend_confirmation_promoter_read_only() {
-        base::orders::resend_confirmation(Roles::PromoterReadOnly, true);
+        base::orders::resend_confirmation(Roles::PromoterReadOnly, false);
     }
     #[test]
     fn resend_confirmation_org_admin() {

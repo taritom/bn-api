@@ -305,8 +305,7 @@ impl Settlement {
             .load_and_count_pages(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading settlement")?;
 
-        let mut payload = Payload::from_data(settlements, page, limit);
-        payload.paging.total = record_count as u64;
+        let payload = Payload::from_data(settlements, page, limit, Some(record_count as u64));
         Ok(payload)
     }
 }

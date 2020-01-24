@@ -1,11 +1,13 @@
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
 use regex::Regex;
 use schema::slugs;
 use unidecode::unidecode;
 use utils::errors::*;
+use utils::pagination::Paginate;
 use utils::rand::random_alpha_string;
 use utils::regexes;
 use uuid::Uuid;
@@ -19,6 +21,8 @@ pub struct Slug {
     pub slug_type: SlugTypes,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub title: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -28,6 +32,17 @@ pub struct NewSlug {
     pub main_table: Tables,
     pub main_table_id: Uuid,
     pub slug_type: SlugTypes,
+    pub title: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(AsChangeset, Default, Deserialize)]
+#[table_name = "slugs"]
+pub struct SlugEditableAttributes {
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub title: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub description: Option<Option<String>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,16 +63,39 @@ pub enum SlugContext {
         state: String,
         country: String,
     },
+    Genre {
+        id: Uuid,
+        name: String,
+    },
 }
 
 impl Slug {
-    pub fn create(slug: String, main_table: Tables, main_table_id: Uuid, slug_type: SlugTypes) -> NewSlug {
+    pub fn create(
+        slug: String,
+        main_table: Tables,
+        main_table_id: Uuid,
+        slug_type: SlugTypes,
+        title: Option<String>,
+        description: Option<String>,
+    ) -> NewSlug {
         NewSlug {
             slug,
             main_table,
             main_table_id,
             slug_type,
+            title,
+            description,
         }
+    }
+
+    pub fn update(&self, attributes: SlugEditableAttributes, conn: &PgConnection) -> Result<Slug, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update slug",
+            diesel::update(self)
+                .set((attributes, slugs::updated_at.eq(dsl::now)))
+                .get_result(conn),
+        )
     }
 
     pub fn primary_slug(main_table_id: Uuid, main_table: Tables, conn: &PgConnection) -> Result<Slug, DatabaseError> {
@@ -139,7 +177,30 @@ impl Slug {
             .to_db_error(ErrorCode::QueryError, "Error loading slug")
     }
 
-    pub fn find_by_slug_type(slug_type: &str, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
+    pub fn search(
+        query_string: Option<String>,
+        slug_type: Option<SlugTypes>,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<(Vec<Slug>, i64), DatabaseError> {
+        let mut query = slugs::table.into_boxed();
+        if let Some(query_string) = query_string {
+            query = query.filter(slugs::slug.ilike(format!("%{}%", query_string)));
+        }
+        if let Some(slug_type) = slug_type {
+            query = query.filter(slugs::slug_type.eq(slug_type));
+        }
+
+        query
+            .order_by(slugs::slug.asc())
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading slugs")
+    }
+
+    pub fn find_by_slug_type(slug_type: SlugTypes, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
         slugs::table
             .filter(slugs::slug_type.eq(slug_type))
             .get_results(conn)
@@ -221,6 +282,11 @@ impl Slug {
                     slug_name = Some(name.clone());
                 }
             }
+            SlugContext::Genre { id, ref name } => {
+                main_table_id = Some(*id);
+                main_table = Some(Tables::Genres);
+                slug_name = Some(name.clone())
+            }
         }
 
         // Sanity check
@@ -243,9 +309,15 @@ impl Slug {
 
         // If slug record is matched duplicate it for this type
         match slug_record {
-            Some(slug_record) => {
-                Slug::create(slug_record.slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
-            }
+            Some(slug_record) => Slug::create(
+                slug_record.slug,
+                main_table.unwrap(),
+                main_table_id.unwrap(),
+                slug_type,
+                None,
+                None,
+            )
+            .commit(conn),
             None => {
                 let mut slug = Slug::create_slug(&slug_name.unwrap());
                 loop {
@@ -256,12 +328,12 @@ impl Slug {
                     slug = format!("{}-{}", &slug, random_alpha_string(5));
                 }
 
-                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
+                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type, None, None).commit(conn)
             }
         }
     }
 
-    fn create_slug(name: &str) -> String {
+    pub fn create_slug(name: &str) -> String {
         // Unwrap should be treated as a compile time error
 
         let only_characters = Regex::new(r#"[^a-zA-Z0-9]"#).unwrap();

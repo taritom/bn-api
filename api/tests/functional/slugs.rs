@@ -41,6 +41,7 @@ fn show_event() {
         None,
         conn,
         1,
+        None,
     );
     path.id = slug.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -187,6 +188,10 @@ fn show_venue() {
     let expected_json = serde_json::to_string(&SlugResponse::Venue {
         venue: venue.for_display(connection).unwrap(),
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -213,6 +218,10 @@ fn show_venue() {
     let expected_json = serde_json::to_string(&SlugResponse::Venue {
         venue: venue2.for_display(connection).unwrap(),
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -278,6 +287,10 @@ fn show_organization() {
     let expected_json = serde_json::to_string(&SlugResponse::Organization {
         organization: organization.for_display(connection).unwrap(),
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -304,6 +317,10 @@ fn show_organization() {
     let expected_json = serde_json::to_string(&SlugResponse::Organization {
         organization: organization2.for_display(connection).unwrap(),
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -386,6 +403,10 @@ fn show_city() {
             timezone: venue3.timezone.clone(),
         },
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);
@@ -420,6 +441,105 @@ fn show_city() {
             timezone: venue3.timezone.clone(),
         },
         events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
+    })
+    .unwrap();
+    assert_eq!(body, &expected_json);
+}
+
+#[test]
+fn show_genre() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let connection = database.connection.get();
+    let organization = database
+        .create_organization()
+        .with_name("Organization1".to_string())
+        .finish();
+    let organization2 = database
+        .create_organization()
+        .with_name("Organization2".to_string())
+        .finish();
+    let venue = database.create_venue().finish();
+    let venue2 = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization2)
+        .with_venue(&venue)
+        .finish();
+    let _event3 = database
+        .create_event()
+        .with_name("NewEvent3".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue2)
+        .finish();
+
+    let custom_genre = "custom-genre-1".to_string();
+    let artist = database
+        .create_artist()
+        .with_name("Test Artist".to_string())
+        .with_genres(vec![custom_genre.clone()])
+        .finish();
+
+    let event_artist = database
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+
+    event.update_genres(None, connection).unwrap();
+
+    let slug = Slug::create_slug(custom_genre.clone().as_str());
+    let test_request = TestRequest::create_with_uri(&format!("/{}", slug));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = slug.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = slugs::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let display_event_artist = DisplayEventArtist {
+        artist: artist.clone(),
+        event_id: event_artist.event_id.clone(),
+        rank: event_artist.rank.clone(),
+        set_time: event_artist.set_time.clone(),
+        importance: event_artist.importance.clone(),
+        stage_id: event_artist.stage_id.clone(),
+    };
+    let expected_events = vec![event_venue_entry(
+        &event,
+        &venue,
+        &vec![display_event_artist],
+        None,
+        &*connection,
+    )];
+    let expected_json = serde_json::to_string(&SlugResponse::Genre {
+        genre: slug,
+        events: expected_events,
+        meta: SlugMetaData {
+            title: None,
+            description: None,
+        },
     })
     .unwrap();
     assert_eq!(body, &expected_json);

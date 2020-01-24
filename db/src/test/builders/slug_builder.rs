@@ -9,6 +9,8 @@ pub struct SlugBuilder<'a> {
     main_table: Tables,
     main_table_id: Option<Uuid>,
     slug_type: SlugTypes,
+    title: Option<String>,
+    description: Option<String>,
     connection: &'a PgConnection,
 }
 
@@ -21,11 +23,28 @@ impl<'a> SlugBuilder<'a> {
             main_table_id: None,
             main_table: Tables::Venues,
             slug: format!("slug-example-{}", x).into(),
+            title: None,
+            description: None,
         }
     }
 
     pub fn with_slug(mut self, slug: &str) -> Self {
         self.slug = slug.to_string();
+        self
+    }
+
+    pub fn with_type(mut self, slug_type: SlugTypes) -> Self {
+        self.slug_type = slug_type;
+        self
+    }
+
+    pub fn with_title(mut self, title: &str) -> Self {
+        self.title = Some(title.to_string());
+        self
+    }
+
+    pub fn with_description(mut self, description: &str) -> Self {
+        self.description = Some(description.to_string());
         self
     }
 
@@ -55,8 +74,15 @@ impl<'a> SlugBuilder<'a> {
             .main_table_id
             .unwrap_or_else(|| VenueBuilder::new(self.connection).finish().id);
 
-        Slug::create(self.slug, self.main_table, main_table_id, self.slug_type)
-            .commit(self.connection)
-            .unwrap()
+        Slug::create(
+            self.slug,
+            self.main_table,
+            main_table_id,
+            self.slug_type,
+            self.title,
+            self.description,
+        )
+        .commit(self.connection)
+        .unwrap()
     }
 }

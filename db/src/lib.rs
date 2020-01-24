@@ -48,6 +48,7 @@ extern crate serde_json;
 extern crate validator_derive;
 extern crate tari_client;
 extern crate unidecode;
+extern crate url;
 extern crate validator;
 
 pub mod models;

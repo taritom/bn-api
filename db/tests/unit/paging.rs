@@ -42,7 +42,7 @@ fn payload_new() {
 #[test]
 fn payload_from_data() {
     let uuids = vec![Uuid::new_v4(), Uuid::new_v4()];
-    let payload = Payload::from_data(uuids, 1, 100);
+    let payload = Payload::from_data(uuids, 1, 100, Some(2));
     assert_eq!(payload.data.len(), 2);
     assert_eq!(payload.paging.total, 2);
     assert!(!payload.is_empty());
