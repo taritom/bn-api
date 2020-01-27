@@ -1261,6 +1261,61 @@ fn show_with_hidden_ticket_type() {
 }
 
 #[cfg(test)]
+mod clone_tests {
+    use super::*;
+
+    #[test]
+    fn clone_org_member() {
+        base::events::clone(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn clone_admin() {
+        base::events::clone(Roles::Admin, true);
+    }
+
+    #[test]
+    fn clone_super() {
+        base::events::clone(Roles::Super, true);
+    }
+
+    #[test]
+    fn clone_user() {
+        base::events::clone(Roles::User, false);
+    }
+
+    #[test]
+    fn clone_org_owner() {
+        base::events::clone(Roles::OrgOwner, true);
+    }
+
+    #[test]
+    fn clone_door_person() {
+        base::events::clone(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn clone_promoter() {
+        base::events::clone(Roles::Promoter, false);
+    }
+
+    #[test]
+    fn clone_promoter_read_only() {
+        base::events::clone(Roles::PromoterReadOnly, false);
+    }
+
+    #[test]
+    fn clone_org_admin() {
+        base::events::clone(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn clone_box_office() {
+        base::events::clone(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod show_box_office_pricing_tests {
     use super::*;
 

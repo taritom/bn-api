@@ -445,6 +445,36 @@ fn nullify_tickets(
     Ok(())
 }
 
+pub(crate) fn create_ticket_type_blockchain_assets(
+    event: &Event,
+    ticket_types: &[TicketType],
+    state: &State<AppState>,
+    connection: &PgConnection,
+) -> Result<(), BigNeonError> {
+    //Retrieve default wallet
+    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
+
+    // Only create the blockchain assets after all of the ticket types have succeeded
+    for data in ticket_types {
+        let tari_asset_id = state.config.tari_client.create_asset(
+            &org_wallet.secret_key,
+            &org_wallet.public_key,
+            TariNewAsset {
+                name: format!("{}.{}", event.id, data.name),
+                total_supply: data.valid_ticket_count(connection)? as u64,
+                authorised_signers: Vec::new(),
+                rule_flags: 0,
+                rule_metadata: "".to_string(),
+                expiry_date: data.end_date(connection)?.timestamp(),
+            },
+        )?;
+        let asset = Asset::find_by_ticket_type(data.id, connection)?;
+        asset.update_blockchain_id(tari_asset_id, connection)?;
+    }
+
+    Ok(())
+}
+
 fn create_ticket_types(
     event: &Event,
     organization: &Organization,
@@ -453,8 +483,6 @@ fn create_ticket_types(
     state: &State<AppState>,
     connection: &PgConnection,
 ) -> Result<Vec<DisplayCreatedTicket>, BigNeonError> {
-    let mut created_ticket_types = Vec::new();
-
     //Check that any requested ticket capacity is less than max_instances_per_ticket_type
     if data
         .iter()
@@ -466,11 +494,9 @@ fn create_ticket_types(
         )?;
     }
 
-    //Retrieve default wallet
-    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
-
     //Add new ticket types
-    let mut results = Vec::<(&CreateTicketTypeRequest, TicketType)>::new();
+    let mut results = Vec::<TicketType>::new();
+    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
 
     for ticket_type_data in data.iter() {
         let ticket_type = event.add_ticket_type(
@@ -512,27 +538,10 @@ fn create_ticket_types(
         }
 
         ticket_type.validate_ticket_pricing(connection)?;
-        results.push((ticket_type_data, ticket_type));
+        results.push(ticket_type);
     }
 
-    // Only create the blockchain assets after all of the ticket types have succeeded
-    for data in results {
-        let tari_asset_id = state.config.tari_client.create_asset(
-            &org_wallet.secret_key,
-            &org_wallet.public_key,
-            TariNewAsset {
-                name: format!("{}.{}", event.id, data.0.name),
-                total_supply: data.0.capacity as u64,
-                authorised_signers: Vec::new(),
-                rule_flags: 0,
-                rule_metadata: "".to_string(),
-                expiry_date: data.1.end_date(connection)?.timestamp(),
-            },
-        )?;
-        let asset = Asset::find_by_ticket_type(data.1.id, connection)?;
-        let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
-        created_ticket_types.push(DisplayCreatedTicket { id: data.1.id });
-    }
+    create_ticket_type_blockchain_assets(event, &results, state, connection)?;
 
-    Ok(created_ticket_types)
+    Ok(results.iter().map(|r| DisplayCreatedTicket { id: r.id }).collect())
 }

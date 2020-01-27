@@ -5,6 +5,7 @@ use bigneon_api::extractors::*;
 use bigneon_api::models::*;
 use bigneon_db::dev::times;
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use chrono::Duration;
 use diesel::PgConnection;
@@ -16,6 +17,55 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
+
+pub fn clone(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}/clone", event.id,));
+    let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path_parameters.id = event.id;
+    let clone_fields = CloneFields {
+        name: "Cloned Event".to_string(),
+        event_start: dates::now().add_days(5).finish(),
+        event_end: dates::now().add_days(6).finish(),
+    };
+    let json = Json(clone_fields.clone());
+    let response: HttpResponse = events::clone((
+        database.connection.into(),
+        json,
+        path_parameters,
+        auth_user,
+        test_request.extract_state(),
+    ))
+    .into();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let cloned_event: Event = serde_json::from_str(&body).unwrap();
+        assert_eq!(cloned_event.status, EventStatus::Draft);
+        assert_ne!(cloned_event.id, event.id);
+        assert_eq!(&cloned_event.name, &clone_fields.name);
+        assert_eq!(
+            cloned_event.event_start.unwrap().timestamp(),
+            clone_fields.event_start.timestamp()
+        );
+        assert_eq!(
+            cloned_event.event_end.unwrap().timestamp(),
+            clone_fields.event_end.timestamp()
+        );
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
 
 pub fn export_event_data(role: Roles, should_test_succeed: bool, past_or_upcoming: Option<PastOrUpcoming>) {
     let database = TestDatabase::new();

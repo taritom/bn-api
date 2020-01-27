@@ -28,6 +28,7 @@ pub struct EventBuilder<'a> {
     sales_end: Option<NaiveDateTime>,
     private_access_code: Option<String>,
     event_type: Option<EventTypes>,
+    additional_info: Option<String>,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -51,6 +52,7 @@ impl<'a> EventBuilder<'a> {
             sales_start: None,
             sales_end: None,
             event_type: None,
+            additional_info: None,
         }
     }
 
@@ -61,6 +63,11 @@ impl<'a> EventBuilder<'a> {
 
     pub fn external(mut self) -> Self {
         self.is_external = true;
+        self
+    }
+
+    pub fn with_additional_info(mut self, additional_info: String) -> Self {
+        self.additional_info = Some(additional_info);
         self
     }
 
@@ -174,6 +181,7 @@ impl<'a> EventBuilder<'a> {
 
         let mut attributes = EventEditableAttributes {
             promo_image_url: Some(Some("http://localhost".to_string())),
+            additional_info: Some(self.additional_info.clone()),
             ..Default::default()
         };
         if self.private_access_code.is_some() {

@@ -96,6 +96,7 @@ string_enum! { DomainEventTypes [
     EventArtistCreated,
     EventArtistAdded,
     EventCancelled,
+    EventCloned,
     EventCreated,
     EventDeleted,
     EventInterestCreated,

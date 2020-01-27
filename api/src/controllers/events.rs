@@ -5,6 +5,7 @@ use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
+use controllers::ticket_types;
 use db::Connection;
 use db::ReadonlyConnection;
 use diesel::PgConnection;
@@ -548,6 +549,39 @@ pub fn show(
     };
 
     Ok(HttpResponse::Ok().json(&payload))
+}
+
+pub fn clone(
+    (connection, clone_fields, path, user, state): (
+        Connection,
+        Json<CloneFields>,
+        Path<PathParameters>,
+        AuthUser,
+        State<AppState>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(path.id, connection)?;
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization_event(Scopes::EventClone, &organization, &event, connection)?;
+    let event = event.clone_record(&clone_fields.into_inner(), Some(user.id()), connection)?;
+
+    // Clone tickets on blockchain (TODO: should be moved to background job as part of ticket type create)
+    let ticket_types = event.ticket_types(false, None, connection)?;
+    ticket_types::create_ticket_type_blockchain_assets(&event, &ticket_types, &state, connection)?;
+
+    // Update genres for associated event given new artists
+    let action = DomainAction::create(
+        None,
+        DomainActionTypes::UpdateGenres,
+        None,
+        json!(UpdateGenresPayload { user_id: user.id() }),
+        Some(Tables::Events),
+        Some(event.id),
+    );
+    action.commit(connection)?;
+
+    Ok(HttpResponse::Created().json(event))
 }
 
 pub fn publish(
