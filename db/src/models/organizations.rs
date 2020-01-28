@@ -767,9 +767,9 @@ impl Organization {
             FanSortField::LastInteracted => "14",
         };
 
-        let mut query = events::table
-            .inner_join(organizations::table.inner_join(organization_interactions::table.left_join(users::table)))
-            .filter(events::organization_id.eq(self.id))
+        let mut query = organization_interactions::table
+            .inner_join(users::table)
+            .filter(organization_interactions::organization_id.eq(self.id))
             .into_boxed();
 
         // Parse UUID if passed into query to search for a specific user
@@ -806,7 +806,7 @@ impl Organization {
         //First fetch all of the fans
         let (fans, record_count): (Vec<DisplayFan>, i64) = query
             .group_by((
-                events::organization_id,
+                organization_interactions::organization_id,
                 users::first_name,
                 users::last_name,
                 users::email,
@@ -822,7 +822,7 @@ impl Organization {
                 users::email,
                 users::phone,
                 users::thumb_profile_pic_url,
-                events::organization_id,
+                organization_interactions::organization_id,
                 sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"), //order_count
                 users::created_at,
                 sql::<Nullable<Timestamp>>("NULL"),            //first_order_time
