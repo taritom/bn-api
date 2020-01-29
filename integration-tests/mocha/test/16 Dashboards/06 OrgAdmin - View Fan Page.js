@@ -65,7 +65,6 @@ describe('OrgAdmin - View Fan Page', function () {
 
         let json = JSON.parse(responseBody);
         expect(json.facebook_linked).to.equal(false);
-        expect(json.event_count).to.equal(1);
         expect(json.thumb_profile_pic_url).to.equal(null);
         expect(json.cover_photo_url).to.equal(null);
     });
@@ -73,4 +72,4 @@ describe('OrgAdmin - View Fan Page', function () {
 
 });
 
-            
+

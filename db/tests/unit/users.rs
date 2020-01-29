@@ -868,22 +868,13 @@ fn get_profile_for_organization() {
         .finish();
 
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection).unwrap(),
-        FanProfile {
-            first_name: user.first_name.clone(),
-            last_name: user.last_name.clone(),
-            email: user.email.clone(),
-            facebook_linked: false,
-            event_count: 1,
-            revenue_in_cents: 0,
-            ticket_sales: 0,
-            tickets_owned: 0,
-            profile_pic_url: user.profile_pic_url.clone(),
-            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
-            cover_photo_url: user.cover_photo_url.clone(),
-            created_at: user.created_at,
-            attendance_information: Vec::new(),
-        }
+        user.get_profile_for_organization(&organization, connection),
+        Err(DatabaseError {
+            code: 2000,
+            message: "No results".into(),
+            cause: Some("Could not load profile for organization fan, NotFound".into()),
+            error_code: ErrorCode::NoResults,
+        })
     );
 
     // Add facebook login
@@ -897,22 +888,13 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection).unwrap(),
-        FanProfile {
-            first_name: user.first_name.clone(),
-            last_name: user.last_name.clone(),
-            email: user.email.clone(),
-            facebook_linked: true,
-            event_count: 1,
-            revenue_in_cents: 0,
-            ticket_sales: 0,
-            tickets_owned: 0,
-            profile_pic_url: user.profile_pic_url.clone(),
-            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
-            cover_photo_url: user.cover_photo_url.clone(),
-            created_at: user.created_at,
-            attendance_information: Vec::new(),
-        }
+        user.get_profile_for_organization(&organization, connection),
+        Err(DatabaseError {
+            code: 2000,
+            message: "No results".into(),
+            cause: Some("Could not load profile for organization fan, NotFound".into()),
+            error_code: ErrorCode::NoResults,
+        })
     );
 
     // Add order but do not checkout
@@ -930,22 +912,13 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection).unwrap(),
-        FanProfile {
-            first_name: user.first_name.clone(),
-            last_name: user.last_name.clone(),
-            email: user.email.clone(),
-            facebook_linked: true,
-            event_count: 1,
-            revenue_in_cents: 0,
-            ticket_sales: 0,
-            tickets_owned: 0,
-            profile_pic_url: user.profile_pic_url.clone(),
-            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
-            cover_photo_url: user.cover_photo_url.clone(),
-            created_at: user.created_at,
-            attendance_information: Vec::new(),
-        }
+        user.get_profile_for_organization(&organization, connection),
+        Err(DatabaseError {
+            code: 2000,
+            message: "No results".into(),
+            cause: Some("Could not load profile for organization fan, NotFound".into()),
+            error_code: ErrorCode::NoResults,
+        })
     );
 
     // Checkout which changes sales data
@@ -966,7 +939,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 1,
             revenue_in_cents: 1700,
             ticket_sales: 10,
             tickets_owned: 10,
@@ -1007,7 +979,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 1,
             revenue_in_cents: 1700,
             ticket_sales: 10,
             tickets_owned: 10,
@@ -1053,7 +1024,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 1,
             revenue_in_cents: 1870,
             ticket_sales: 11,
             tickets_owned: 11,
@@ -1084,7 +1054,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 2,
             revenue_in_cents: 2040,
             ticket_sales: 12,
             tickets_owned: 12,
@@ -1136,7 +1105,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 2,
             revenue_in_cents: 2040,
             ticket_sales: 12,
             tickets_owned: 11,
@@ -1158,7 +1126,6 @@ fn get_profile_for_organization() {
             last_name: user2.last_name.clone(),
             email: user2.email.clone(),
             facebook_linked: false,
-            event_count: 1,
             revenue_in_cents: 0,
             ticket_sales: 0,
             tickets_owned: 1,
@@ -1205,7 +1172,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 2,
             revenue_in_cents: 2210,
             ticket_sales: 13,
             tickets_owned: 12,
@@ -1261,7 +1227,6 @@ fn get_profile_for_organization() {
             last_name: user4.last_name.clone(),
             email: user4.email.clone(),
             facebook_linked: false,
-            event_count: 1,
             revenue_in_cents: 0,
             ticket_sales: 0,
             tickets_owned: 1,
@@ -1294,22 +1259,13 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user4.get_profile_for_organization(&organization, connection).unwrap(),
-        FanProfile {
-            first_name: user4.first_name.clone(),
-            last_name: user4.last_name.clone(),
-            email: user4.email.clone(),
-            facebook_linked: false,
-            event_count: 1,
-            revenue_in_cents: 0,
-            ticket_sales: 0,
-            tickets_owned: 0,
-            profile_pic_url: user4.profile_pic_url.clone(),
-            thumb_profile_pic_url: user4.thumb_profile_pic_url.clone(),
-            cover_photo_url: user4.cover_photo_url.clone(),
-            created_at: user4.created_at,
-            attendance_information: vec![],
-        }
+        user4.get_profile_for_organization(&organization, connection),
+        Err(DatabaseError {
+            code: 2000,
+            message: "No results".into(),
+            cause: Some("Could not load profile for organization fan, NotFound".into()),
+            error_code: ErrorCode::NoResults,
+        })
     );
     assert_eq!(
         user5.get_profile_for_organization(&organization, connection).unwrap(),
@@ -1318,7 +1274,6 @@ fn get_profile_for_organization() {
             last_name: user5.last_name.clone(),
             email: user5.email.clone(),
             facebook_linked: false,
-            event_count: 1,
             revenue_in_cents: 0,
             ticket_sales: 0,
             tickets_owned: 1,
@@ -1350,7 +1305,6 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 2,
             revenue_in_cents: 2210,
             ticket_sales: 13,
             tickets_owned: 12,
@@ -1379,7 +1333,6 @@ fn get_profile_for_organization() {
             last_name: user3.last_name.clone(),
             email: user3.email.clone(),
             facebook_linked: false,
-            event_count: 1,
             revenue_in_cents: 150,
             ticket_sales: 1,
             tickets_owned: 1,

@@ -97,7 +97,6 @@ pub struct FanProfile {
     pub last_name: Option<String>,
     pub email: Option<String>,
     pub facebook_linked: bool,
-    pub event_count: u32,
     pub revenue_in_cents: u32,
     pub tickets_owned: u32,
     pub ticket_sales: u32,
@@ -700,101 +699,63 @@ impl User {
         organization: &Organization,
         conn: &PgConnection,
     ) -> Result<FanProfile, DatabaseError> {
-        use schema::*;
-
-        let query = users::table
-            .left_join(
-                transfers::table.on(transfers::source_user_id
-                    .eq(users::id)
-                    .or(transfers::destination_user_id.eq(users::id.nullable()))),
-            )
-            .left_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
-            .left_join(wallets::table.on(wallets::user_id.eq(users::id.nullable())))
-            .left_join(
-                ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id).or(
-                    ticket_instances::wallet_id.eq(wallets::id).and(
-                        ticket_instances::status
-                            .eq_any(vec![TicketInstanceStatus::Redeemed, TicketInstanceStatus::Purchased]),
-                    ),
-                )),
-            )
-            .left_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
-            .left_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
-            .left_join(
-                orders::table.on(orders::status.eq(OrderStatus::Paid).and(
-                    orders::on_behalf_of_user_id.eq(users::id.nullable()).or(orders::user_id
-                        .eq(users::id)
-                        .and(orders::on_behalf_of_user_id.is_null())),
-                )),
-            )
-            .left_join(order_items::table.on(orders::id.eq(order_items::order_id)))
-            .left_join(event_interest::table.on(users::id.eq(event_interest::user_id)))
-            .inner_join(
-                events::table.on(events::id
-                    .eq(event_interest::event_id)
-                    .or(ticket_types::event_id.eq(events::id))
-                    .or(order_items::event_id.eq(events::id.nullable()))),
-            )
-            .filter(users::id.eq(self.id))
-            .filter(events::organization_id.eq(organization.id))
-            .group_by((users::id, events::organization_id))
-            .select((
-                sql::<BigInt>(
-                    "CAST(COALESCE((
+        let query = sql_query(
+            "SELECT CAST(COALESCE((
                     SELECT SUM(oi.quantity - oi.refunded_quantity)
                     FROM orders o
                     JOIN order_items oi ON o.id = oi.order_id
                     JOIN events e on oi.event_id = e.id
-                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
-                    AND e.organization_id = events.organization_id
+                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = $1
+                    AND e.organization_id = $2
                     AND o.status = 'Paid'
                     AND oi.item_type = 'Tickets'
-                ), 0) as BigInt)",
-                ),
-                sql::<BigInt>(
-                    "CAST(COALESCE((
+                ), 0) as BigInt) as ticket_sales,
+                    CAST(COALESCE((
                     SELECT COUNT(ti.id)
                     FROM ticket_instances ti
                     JOIN wallets w ON w.id = ti.wallet_id
                     JOIN assets a on ti.asset_id = a.id
                     JOIN ticket_types tt on tt.id = a.ticket_type_id
                     JOIN events e ON e.id = tt.event_id
-                    WHERE w.user_id = users.id
-                    AND e.organization_id = events.organization_id
+                    WHERE w.user_id = $1
+                    AND e.organization_id = $2
                     AND ti.status in ('Purchased', 'Redeemed')
-                ), 0) as BigInt)",
-                ),
-                sql::<BigInt>(
-                    "CAST(COALESCE((
+                ), 0) as BigInt) as tickets_owned,
+                 CAST(COALESCE((
                     SELECT SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity))
                     FROM order_items oi
                     JOIN orders o ON o.id = oi.order_id
                     JOIN events e ON e.id = oi.event_id
-                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
-                    AND e.organization_id = events.organization_id
+                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = $1
+                    AND e.organization_id = $2
                     AND o.status = 'Paid'
-                ), 0) as BigInt)",
-                ),
-                sql::<BigInt>("cast(COALESCE(count(distinct events.id), 0) as BigInt)"),
-            ));
+                ), 0) as BigInt) as revenue_in_cents",
+        )
+        .bind::<dUuid, _>(self.id)
+        .bind::<dUuid, _>(organization.id);
 
-        #[derive(Queryable)]
+        #[derive(QueryableByName)]
         struct R {
+            #[sql_type = "BigInt"]
             ticket_sales: i64,
+            #[sql_type = "BigInt"]
             tickets_owned: i64,
+            #[sql_type = "BigInt"]
             revenue_in_cents: i64,
-            event_count: i64,
         }
-        let result: R = query
-            .get_result(conn)
+        let mut result: Vec<R> = query
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load profile for organization fan")?;
 
+        let result = result.remove(0);
+        if result.ticket_sales == 0 && result.tickets_owned == 0 && result.revenue_in_cents == 0 {
+            return DatabaseError::no_results("Could not load profile for organization fan, NotFound");
+        }
         Ok(FanProfile {
             first_name: self.first_name.clone(),
             last_name: self.last_name.clone(),
             email: self.email.clone(),
             facebook_linked: self.find_external_login(FACEBOOK_SITE, conn).optional()?.is_some(),
-            event_count: result.event_count as u32,
             revenue_in_cents: result.revenue_in_cents as u32,
             ticket_sales: result.ticket_sales as u32,
             tickets_owned: result.tickets_owned as u32,

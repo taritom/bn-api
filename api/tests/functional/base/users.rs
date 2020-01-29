@@ -63,7 +63,6 @@ pub fn profile(role: Roles, should_test_true: bool) {
                 last_name: user2.last_name.clone(),
                 email: user2.email.clone(),
                 facebook_linked: false,
-                event_count: 1,
                 revenue_in_cents: 1700,
                 ticket_sales: 10,
                 tickets_owned: 10,
