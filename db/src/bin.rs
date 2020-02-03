@@ -129,10 +129,57 @@ pub fn main() {
                         .help("Connection string to the database"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("user")
+                .about("Creates an admin user")
+                .arg(
+                    Arg::with_name("connection")
+                        .short("c")
+                        .takes_value(true)
+                        .help("Connection string to the database"),
+                )
+                .arg(
+                    Arg::with_name("first")
+                        .short("f")
+                        .takes_value(true)
+                        .help("first name for user"),
+                )
+                .arg(
+                    Arg::with_name("last")
+                        .short("l")
+                        .takes_value(true)
+                        .help("last name for user"),
+                )
+                .arg(
+                    Arg::with_name("email")
+                        .short("e")
+                        .takes_value(true)
+                        .help("email for user"),
+                )
+                .arg(
+                    Arg::with_name("phone")
+                        .short("m")
+                        .takes_value(true)
+                        .help("phone number user"),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .takes_value(true)
+                        .help("password for user"),
+                )
+                .arg(
+                    Arg::with_name("super")
+                        .short("s")
+                        .takes_value(false)
+                        .help("Is the user a Super admin user"),
+                ),
+        )
         .get_matches();
 
     match matches.subcommand() {
         ("create", Some(matches)) => create_db_and_user(matches),
+        ("user", Some(matches)) => create_user_only(matches),
         ("drop", Some(matches)) => drop_db(matches),
         ("migrate", Some(matches)) => migrate_db(matches),
         ("functions", Some(matches)) => run_function_migrations(matches),
@@ -201,6 +248,7 @@ fn run_function_migrations(matches: &ArgMatches) {
         .batch_execute(functions_query)
         .expect("Functions query failed");
 }
+
 fn rollback_db(matches: &ArgMatches) {
     let conn_string = matches
         .value_of("connection")
@@ -236,26 +284,66 @@ fn create_db_and_user(matches: &ArgMatches) {
         run_function_migrations(matches);
     }
 
-    let username = matches.value_of("email").expect("Email was not provided");
+    let email = matches.value_of("email").expect("Email was not provided");
     let phone = matches.value_of("phone").expect("Phone number was not provided");
     let password = matches.value_of("password").expect("Password was not provided");
-    println!("Creating user");
 
     let db_connection = get_connection(conn_string);
-    let user = User::create(
-        Some("System".to_string()),
-        Some("Administrator".to_string()),
-        Some(username.to_string()),
-        Some(phone.to_string()),
-        &password,
-    )
-    .commit(None, &db_connection)
-    .expect("Failed to create system admin");
+    create_user(
+        "System".to_string(),
+        "Administrator".to_string(),
+        email.to_string(),
+        phone.to_string(),
+        password,
+        true,
+        &db_connection,
+    );
+}
+
+fn create_user_only(matches: &ArgMatches) {
+    let conn_string = matches
+        .value_of("connection")
+        .expect("Connection string was not provided");
+
+    let first = matches.value_of("first").expect("First name was not provided");
+    let last = matches.value_of("last").expect("Last name was not provided");
+    let email = matches.value_of("email").expect("Email was not provided");
+    let phone = matches.value_of("phone").expect("Phone number was not provided");
+    let password = matches.value_of("password").expect("Password was not provided");
+
+    let db_connection = get_connection(conn_string);
+    create_user(
+        first.to_string(),
+        last.to_string(),
+        email.to_string(),
+        phone.to_string(),
+        password,
+        matches.is_present("super"),
+        &db_connection,
+    );
+}
+
+fn create_user(
+    first_name: String,
+    last_name: String,
+    email: String,
+    phone: String,
+
+    password: &str,
+    is_super: bool,
+    db_connection: &PgConnection,
+) {
+    println!("Creating user");
+    let user = User::create(Some(first_name), Some(last_name), Some(email), Some(phone), &password)
+        .commit(None, &db_connection)
+        .expect("Failed to create system admin");
     let user = user
         .add_role(Roles::Admin, &db_connection)
         .expect("Could not assign System Administrator role to the user");
-    user.add_role(Roles::Super, &db_connection)
-        .expect("Could not assign System Administrator role to the user");
+    if is_super {
+        user.add_role(Roles::Super, &db_connection)
+            .expect("Could not assign System Administrator role to the user");
+    }
 }
 
 fn seed_db(matches: &ArgMatches) {
