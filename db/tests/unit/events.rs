@@ -4559,4 +4559,14 @@ fn checked_in_users() {
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let users = Event::checked_in_users(event.id, connection).unwrap();
     assert_eq!(users[0], user);
+    //User purchases another ticket, there should still only by one user
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let users = Event::checked_in_users(event.id, connection).unwrap();
+    assert_eq!(users.len(), 1);
 }
