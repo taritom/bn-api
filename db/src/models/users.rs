@@ -824,6 +824,10 @@ impl User {
         )
     }
 
+    pub fn createMagicLinkToken(&self, token_issuer: &dyn TokenIssuer, conn: &PgConnection) -> Result<AccessToken, DatabaseError> {
+
+    }
+
     fn email_unique(
         id: Uuid,
         email: String,

@@ -127,6 +127,9 @@ impl DomainEvent {
                 let mut data: HashMap<String, serde_json::Value> = HashMap::new();
                 let order = Order::find(main_id, conn)?;
                 DomainEvent::order_payload_data(conn, &mut data, order)?;
+                let user = order.user(conn)?;
+                let magicLinkRefreshToken = user.createMagicLinkToken(conn)?;
+                data.insert("magicLinkRefreshToken".to_string(), json!(magicLinkRefreshToken));
                 data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
                 result.push(data);
             }

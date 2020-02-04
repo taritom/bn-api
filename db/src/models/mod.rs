@@ -1,3 +1,4 @@
+pub use self::auth::*;
 pub use self::activities::*;
 pub use self::artists::*;
 pub use self::assets::*;
@@ -86,6 +87,7 @@ mod fee_schedules;
 mod for_display;
 mod genres;
 mod history_item;
+mod auth;
 mod holds;
 mod notes;
 mod order_items;
