@@ -222,7 +222,7 @@ impl Broadcast {
         attributes: &BroadcastEditableAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
+        let mut validation_errors = validators::append_validation_error(
             Ok(()),
             "message",
             Broadcast::custom_type_has_message(
@@ -235,16 +235,14 @@ impl Broadcast {
             )?,
         );
 
-        //Check that we are not updating a broadcast that has already been run
-        let validation_errors = validators::append_validation_error(
-            validation_errors,
-            "send_at",
-            Broadcast::send_at_has_not_passed(
-                self.send_at,
-                attributes.send_at.clone().unwrap_or(self.send_at.clone()),
-                self.status,
-            ),
-        );
+        //Check that we are not updating the send at for a broadcast that has already been run
+        if let Some(new_send_at) = attributes.send_at.as_ref() {
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "send_at",
+                Broadcast::send_at_has_not_passed(self.send_at, new_send_at, self.status),
+            );
+        }
         Ok(validation_errors?)
     }
 
@@ -270,7 +268,7 @@ impl Broadcast {
 
     fn send_at_has_not_passed(
         send_at: Option<NaiveDateTime>,
-        new_send_at: Option<NaiveDateTime>,
+        new_send_at: &Option<NaiveDateTime>,
         status: BroadcastStatus,
     ) -> Result<(), ValidationError> {
         if status != BroadcastStatus::Pending {
@@ -285,7 +283,7 @@ impl Broadcast {
         match send_at {
             Some(_send_at) => {
                 if let Some(new_send_at) = new_send_at {
-                    if new_send_at <= Utc::now().naive_utc() {
+                    if new_send_at <= &Utc::now().naive_utc() {
                         return Err(create_validation_error(
                             "send_at_in_the_past",
                             "The send_at field should be set to a time in the future",
