@@ -1,3 +1,11 @@
+use super::webhook_publisher::WebhookPublisher;
+use bigneon_db::prelude::*;
+use config::Config;
+use db::*;
+use domain_events::errors::DomainActionError;
+use domain_events::routing::{DomainActionExecutor, DomainActionRouter};
+use log::Level::*;
+use logging::*;
 use std::error::Error;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
@@ -5,19 +13,12 @@ use std::sync::mpsc::Sender;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std::{cmp, thread};
-
-use log::Level::*;
-
-use bigneon_db::prelude::*;
-use config::Config;
-use db::*;
-use domain_events::errors::DomainActionError;
-use domain_events::routing::{DomainActionExecutor, DomainActionRouter};
-use logging::*;
 use tokio::prelude::*;
 use tokio::runtime::current_thread;
 use tokio::runtime::Runtime;
 use tokio::timer::Timeout;
+use utils::deep_linker::BranchDeepLinker;
+use utils::ServiceLocator;
 
 pub struct DomainActionMonitor {
     config: Config,
@@ -69,7 +70,11 @@ impl DomainActionMonitor {
         Ok(())
     }
 
-    fn find_and_publish_events(config: &Config, database: &Database) -> Result<usize, DomainActionError> {
+    fn find_and_publish_events(
+        config: &Config,
+        webhook_publisher: &WebhookPublisher,
+        database: &Database,
+    ) -> Result<usize, DomainActionError> {
         let conn = database.get_connection()?;
 
         let connection = conn.get();
@@ -80,23 +85,15 @@ impl DomainActionMonitor {
             //            jlog!(Debug, "bigneon::domain_events", "No event publishers found", {});
             return Ok(0);
         };
-        //        jlog!(
-        //            Debug,
-        //            "bigneon::domain_events",
-        //            "Event publishers found",
-        //            {"num_publishers": domain_event_publishers.len()}
-        //        );
         let mut events_published = 0;
         let domain_events = DomainEvent::find_after_seq(
             domain_event_publishers[0].last_domain_event_seq.unwrap_or(-1),
             500,
             connection,
         )?;
-        //        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
         for event in domain_events {
             conn.begin_transaction()?;
-            //            jlog!(Debug, "bigneon::domain_events", "Checking event for publishers", { "event_type": &event.event_type, "organization_id": event.organization_id});
-            // Process
+            let mut did_publish = false;
             for publisher in domain_event_publishers
                 .iter_mut()
                 .filter(|p| p.last_domain_event_seq.unwrap_or(-1) < event.seq)
@@ -104,12 +101,23 @@ impl DomainActionMonitor {
                 if publisher.event_types.contains(&event.event_type)
                     && (publisher.organization_id.is_none() || publisher.organization_id == event.organization_id)
                 {
-                    jlog!(Info, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id, "event": &event});
-                    publisher.publish(&event, &config.front_end_url, connection)?;
+                    if publisher.claim_for_publishing(&event, connection)? {
+                        jlog!(Info, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id, "event": &event});
+
+                        webhook_publisher.publish(&publisher, &event, connection)?;
+                        publisher.update_last_domain_event_seq(event.seq, connection)?;
+                        did_publish = true;
+                    } else {
+                        // Another processor is already working on this event.
+                        // So move onto next event publisher
+                        // At a later stage, we should check out an event publisher using
+                        // checkout columns so that each thread only runs one publisher
+                    }
                 }
-                publisher.update_last_domain_event_seq(event.seq, connection)?;
             }
-            events_published += 1;
+            if did_publish {
+                events_published += 1;
+            }
             conn.commit_transaction()?;
         }
 
@@ -122,6 +130,12 @@ impl DomainActionMonitor {
         interval: u64,
         rx: Receiver<()>,
     ) -> Result<(), DomainActionError> {
+        let service_locator = ServiceLocator::new(&config)?;
+        let webhook_publisher = WebhookPublisher::new(
+            config.front_end_url.clone(),
+            config.token_issuer.as_ref().clone(),
+            service_locator.create_deep_linker()?,
+        );
         loop {
             if rx.try_recv().is_ok() {
                 jlog!(Info, "bigneon::domain_actions", "Stopping events processor", {});
@@ -129,7 +143,7 @@ impl DomainActionMonitor {
             }
 
             // Domain Monitor main loop
-            if DomainActionMonitor::find_and_publish_events(&config, &database)? == 0 {
+            if DomainActionMonitor::find_and_publish_events(&config, &webhook_publisher, &database)? == 0 {
                 //                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
                 thread::sleep(Duration::from_secs(interval));
             }

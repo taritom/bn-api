@@ -53,9 +53,8 @@ pub fn update(
 
     match user {
         Some(user) => Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(
-            &state.config.token_secret,
-            &state.config.token_issuer,
-            &state.config.jwt_expiry_time,
+            &*state.config.token_issuer,
+            state.config.jwt_expiry_time,
             &user,
         )?)),
         None => application::unprocessable("Password has already been reset."),

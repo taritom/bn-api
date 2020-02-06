@@ -17,6 +17,7 @@ extern crate serde;
 
 use log::Level::Debug;
 use reqwest::StatusCode;
+use serde_json::Value;
 
 pub struct BranchClient {
     pub links: LinksResource,
@@ -108,6 +109,8 @@ pub struct DeepLinkData {
     pub android_deeplink_path: Option<String>,
     #[serde(rename = "$web_only")]
     pub web_only: bool,
+    #[serde(flatten)]
+    pub custom_data: Value,
 }
 
 #[derive(Debug, Error)]

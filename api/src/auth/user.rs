@@ -22,27 +22,31 @@ pub struct User {
     pub ip_address: Option<String>,
     pub uri: String,
     pub method: String,
-    pub global_scopes_only: bool
+    pub global_scopes_only: bool,
 }
 
 impl User {
-    pub fn new(user: DbUser, request: &HttpRequest<AppState>, limited_scopes: Option<Vec<String>>) -> Result<User, EnumParseError> {
-        let mut user = User {
-            user,
+    pub fn new(
+        user: DbUser,
+        request: &HttpRequest<AppState>,
+        limited_scopes: Option<Vec<String>>,
+    ) -> Result<User, EnumParseError> {
+        let mut result = User {
+            user: user.clone(),
             global_scopes: vec![],
             ip_address: request.connection_info().remote().map(|i| i.to_string()),
             uri: request.uri().to_string(),
             method: request.method().to_string(),
-            global_scopes_only: false
+            global_scopes_only: false,
         };
         if let Some(scopes) = limited_scopes {
-            user.global_scopes = scopes;
-            user.global_scopes_only = true;
+            result.global_scopes = scopes;
+            result.global_scopes_only = true;
+        } else {
+            let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
+            result.global_scopes = global_scopes;
         }
-
-        let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
-        user.global_scopes = global_scopes;
-        Ok(user)
+        Ok(result)
     }
 
     pub fn id(&self) -> Uuid {
@@ -64,13 +68,12 @@ impl User {
         if self.global_scopes_only {
             if self.global_scopes.contains(&scope.to_string()) {
                 return Ok(true);
-            }
-            else {
+            } else {
                 return Ok(false);
             }
         }
 
-       if self.global_scopes.contains(&scope.to_string()) {
+        if self.global_scopes.contains(&scope.to_string()) {
             return Ok(true);
         }
 

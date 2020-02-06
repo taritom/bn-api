@@ -1,5 +1,7 @@
-use bigneon_db::models::{EmailProvider, Environment};
+use auth::default_token_issuer::DefaultTokenIssuer;
+use bigneon_db::models::{EmailProvider, Environment, TokenIssuer};
 use bigneon_db::utils::errors::EnumParseError;
+use chrono::Duration;
 use dotenv::dotenv;
 use errors::{ApplicationError, BigNeonError};
 use itertools::Itertools;
@@ -34,8 +36,7 @@ pub struct Config {
     pub block_external_comms: bool,
     pub primary_currency: String,
     pub stripe_secret_key: String,
-    pub token_secret: String,
-    pub token_issuer: String,
+    pub token_issuer: Box<DefaultTokenIssuer>,
     pub tari_client: Box<dyn TariClient + Send + Sync>,
     pub communication_default_source_email: String,
     pub communication_default_source_phone: String,
@@ -56,7 +57,7 @@ pub struct Config {
     pub twilio_account_id: String,
     pub twilio_api_key: String,
     pub api_keys_encryption_key: String,
-    pub jwt_expiry_time: u64,
+    pub jwt_expiry_time: Duration,
     pub branch_io_base_url: String,
     pub branch_io_branch_key: String,
     pub max_instances_per_ticket_type: i64,
@@ -248,9 +249,11 @@ impl Config {
 
         let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or_else(|_| "usd".to_string());
         let stripe_secret_key = env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
-        let token_secret = get_env_var(TOKEN_SECRET);
 
-        let token_issuer = get_env_var(TOKEN_ISSUER);
+        let token_issuer = Box::new(DefaultTokenIssuer::new(
+            get_env_var(TOKEN_SECRET),
+            get_env_var(TOKEN_ISSUER),
+        ));
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
 
@@ -349,7 +352,8 @@ impl Config {
 
         let http_keep_alive = env::var(&HTTP_KEEP_ALIVE).unwrap_or("75".to_string()).parse().unwrap();
 
-        let jwt_expiry_time = env::var(&JWT_EXPIRY_TIME).unwrap_or("15".to_string()).parse().unwrap();
+        let jwt_expiry_time =
+            Duration::minutes(env::var(&JWT_EXPIRY_TIME).unwrap_or("15".to_string()).parse().unwrap());
 
         let max_instances_per_ticket_type = env::var(&MAX_INSTANCES_PER_TICKET_TYPE)
             .map(|s| {
@@ -396,7 +400,6 @@ impl Config {
             block_external_comms,
             primary_currency,
             stripe_secret_key,
-            token_secret,
             token_issuer,
             front_end_url,
             tari_client,

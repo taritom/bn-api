@@ -1,4 +1,5 @@
 use chrono::prelude::Utc;
+use chrono::Duration;
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{exists, select};
@@ -13,7 +14,6 @@ use schema::{event_users, events, genres, organization_users, organizations, use
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use time::Duration;
 use utils::errors::Optional;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::pagination::Paginate;
@@ -824,8 +824,12 @@ impl User {
         )
     }
 
-    pub fn createMagicLinkToken(&self, token_issuer: &dyn TokenIssuer, conn: &PgConnection) -> Result<AccessToken, DatabaseError> {
-
+    pub fn create_magic_link_token(
+        &self,
+        token_issuer: &dyn TokenIssuer,
+        expiry: Duration,
+    ) -> Result<String, DatabaseError> {
+        Ok(token_issuer.issue_with_limited_scopes(self.id, vec![Scopes::TokenUpgrade], expiry)?)
     }
 
     fn email_unique(

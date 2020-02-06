@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use chrono::Duration;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
@@ -18,7 +19,6 @@ use serde_json;
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use time::Duration;
 use url::Url;
 use utils::dates::*;
 use utils::errors::*;

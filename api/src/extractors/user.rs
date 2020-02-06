@@ -1,8 +1,8 @@
 use actix_web::error::*;
 use actix_web::{FromRequest, HttpRequest};
-use auth::claims;
 use auth::user::User;
 use bigneon_db::models::User as DbUser;
+use bigneon_db::prelude::{AccessToken, Scopes};
 use errors::*;
 use jwt::{decode, Validation};
 use middleware::RequestConnection;
@@ -25,27 +25,19 @@ impl FromRequest<AppState> for User {
 
                 match parts.next() {
                     Some(access_token) => {
-                        let token = decode::<claims::AccessToken>(
+                        let token = decode::<AccessToken>(
                             &access_token,
-                            (*req.state()).config.token_secret.as_bytes(),
+                            (*req.state()).config.token_issuer.token_secret.as_bytes(),
                             &Validation::default(),
                         )
                         .map_err(|e| BigNeonError::from(e))?;
                         let connection = req.connection()?;
-                        match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => {
-                                if let Some(scopes) = token.claims.scopes {
-                                    Ok(
-                                        User::new(user, req).map_err(|_| ErrorUnauthorized("User has invalid role data"))?
-                                    )
-                                }
-                                else{
-                                    Ok(
-                                        User::new(user, req).map_err(|_| ErrorUnauthorized("User has invalid role data"))?
-                                    )
-                                }
-
-                            },
+                        match DbUser::find(
+                            token.claims.get_id().map_err(|e| BigNeonError::from(e))?,
+                            connection.get(),
+                        ) {
+                            Ok(user) => Ok(User::new(user, req, token.claims.scopes)
+                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?),
                             Err(e) => Err(ErrorInternalServerError(e)),
                         }
                     }

@@ -8,7 +8,7 @@ use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use time::Duration;
+use chrono::Duration;
 use uuid::Uuid;
 
 #[test]

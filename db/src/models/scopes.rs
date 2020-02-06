@@ -67,6 +67,9 @@ pub enum Scopes {
     TicketTransfer,
     TicketTypeRead,
     TicketTypeWrite,
+    // For upgrading a simple login to a full login
+    TokenUpgrade,
+    TokenRefresh,
     UserRead,
     VenueWrite,
 }
@@ -143,6 +146,8 @@ impl fmt::Display for Scopes {
             Scopes::TransferCancelOwn => "transfer:cancel-own",
             Scopes::TransferRead => "transfer:read",
             Scopes::TransferReadOwn => "transfer:read-own",
+            Scopes::TokenUpgrade => "token:upgrade",
+            Scopes::TokenRefresh => "token:refresh",
             Scopes::UserRead => "user:read",
             Scopes::VenueWrite => "venue:write",
         };
@@ -210,6 +215,8 @@ impl FromStr for Scopes {
             "ticket:transfer" => Scopes::TicketTransfer,
             "ticket-type:read" => Scopes::TicketTypeRead,
             "ticket-type:write" => Scopes::TicketTypeWrite,
+            "token:upgrade" => Scopes::TokenUpgrade,
+            "token:refresh" => Scopes::TokenRefresh,
             "transfer:cancel" => Scopes::TransferCancel,
             "transfer:cancel-accepted" => Scopes::TransferCancelAccepted,
             "transfer:cancel-own" => Scopes::TransferCancelOwn,

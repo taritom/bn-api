@@ -1,6 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, State};
-use auth::{claims::RefreshToken, TokenResponse};
-use bigneon_db::models::{deserialize_unless_blank, User};
+use auth::TokenResponse;
+use bigneon_db::prelude::*;
 use db::Connection;
 use errors::*;
 use extractors::*;
@@ -92,12 +92,7 @@ pub fn token(
 
     user.login_domain_event(json!(request_info), connection.get())?;
     jlog!(Info, "User logged in via email and password", {"id": user.id, "email": user.email.clone()});
-    let response = TokenResponse::create_from_user(
-        &state.config.token_secret,
-        &state.config.token_issuer,
-        &state.config.jwt_expiry_time,
-        &user,
-    )?;
+    let response = TokenResponse::create_from_user(&*state.config.token_issuer, state.config.jwt_expiry_time, &user)?;
     Ok(response)
 }
 
@@ -106,9 +101,9 @@ pub fn token_refresh(
 ) -> Result<HttpResponse, BigNeonError> {
     let mut validation = Validation::default();
     validation.validate_exp = false;
-    let token = decode::<RefreshToken>(
+    let token = decode::<AccessToken>(
         &refresh_request.refresh_token,
-        state.config.token_secret.as_bytes(),
+        state.config.token_issuer.token_secret.as_bytes(),
         &validation,
     )?;
     let user = User::find(token.claims.get_id()?, connection.get())?;
@@ -120,11 +115,10 @@ pub fn token_refresh(
     }
 
     let response = TokenResponse::create_from_refresh_token(
-        &state.config.token_secret,
-        &state.config.token_issuer,
-        &state.config.jwt_expiry_time,
-        &user.id,
-        &refresh_request.refresh_token,
+        &*state.config.token_issuer,
+        state.config.jwt_expiry_time,
+        user.id,
+        refresh_request.refresh_token.clone(),
     )?;
     jlog!(Info, "User refreshed token", {"id": user.id, "email": user.email.clone()});
 

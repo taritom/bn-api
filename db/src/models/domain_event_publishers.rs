@@ -206,12 +206,7 @@ impl DomainEventPublisher {
         Ok(publisher_unpublished_domain_events)
     }
 
-    pub fn publish(
-        &self,
-        domain_event: &DomainEvent,
-        front_end_url: &String,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn claim_for_publishing(&self, domain_event: &DomainEvent, conn: &PgConnection) -> Result<bool, DatabaseError> {
         // Mark domain event published for this publisher
         let rows_affected = diesel::insert_into(domain_event_published::table)
             .values((
@@ -223,28 +218,12 @@ impl DomainEventPublisher {
             .to_db_error(ErrorCode::InsertError, "Could not insert domain event published")?;
 
         if rows_affected == 0 {
-            return Ok(());
+            return Ok(false);
         }
 
-        for webhook_payload in domain_event.webhook_payloads(front_end_url, conn)? {
-            let mut comms = Communication::new(
-                CommunicationType::Webhook,
-                "Domain Event Webhook".to_string(),
-                Some(json!(webhook_payload).to_string()),
-                None,
-                CommAddress::from(self.webhook_url.clone()),
-                None,
-                None,
-                Some(vec!["webhooks"]),
-                None,
-            );
-            comms.main_table = Some(Tables::DomainEventPublishers);
-            comms.main_table_id = Some(self.id);
-            comms.queue(conn)?;
-        }
-
-        Ok(())
+        Ok(true)
     }
+
     pub fn update_last_domain_event_seq(
         &mut self,
         last_domain_event_seq: i64,
@@ -286,13 +265,28 @@ impl DomainEventPublisher {
         organization_id: Option<Uuid>,
         event_types: Vec<DomainEventTypes>,
         webhook_url: String,
-        import_historic_events: bool,
     ) -> NewDomainEventPublisher {
         NewDomainEventPublisher {
             organization_id,
             event_types,
             webhook_url,
-            import_historic_events,
+            adapter: None,
+            adapter_config: None,
+        }
+    }
+
+    pub fn create_with_adapter(
+        organization_id: Option<Uuid>,
+        event_types: Vec<DomainEventTypes>,
+        adapter: WebhookAdapters,
+        adapter_config: Value,
+    ) -> NewDomainEventPublisher {
+        NewDomainEventPublisher {
+            organization_id,
+            event_types,
+            webhook_url: "".to_string(),
+            adapter: Some(adapter),
+            adapter_config: Some(adapter_config),
         }
     }
 
@@ -323,9 +317,9 @@ impl DomainEventPublisher {
 pub struct NewDomainEventPublisher {
     pub organization_id: Option<Uuid>,
     pub event_types: Vec<DomainEventTypes>,
-    #[validate(url(message = "Webhook URL is invalid"))]
     pub webhook_url: String,
-    pub import_historic_events: bool,
+    pub adapter: Option<WebhookAdapters>,
+    pub adapter_config: Option<Value>,
 }
 
 impl NewDomainEventPublisher {
