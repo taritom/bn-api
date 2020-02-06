@@ -1,6 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, State};
 use auth::{claims::RefreshToken, TokenResponse};
-use bigneon_db::models::{deserialize_unless_blank, User};
+use bigneon_db::prelude::*;
 use db::Connection;
 use errors::*;
 use extractors::*;
@@ -79,8 +79,11 @@ pub fn token(
     // Generic messaging to prevent exposing user is member of system
     let login_failure_messaging = "Email or password incorrect";
 
-    let user = match User::find_by_email(&login_request.email, connection.get()) {
-        Ok(u) => u,
+    let user = match User::find_by_email(&login_request.email, false, connection.get()).optional() {
+        Ok(u) => match u {
+            Some(usr) => usr,
+            None => return application::unauthorized_with_message(login_failure_messaging, None, Some(login_log_data)),
+        },
         Err(_e) => {
             return application::unauthorized_with_message(login_failure_messaging, None, Some(login_log_data));
         }
@@ -126,7 +129,6 @@ pub fn token_refresh(
         &user.id,
         &refresh_request.refresh_token,
     )?;
-    jlog!(Info, "User refreshed token", {"id": user.id, "email": user.email.clone()});
 
     Ok(HttpResponse::Ok().json(response))
 }

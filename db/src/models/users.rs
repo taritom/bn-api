@@ -58,6 +58,7 @@ pub struct User {
     pub last_cart_id: Option<Uuid>,
     pub accepted_terms_date: Option<NaiveDateTime>,
     pub invited_at: Option<NaiveDateTime>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
@@ -105,6 +106,7 @@ pub struct FanProfile {
     pub cover_photo_url: Option<String>,
     pub created_at: NaiveDateTime,
     pub attendance_information: Vec<AttendanceInformation>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Queryable, QueryableByName, Serialize)]
@@ -631,10 +633,10 @@ impl User {
             .filter(orders::status.eq(OrderStatus::Paid))
             .filter(
                 orders::on_behalf_of_user_id.eq(Some(self.id))
-                .or(orders::on_behalf_of_user_id
-                    .is_null()
-                    .and(orders::user_id.eq(self.id))
-                )
+                    .or(orders::on_behalf_of_user_id
+                        .is_null()
+                        .and(orders::user_id.eq(self.id))
+                    )
             )
             .filter(events::organization_id.eq(organization.id))
             .group_by((orders::id, orders::order_date, events::name))
@@ -764,6 +766,7 @@ impl User {
             cover_photo_url: self.cover_photo_url.clone(),
             created_at: self.created_at,
             attendance_information: self.attendance_information(conn)?,
+            deleted_at: self.deleted_at,
         })
     }
 
@@ -807,21 +810,22 @@ impl User {
             .to_db_error(ErrorCode::QueryError, "Could not load users")
     }
 
-    pub fn find_by_email(email: &str, conn: &PgConnection) -> Result<User, DatabaseError> {
-        let lower_email = email.to_lowercase();
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading user",
-            users::table.filter(users::email.eq(lower_email)).first::<User>(conn),
-        )
+    pub fn find_by_email(email: &str, include_deleted: bool, conn: &PgConnection) -> Result<User, DatabaseError> {
+        let lower_email = email.trim().to_lowercase();
+        let mut query = users::table.filter(users::email.eq(lower_email)).into_boxed();
+        if !include_deleted {
+            query = query.filter(users::deleted_at.is_null())
+        }
+
+        DatabaseError::wrap(ErrorCode::QueryError, "Error loading user", query.first::<User>(conn))
     }
 
-    pub fn find_by_phone(phone: &str, conn: &PgConnection) -> Result<User, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading user",
-            users::table.filter(users::phone.eq(phone)).first::<User>(conn),
-        )
+    pub fn find_by_phone(phone: &str, include_deleted: bool, conn: &PgConnection) -> Result<User, DatabaseError> {
+        let mut query = users::table.filter(users::phone.eq(phone.trim())).into_boxed();
+        if !include_deleted {
+            query = query.filter(users::deleted_at.is_null());
+        }
+        DatabaseError::wrap(ErrorCode::QueryError, "Error loading user", query.first::<User>(conn))
     }
 
     fn email_unique(
@@ -832,7 +836,7 @@ impl User {
         let email_in_use = select(exists(
             users::table
                 .filter(users::id.ne(id))
-                .filter(users::email.eq(email.to_lowercase())),
+                .filter(users::email.eq(email.trim().to_lowercase())),
         ))
         .get_result(conn)
         .to_db_error(ErrorCode::QueryError, "Could not check if user email is unique")?;
@@ -1086,6 +1090,10 @@ impl User {
         ExternalLogin::find_for_site(self.id, site, conn)
     }
 
+    pub fn external_logins(&self, conn: &PgConnection) -> Result<Vec<ExternalLogin>, DatabaseError> {
+        ExternalLogin::find_all_for_user(self.id, conn)
+    }
+
     pub fn add_external_login(
         &self,
         current_user_id: Option<Uuid>,
@@ -1157,6 +1165,33 @@ impl User {
 
     pub fn push_notification_tokens(&self, conn: &PgConnection) -> Result<Vec<PushNotificationToken>, DatabaseError> {
         PushNotificationToken::find_by_user_id(self.id, conn)
+    }
+
+    pub fn disable(self, current_user: Option<&User>, conn: &PgConnection) -> Result<Self, DatabaseError> {
+        let result: User = diesel::update(&self)
+            .set((users::deleted_at.eq(dsl::now), users::updated_at.eq(dsl::now)))
+            .get_result(conn)
+            .to_db_error(ErrorCode::DeleteError, "Could not delete user")?;
+
+        DomainEvent::create(
+            DomainEventTypes::UserDisabled,
+            "User account deleted".to_string(),
+            Tables::Users,
+            Some(result.id),
+            current_user.map(|u| u.id),
+            None,
+        )
+        .commit(conn)?;
+
+        for push_notification_token in self.push_notification_tokens(conn)? {
+            PushNotificationToken::remove(self.id, push_notification_token.id, conn)?;
+        }
+
+        for external_login in self.external_logins(conn)? {
+            external_login.delete(current_user.map(|u| u.id), conn)?
+        }
+
+        Ok(result)
     }
 }
 

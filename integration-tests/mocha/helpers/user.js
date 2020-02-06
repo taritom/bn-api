@@ -1,12 +1,14 @@
-const {post} = require("./requests");
+const {post,get} = require("./requests");
 const pm = require('../test/pm');const debug=require('debug'); let log = debug('bn-api');
 
 const expect = require('chai').expect;
 
 
-const registerAndLogin = async function (saveVarName) {
+const registerAndLogin = async function (saveVarName,dontSaveVars) {
     let email  ="user" + (new Date()).getTime() + Math.floor((Math.random() * 1000000)) + "@tari.com";
-    pm.environment.set("last_email", email);
+    if (!dontSaveVars) {
+        pm.environment.set("last_email", email);
+    }
     log(email);
     const response = await post('/users', `{
 	"first_name":"${makeid(8)}",
@@ -19,12 +21,19 @@ const registerAndLogin = async function (saveVarName) {
     const responseBody = JSON.stringify(response.body);
     const json = JSON.parse(responseBody);
 
-    pm.environment.set(saveVarName || "user_token", json.access_token);
-
+    if (!dontSaveVars) {
+        pm.environment.set(saveVarName || "user_token", json.access_token);
+    }
     return json.access_token;
-}
+};
+
+const me  = async function(token) {
+    const response = await get('/users/me', token);
+    return JSON.parse(JSON.stringify(response.body));
+};
+
 module.exports = {
-    registerAndLogin
+    registerAndLogin, me
 };
 
 function makeid(length) {

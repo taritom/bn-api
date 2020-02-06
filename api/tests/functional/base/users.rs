@@ -75,6 +75,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
                     event_id: event.id,
                     event_start: event.event_start
                 }],
+                deleted_at: None
             }
         );
     } else {

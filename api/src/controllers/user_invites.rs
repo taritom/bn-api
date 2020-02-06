@@ -21,9 +21,9 @@ pub fn create(
     (state, connection, parameters, auth_user): (State<AppState>, Connection, Json<UserInviteRequest>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-
+    let email = parameters.email.trim().to_lowercase();
     // User already exists, so no need to invite them
-    if let Some(_) = User::find_by_email(parameters.email.as_str(), connection).optional()? {
+    if let Some(_) = User::find_by_email(&email, true, connection).optional()? {
         return application::created(json!({}));
     }
 

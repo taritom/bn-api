@@ -378,3 +378,14 @@ fn verify_recaptcha(
         None => Err(ApplicationError::new("Captcha required".to_string())),
     }
 }
+
+pub fn delete((conn, path, user): (Connection, Path<PathParameters>, AuthUser)) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    if user.id() != path.id {
+        user.requires_scope(Scopes::UserDelete)?
+    }
+
+    let target_user = User::find(path.id, conn)?;
+    target_user.disable(Some(&user.user), conn)?;
+    Ok(HttpResponse::Ok().finish())
+}

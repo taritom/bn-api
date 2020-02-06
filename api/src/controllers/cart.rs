@@ -412,29 +412,25 @@ fn checkout_external(
 
     let mut guest: Option<DbUser> = None;
 
-    if email.is_some() {
-        guest = DbUser::find_by_email(email.as_ref().unwrap(), conn).optional()?;
+    if let Some(ref e) = email {
+        // Guest can be a deleted user
+        guest = DbUser::find_by_email(e, true, conn).optional()?;
     };
     if guest.is_none() {
-        if phone.is_some() {
-            guest = DbUser::find_by_phone(phone.as_ref().unwrap(), conn).optional()?;
+        if let Some(ref p) = phone {
+            // Guest can be a deleted user
+            guest = DbUser::find_by_phone(p, true, conn).optional()?;
         }
     }
-    if guest.is_none() {
-        guest = Some(DbUser::create_stub(
-            first_name,
-            last_name,
-            email,
-            phone,
-            Some(user.id()),
-            conn,
-        )?);
-    }
+    let guest = match guest {
+        Some(g) => g,
+        None => DbUser::create_stub(first_name, last_name, email, phone, Some(user.id()), conn)?,
+    };
 
     if let Some(note) = note {
         order.create_note(note, user.id(), conn)?;
     }
-    order.set_behalf_of_user(guest.unwrap(), user.id(), conn)?;
+    order.set_behalf_of_user(guest, user.id(), conn)?;
     let total = order.calculate_total(conn)?;
 
     if total == 0 {

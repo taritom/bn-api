@@ -52,6 +52,8 @@ pub struct Organization {
     pub max_additional_fee_in_cents: i64,
     pub settlement_type: SettlementTypes,
     pub slug_id: Option<Uuid>,
+    pub google_ads_conversion_id: Option<String>,
+    pub google_ads_conversion_labels: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -94,6 +96,8 @@ pub struct NewOrganization {
 pub struct TrackingKeys {
     pub google_ga_key: Option<String>,
     pub facebook_pixel_key: Option<String>,
+    pub google_ads_conversion_id: Option<String>,
+    pub google_ads_conversion_labels: Vec<String>,
 }
 
 impl NewOrganization {
@@ -206,6 +210,10 @@ pub struct OrganizationEditableAttributes {
     #[serde(default)]
     pub max_additional_fee_in_cents: Option<i64>,
     pub settlement_type: Option<SettlementTypes>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub google_ads_conversion_id: Option<Option<String>>,
+    #[serde(default)]
+    pub google_ads_conversion_labels: Option<Vec<String>>,
 }
 
 impl Organization {
@@ -359,6 +367,10 @@ impl Organization {
             }
             if let Some(Some(key)) = attributes.globee_api_key {
                 attributes.globee_api_key = Some(Some(encrypt(&key, encryption_key)?));
+            }
+
+            if let Some(Some(key)) = attributes.google_ads_conversion_id {
+                attributes.google_ads_conversion_id = Some(Some(encrypt(&key, encryption_key)?));
             }
         }
 
@@ -579,6 +591,8 @@ impl Organization {
             pub id: Uuid,
             pub google_ga_key: Option<String>,
             pub facebook_pixel_key: Option<String>,
+            pub google_ads_conversion_id: Option<String>,
+            pub google_ads_conversion_labels: Vec<String>,
         };
 
         let orgs: Vec<TrackingKeyFields> = organizations::table
@@ -587,6 +601,8 @@ impl Organization {
                 organizations::id,
                 organizations::google_ga_key,
                 organizations::facebook_pixel_key,
+                organizations::google_ads_conversion_id,
+                organizations::google_ads_conversion_labels,
             ))
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load all organization tracking keys")?;
@@ -602,12 +618,20 @@ impl Organization {
             if let Some(key) = facebook_pixel_key.clone() {
                 facebook_pixel_key = Some(decrypt(&key, &encryption_key)?);
             }
+            let mut google_ads_conversion_id = org.google_ads_conversion_id;
+            let mut google_ads_conversion_labels = vec![];
+            if let Some(key) = google_ads_conversion_id.clone() {
+                google_ads_conversion_id = Some(decrypt(&key, &encryption_key)?);
+                google_ads_conversion_labels = org.google_ads_conversion_labels.clone();
+            }
 
             result.insert(
                 org.id,
                 TrackingKeys {
                     google_ga_key,
                     facebook_pixel_key,
+                    google_ads_conversion_id,
+                    google_ads_conversion_labels,
                 },
             );
         }
@@ -1113,6 +1137,9 @@ impl Organization {
             }
             if let Some(key) = self.facebook_pixel_key.clone() {
                 self.facebook_pixel_key = Some(decrypt(&key, &encryption_key)?);
+            }
+            if let Some(key) = self.google_ads_conversion_id.clone() {
+                self.google_ads_conversion_id = Some(decrypt(&key, &encryption_key)?);
             }
             if let Some(key) = self.globee_api_key.clone() {
                 self.globee_api_key = Some(decrypt(&key, &encryption_key)?);

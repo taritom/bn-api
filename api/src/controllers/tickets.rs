@@ -141,7 +141,7 @@ pub fn send_via_email_or_phone(
     let re = Regex::new(r"[^0-9\+]+").unwrap();
     let numbers_only = re.replace_all(&send_tickets_request.email_or_phone, "");
 
-    if let Some(user) = DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()? {
+    if let Some(user) = DbUser::find_by_email(&send_tickets_request.email_or_phone, false, connection).optional()? {
         let ticket_instances = TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
 
         TicketInstance::direct_transfer(

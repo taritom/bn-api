@@ -68,6 +68,7 @@ pub enum Scopes {
     TicketTypeRead,
     TicketTypeWrite,
     UserRead,
+    UserDelete,
     VenueWrite,
 }
 
@@ -144,6 +145,7 @@ impl fmt::Display for Scopes {
             Scopes::TransferRead => "transfer:read",
             Scopes::TransferReadOwn => "transfer:read-own",
             Scopes::UserRead => "user:read",
+            Scopes::UserDelete => "user:delete",
             Scopes::VenueWrite => "venue:write",
         };
         write!(f, "{}", s)
@@ -216,6 +218,7 @@ impl FromStr for Scopes {
             "transfer:read" => Scopes::TransferRead,
             "transfer:read-own" => Scopes::TransferReadOwn,
             "user:read" => Scopes::UserRead,
+            "user:delete" => Scopes::UserDelete,
             "venue:write" => Scopes::VenueWrite,
             _ => {
                 return Err(EnumParseError {
@@ -391,6 +394,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::SettlementReadEarly,
                 Scopes::SettlementWrite,
                 Scopes::TransferCancelAccepted,
+                Scopes::UserDelete,
             ];
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
@@ -610,6 +614,7 @@ fn get_scopes_test() {
             "transfer:read",
             "transfer:read-own",
             "user:read",
+            "user:delete",
             "venue:write",
         ],
         res
@@ -683,6 +688,7 @@ fn get_scopes_test() {
             "transfer:read",
             "transfer:read-own",
             "user:read",
+            "user:delete",
             "venue:write",
         ],
         res
@@ -754,6 +760,7 @@ fn get_scopes_test() {
             "transfer:cancel-own",
             "transfer:read",
             "transfer:read-own",
+            "user:delete",
             "user:read",
             "venue:write",
         ],

@@ -27,6 +27,21 @@ const put = async function (apiEndPoint, request_body, token) {
     return req.send(pm.substitute(request_body));
 };
 
+const get = async function (apiEndPoint, token) {
+    let req =  baseUrl
+        .get(pm.substitute(apiEndPoint))
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json');
+
+    if (token) {
+        req = req  .set('Authorization', pm.substitute('Bearer ' + token));
+
+    }
+    return req.send();
+};
+
 module.exports = {
-    post , put
+    get,
+    post,
+    put
 }
