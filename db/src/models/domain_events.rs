@@ -39,6 +39,15 @@ impl DomainEvent {
             .to_db_error(ErrorCode::QueryError, "Error loading domain events")
     }
 
+    pub fn find_by_type(event_type: DomainEventTypes, conn: &PgConnection) -> Result<Vec<DomainEvent>, DatabaseError> {
+        // This method is mostly here for tests to get certain domain events
+        domain_events::table
+            .filter(domain_events::event_type.eq(event_type))
+            .order_by(domain_events::created_at.desc())
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading domain events by type")
+    }
+
     pub fn create(
         event_type: DomainEventTypes,
         display_text: String,
