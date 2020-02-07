@@ -527,12 +527,10 @@ impl Event {
 
     pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         // An event is ineligible for deletion if it is present in any cart
-        Ok(self.deleted_at.is_none()
-            && !select(exists(
-                order_items::table.filter(order_items::event_id.eq(Some(self.id))),
-            ))
-            .get_result(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not check event for deletion eligibility")?)
+        let is_not_deleted = self.deleted_at.is_none();
+        let has_paid_or_active_carts = self.associated_with_active_orders(conn)?;
+        let eligible_for_deletion = is_not_deleted && !has_paid_or_active_carts;
+        Ok(eligible_for_deletion)
     }
 
     pub fn delete(self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {

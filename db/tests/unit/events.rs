@@ -554,6 +554,21 @@ fn eligible_for_deletion() {
     )
     .unwrap();
     assert!(!event.eligible_for_deletion(connection).unwrap());
+
+    //Set the expires_at time for the cart to the past
+    // Expire the order
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET expires_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(cart.id)
+    .execute(connection)
+    .unwrap();
+    assert!(event.eligible_for_deletion(connection).unwrap());
     cart.clear_cart(user.id, connection).unwrap();
 
     // Cleared the cart which removed the last link to this event
