@@ -109,6 +109,17 @@ pub fn token_refresh(
         state.config.token_issuer.token_secret.as_bytes(),
         &validation,
     )?;
+    if let Some(ref scopes) = token.claims.scopes {
+        if !scopes.contains(&Scopes::TokenRefresh.to_string()) {
+            return application::unauthorized_with_message(
+                "Token does not have the scope needed to refresh",
+                None,
+                None,
+            );
+        }
+    } else {
+        return application::unauthorized_with_message("Token can not be used to refresh", None, None);
+    }
     let user = User::find(token.claims.get_id()?, connection.get())?;
 
     // If the user changes their password invalidate all refresh tokens

@@ -175,7 +175,8 @@ fn token_refresh_password_reset_since_issued() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
-    let mut refresh_token_claims = AccessToken::new(user.id, "iss".to_string(), 30);
+    let mut refresh_token_claims =
+        AccessToken::new_limited_scope(user.id, "iss".to_string(), 30, vec![Scopes::TokenRefresh]);
 
     // Issued a second after the latest password
     refresh_token_claims.issued = password_modified_timestamp + 1;
@@ -187,7 +188,7 @@ fn token_refresh_password_reset_since_issued() {
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, json!({"error": "Invalid token"}).to_string());
+    assert_eq!(body, json!({"error": "Token can not be used to refresh"}).to_string());
 }
 
 #[test]
