@@ -468,6 +468,8 @@ table! {
         max_additional_fee_in_cents -> Int8,
         settlement_type -> Text,
         slug_id -> Nullable<Uuid>,
+        google_ads_conversion_id -> Nullable<Text>,
+        google_ads_conversion_labels -> Array<Text>,
     }
 }
 
@@ -624,6 +626,16 @@ table! {
         updated_at -> Timestamp,
         title -> Nullable<Text>,
         description -> Nullable<Text>,
+    }
+}
+
+table! {
+    source_aliases (id) {
+        id -> Uuid,
+        from_source -> Text,
+        from_medium -> Text,
+        to_source -> Text,
+        to_medium -> Text,
     }
 }
 
@@ -791,6 +803,7 @@ table! {
         last_cart_id -> Nullable<Uuid>,
         accepted_terms_date -> Nullable<Timestamp>,
         invited_at -> Nullable<Timestamp>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 
@@ -954,6 +967,7 @@ allow_tables_to_appear_in_same_query!(
     settlement_entries,
     settlements,
     slugs,
+    source_aliases,
     stages,
     temporary_user_links,
     temporary_users,

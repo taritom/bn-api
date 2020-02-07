@@ -2070,7 +2070,6 @@ impl Event {
         }
     }
     pub fn checked_in_users(event_id: Uuid, conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
-        use schema::*;
         ticket_instances::table
             .inner_join(assets::table.inner_join(ticket_types::table))
             .inner_join(
@@ -2081,7 +2080,8 @@ impl Event {
             .filter(ticket_instances::status.eq(TicketInstanceStatus::Redeemed))
             .filter(ticket_types::event_id.eq(event_id))
             .select(users::all_columns)
-            .load(conn)
+            .distinct()
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load checked in users")
     }
 

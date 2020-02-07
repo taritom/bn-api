@@ -101,7 +101,7 @@ fn create_invite(
     let recipient: String;
     let user_id: Option<Uuid>;
 
-    match User::find_by_email(&new_org_invite.user_email, connection).optional()? {
+    match User::find_by_email(&new_org_invite.user_email, false, connection).optional()? {
         Some(user) => {
             recipient = user.full_name();
             user_id = Some(user.id);

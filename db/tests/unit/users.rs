@@ -947,6 +947,7 @@ fn get_profile_for_organization() {
             cover_photo_url: user.cover_photo_url.clone(),
             created_at: user.created_at,
             attendance_information: Vec::new(),
+            deleted_at: None
         }
     );
 
@@ -991,6 +992,7 @@ fn get_profile_for_organization() {
                 event_id: event.id,
                 event_start: event.event_start
             }],
+            deleted_at: None
         }
     );
 
@@ -1036,6 +1038,7 @@ fn get_profile_for_organization() {
                 event_id: event.id,
                 event_start: event.event_start
             }],
+            deleted_at: None
         }
     );
 
@@ -1066,6 +1069,7 @@ fn get_profile_for_organization() {
                 event_id: event.id,
                 event_start: event.event_start
             }],
+            deleted_at: None
         }
     );
 
@@ -1117,6 +1121,7 @@ fn get_profile_for_organization() {
                 event_id: event.id,
                 event_start: event.event_start
             }],
+            deleted_at: None
         }
     );
     assert_eq!(
@@ -1138,6 +1143,7 @@ fn get_profile_for_organization() {
                 event_id: event2.id,
                 event_start: event2.event_start
             }],
+            deleted_at: None
         }
     );
 
@@ -1191,6 +1197,7 @@ fn get_profile_for_organization() {
                     event_start: event2.event_start
                 }
             ],
+            deleted_at: None
         }
     );
 
@@ -1235,6 +1242,7 @@ fn get_profile_for_organization() {
             cover_photo_url: user4.cover_photo_url.clone(),
             created_at: user4.created_at,
             attendance_information: vec![],
+            deleted_at: None
         }
     );
 
@@ -1286,6 +1294,7 @@ fn get_profile_for_organization() {
                 event_id: event3.id,
                 event_start: event3.event_start
             }],
+            deleted_at: None
         }
     );
 
@@ -1324,6 +1333,7 @@ fn get_profile_for_organization() {
                     event_start: event2.event_start
                 }
             ],
+            deleted_at: None
         }
     );
     assert_eq!(
@@ -1341,6 +1351,7 @@ fn get_profile_for_organization() {
             cover_photo_url: user3.cover_photo_url.clone(),
             created_at: user3.created_at,
             attendance_information: Vec::new(),
+            deleted_at: None
         }
     );
 }
@@ -1667,10 +1678,10 @@ fn find_by_email() {
     let user = project.create_user().finish();
 
     let found_user =
-        User::find_by_email(&user.email.clone().unwrap(), project.get_connection()).expect("User was not found");
+        User::find_by_email(&user.email.clone().unwrap(), false, project.get_connection()).expect("User was not found");
     assert_eq!(found_user, user);
 
-    let not_found = User::find_by_email("not@real.com", project.get_connection());
+    let not_found = User::find_by_email("not@real.com", false, project.get_connection());
     let error = not_found.unwrap_err();
     assert_eq!(
         error.to_string(),
@@ -2174,6 +2185,7 @@ fn get_global_scopes() {
             "transfer:cancel",
             "transfer:read-own",
             "transfer:read",
+            "user:delete",
             "user:read",
             "venue:write"
         ]
@@ -2245,6 +2257,7 @@ fn get_global_scopes() {
             "transfer:cancel",
             "transfer:read-own",
             "transfer:read",
+            "user:delete",
             "user:read",
             "venue:write"
         ]

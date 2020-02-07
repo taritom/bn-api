@@ -673,9 +673,13 @@ fn tracking_keys_for_ids() {
     let encryption_key = "encryption_key".to_string();
     let google_ga_key = "ga-key".to_string();
     let facebook_pixel_key = "fb-key".to_string();
+    let google_ads_conversion_id = "ads-key".to_string();
+    let google_ads_conversion_labels = vec!["conversion-label".to_string()];
     let org_update = OrganizationEditableAttributes {
         google_ga_key: Some(Some(google_ga_key.clone())),
         facebook_pixel_key: Some(Some(facebook_pixel_key.clone())),
+        google_ads_conversion_id: Some(Some(google_ads_conversion_id.clone())),
+        google_ads_conversion_labels: Some(google_ads_conversion_labels.clone()),
         ..Default::default()
     };
     organization
@@ -689,6 +693,8 @@ fn tracking_keys_for_ids() {
         TrackingKeys {
             google_ga_key: Some(google_ga_key),
             facebook_pixel_key: Some(facebook_pixel_key),
+            google_ads_conversion_id: Some(google_ads_conversion_id),
+            google_ads_conversion_labels
         }
     );
 }

@@ -75,12 +75,21 @@ pub fn web_login(
 
     let existing_user = ExternalLogin::find_user(&facebook_graph_response.id, FACEBOOK_SITE, connection)?;
     let user = match existing_user {
-        Some(u) => User::find(u.user_id, connection)?,
+        Some(u) => {
+            let user = User::find(u.user_id, connection)?;
+            if user.deleted_at.is_some() {
+                return application::forbidden("This account has been deleted");
+            }
+            user
+        }
         None => {
             if let Some(email) = facebook_graph_response.email.as_ref() {
                 // Link account if email exists
-                match User::find_by_email(&email, connection) {
+                match User::find_by_email(&email, true, connection) {
                     Ok(user) => {
+                        if user.deleted_at.is_some() {
+                            return application::forbidden("This account has been deleted");
+                        }
                         user.add_external_login(
                             None,
                             facebook_graph_response.id.clone(),

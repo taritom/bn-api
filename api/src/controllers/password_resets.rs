@@ -30,7 +30,8 @@ pub fn create(
     })));
 
     let connection = connection.get();
-    let mut user = match User::find_by_email(&parameters.email, connection) {
+    let email = parameters.email.trim().to_lowercase();
+    let mut user = match User::find_by_email(&email, false, connection) {
         Ok(user) => user,
         Err(_) => return request_pending_response,
     };

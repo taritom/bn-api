@@ -131,6 +131,7 @@ string_enum! { DomainEventTypes [
     PaymentMethodUpdated,
     PaymentUpdated,
     UserCreated,
+    UserDisabled,
     UserLogin,
     UserRegistration,
     UserUpdated,

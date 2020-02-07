@@ -36,8 +36,14 @@ impl FromRequest<AppState> for User {
                             token.claims.get_id().map_err(|e| BigNeonError::from(e))?,
                             connection.get(),
                         ) {
-                            Ok(user) => Ok(User::new(user, req, token.claims.scopes)
-                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?),
+                            Ok(user) => {
+                                if user.deleted_at.is_some() {
+                                    Err(ErrorUnauthorized("User account is disabled"))
+                                } else {
+                                    Ok(User::new(user, req, token.claims.scopes)
+                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
+                                }
+                            }
                             Err(e) => Err(ErrorInternalServerError(e)),
                         }
                     }

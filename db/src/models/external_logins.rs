@@ -83,6 +83,18 @@ impl ExternalLogin {
         }
     }
 
+    pub fn find_all_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Vec<ExternalLogin>, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Error loading external logins",
+            external_logins::table
+                .filter(external_logins::user_id.eq(user_id))
+                .filter(external_logins::deleted_at.is_null())
+                .order_by(external_logins::created_at.desc())
+                .load::<ExternalLogin>(conn),
+        )
+    }
+
     pub fn find_for_site(user_id: Uuid, site: &str, conn: &PgConnection) -> Result<ExternalLogin, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
