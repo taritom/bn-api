@@ -56,6 +56,7 @@ impl DeepLinker for BranchDeepLinker {
         Ok(self.client.links.create(DeepLink {
             data: DeepLinkData {
                 fallback_url: Some(fallback_link.to_string()),
+                custom_data,
                 ..Default::default()
             },
             ..Default::default()

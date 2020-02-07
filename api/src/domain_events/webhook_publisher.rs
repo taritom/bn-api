@@ -1,6 +1,5 @@
 use auth::default_token_issuer::DefaultTokenIssuer;
 use bigneon_db::prelude::*;
-use branch_rs::DeepLinkData;
 use chrono::Duration;
 use diesel::PgConnection;
 use domain_events::errors::DomainActionError;
@@ -8,8 +7,7 @@ use errors::BigNeonError;
 use log::Level::Error;
 use serde_json::Value;
 use std::collections::HashMap;
-use utils::deep_linker::{BranchDeepLinker, DeepLinker};
-use uuid::Uuid;
+use utils::deep_linker::DeepLinker;
 
 pub struct WebhookPublisher {
     pub front_end_url: String,
@@ -50,7 +48,7 @@ impl WebhookPublisher {
         Ok(())
     }
 
-    fn create_webhook_payloads(
+    pub fn create_webhook_payloads(
         &self,
         domain_event: &DomainEvent,
         conn: &PgConnection,

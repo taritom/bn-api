@@ -5,10 +5,10 @@ use bigneon_db::schema::{fee_schedule_ranges, order_items, orders, ticket_instan
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
+use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
 use std::collections::HashMap;
-use time::Duration;
 use uuid::Uuid;
 
 #[test]

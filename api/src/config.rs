@@ -1,5 +1,5 @@
 use auth::default_token_issuer::DefaultTokenIssuer;
-use bigneon_db::models::{EmailProvider, Environment, TokenIssuer};
+use bigneon_db::models::{EmailProvider, Environment};
 use bigneon_db::utils::errors::EnumParseError;
 use chrono::Duration;
 use dotenv::dotenv;

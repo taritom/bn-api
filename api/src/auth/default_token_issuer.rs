@@ -1,9 +1,8 @@
 use bigneon_db::models::{AccessToken, Scopes, TokenIssuer};
-use chrono::{NaiveDate, NaiveDateTime, Utc};
-use uuid::Uuid;
 
 use chrono::Duration;
-use jwt::{encode, errors, Header};
+use jwt::{decode, encode, errors, Header, TokenData, Validation};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct DefaultTokenIssuer {
@@ -21,6 +20,13 @@ impl DefaultTokenIssuer {
 }
 
 impl TokenIssuer for DefaultTokenIssuer {
+    fn encode(&self, claims: &AccessToken) -> Result<String, errors::Error> {
+        encode(&Header::default(), claims, self.token_secret.as_bytes())
+    }
+    fn decode(&self, access_token: &str) -> Result<TokenData<AccessToken>, jwt::errors::Error> {
+        decode::<AccessToken>(access_token, self.token_secret.as_bytes(), &Validation::default())
+    }
+
     fn issue(&self, user_id: Uuid, expires: Duration) -> Result<String, errors::Error> {
         let access_token_claims = AccessToken::new(user_id, self.token_issuer.to_string(), expires.num_minutes());
 

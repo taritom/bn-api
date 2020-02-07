@@ -74,12 +74,11 @@ fn find_with_unpublished_domain_events() {
         Some(organization.id),
         vec![DomainEventTypes::OrderCompleted],
         webhook.clone(),
-        true,
     )
     .commit(connection)
     .unwrap();
     let global_domain_event_publisher =
-        DomainEventPublisher::create(None, vec![DomainEventTypes::OrderCompleted], webhook.clone(), true)
+        DomainEventPublisher::create(None, vec![DomainEventTypes::OrderCompleted], webhook.clone())
             .commit(connection)
             .unwrap();
 
@@ -192,7 +191,7 @@ fn find_with_unpublished_domain_events() {
 
     // Publish event only for global publisher
     global_domain_event_publisher
-        .publish(&order_domain_event, &"".to_string(), connection)
+        .claim_for_publishing(&order_domain_event, connection)
         .unwrap();
     let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 2);
@@ -219,7 +218,7 @@ fn find_with_unpublished_domain_events() {
 
     // Publish for other publisher
     organization_domain_event_publisher
-        .publish(&order_domain_event, &"".to_string(), connection)
+        .claim_for_publishing(&order_domain_event, connection)
         .unwrap();
     let publisher_data = DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
     assert_eq!(publisher_data.len(), 1);
@@ -255,7 +254,6 @@ fn publish() {
         None,
         vec![DomainEventTypes::OrderCompleted],
         "http://localhost:7644/webhook".to_string(),
-        true,
     )
     .commit(connection)
     .unwrap();
@@ -264,7 +262,7 @@ fn publish() {
     assert_eq!(publisher_data.len(), 1);
     let domain_event = &publisher_data.get(&domain_event_publisher).unwrap()[0];
     domain_event_publisher
-        .publish(&domain_event, &"".to_string(), connection)
+        .claim_for_publishing(&domain_event, connection)
         .unwrap();
 }
 
@@ -278,7 +276,6 @@ fn create() {
         Some(organization.id),
         vec![DomainEventTypes::TransferTicketStarted],
         webhook.clone(),
-        true,
     )
     .commit(connection)
     .unwrap();
@@ -301,7 +298,6 @@ fn find() {
         Some(organization.id),
         vec![DomainEventTypes::TransferTicketStarted],
         "http://localhost:7644/webhook".to_string(),
-        true,
     )
     .commit(connection)
     .unwrap();
@@ -318,7 +314,6 @@ fn update() {
         Some(organization.id),
         vec![DomainEventTypes::TransferTicketStarted],
         "http://localhost:7644/webhook".to_string(),
-        true,
     )
     .commit(connection)
     .unwrap();

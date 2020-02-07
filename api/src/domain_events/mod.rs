@@ -5,4 +5,4 @@ mod errors;
 mod executor_future;
 pub mod executors;
 mod routing;
-mod webhook_publisher;
+pub mod webhook_publisher;

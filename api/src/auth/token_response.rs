@@ -2,7 +2,7 @@ use actix_web::Error;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
-use bigneon_db::models::{AccessToken, Scopes, TokenIssuer, User};
+use bigneon_db::models::{Scopes, TokenIssuer, User};
 use chrono::Duration;
 use errors::BigNeonError;
 use serde_json;

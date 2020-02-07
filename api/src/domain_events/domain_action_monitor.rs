@@ -17,7 +17,6 @@ use tokio::prelude::*;
 use tokio::runtime::current_thread;
 use tokio::runtime::Runtime;
 use tokio::timer::Timeout;
-use utils::deep_linker::BranchDeepLinker;
 use utils::ServiceLocator;
 
 pub struct DomainActionMonitor {
@@ -71,7 +70,6 @@ impl DomainActionMonitor {
     }
 
     fn find_and_publish_events(
-        config: &Config,
         webhook_publisher: &WebhookPublisher,
         database: &Database,
     ) -> Result<usize, DomainActionError> {
@@ -143,7 +141,7 @@ impl DomainActionMonitor {
             }
 
             // Domain Monitor main loop
-            if DomainActionMonitor::find_and_publish_events(&config, &webhook_publisher, &database)? == 0 {
+            if DomainActionMonitor::find_and_publish_events(&webhook_publisher, &database)? == 0 {
                 //                jlog!(Info, "bigneon::domain_events", "No events founds, sleeping", {});
                 thread::sleep(Duration::from_secs(interval));
             }

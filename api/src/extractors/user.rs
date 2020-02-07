@@ -2,7 +2,7 @@ use actix_web::error::*;
 use actix_web::{FromRequest, HttpRequest};
 use auth::user::User;
 use bigneon_db::models::User as DbUser;
-use bigneon_db::prelude::{AccessToken, Scopes};
+use bigneon_db::prelude::AccessToken;
 use errors::*;
 use jwt::{decode, Validation};
 use middleware::RequestConnection;
@@ -41,7 +41,7 @@ impl FromRequest<AppState> for User {
                                     Err(ErrorUnauthorized("User account is disabled"))
                                 } else {
                                     Ok(User::new(user, req, token.claims.scopes)
-                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
+                                        .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
                                 }
                             }
                             Err(e) => Err(ErrorInternalServerError(e)),
