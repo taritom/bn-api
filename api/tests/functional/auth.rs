@@ -201,8 +201,8 @@ fn token_refreshed_after_password_change() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
-    let mut refresh_token_claims = AccessToken::new_limited_scope(
-        user.id, "iss".to_string(), 30, vec![Scopes::TokenRefresh]);
+    let mut refresh_token_claims =
+        AccessToken::new_limited_scope(user.id, "iss".to_string(), 30, vec![Scopes::TokenRefresh]);
 
     // Issued a second after the latest password
     refresh_token_claims.issued = password_modified_timestamp + 1;
