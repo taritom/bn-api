@@ -13,7 +13,7 @@ fn webhook_payloads() {
     let connection = project.connection.get();
     let organization = project.create_organization().with_fees().finish();
     let publisher = WebhookPublisher::new(
-        "http://localhost".to_string(),
+        "http://localhost:5432".to_string(),
         DefaultTokenIssuer::new("asdf".into(), "asdf".into()),
         Box::new(BranchDeepLinker::new("asdf".into(), "key".into())),
     );
@@ -233,7 +233,10 @@ fn webhook_payloads() {
     .commit(connection)
     .unwrap();
 
-    let mut order_payloads = publisher.create_webhook_payloads(&domain_event, connection).unwrap();
+    let order_payloads = publisher.create_webhook_payloads(&domain_event, connection);
+
+    println!("{}", order_payloads);
+    let mut order_payloads = order_payloads.unwrap();
     assert_eq!(order_payloads.len(), 1);
     let order_payload = order_payloads.remove(0);
 

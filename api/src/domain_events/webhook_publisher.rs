@@ -109,11 +109,11 @@ impl WebhookPublisher {
                 Self::order_payload_data(conn, &mut data, order)?;
                 let magic_link_refresh_token =
                     user.create_magic_link_token(&self.token_issuer, Duration::minutes(15))?;
-                let custom_data = json!({
-                    "refresh_token": &magic_link_refresh_token,
-                    "order_id": order_id,
-                    "domain_event": domain_event.event_type
-                });
+                let mut custom_data = HashMap::<String, Value>::new();
+                custom_data.insert("refresh_token".to_string(), json!(&magic_link_refresh_token));
+                custom_data.insert("order_id".to_string(), json!(order_id));
+                custom_data.insert("domain_event".to_string(), json!(domain_event.event_type));
+
                 let fallback_url = format!("{}?refresh_token={}", self.front_end_url, magic_link_refresh_token);
                 let link = self.deep_linker.create_with_custom_data(&fallback_url, custom_data)?;
                 data.insert("magic_link".to_string(), json!(link));
@@ -355,11 +355,12 @@ impl WebhookPublisher {
             // TODO: Implement magic link for temp users
             let user = User::find(user_id, conn)?;
             let magic_link_refresh_token = user.create_magic_link_token(&self.token_issuer, Duration::minutes(15))?;
-            let custom_data = json!({
-                "refresh_token": &magic_link_refresh_token,
-                "transfer_id": transfer.id,
-                "domain_event": event_type
-            });
+            let mut custom_data = HashMap::<String, Value>::new();
+
+            custom_data.insert("refresh_token".to_string(), json!(&magic_link_refresh_token));
+            custom_data.insert("transfer_id".to_string(), json!(transfer.id));
+            custom_data.insert("domain_event".to_string(), json!(event_type));
+
             let fallback_url = format!("{}?refresh_token={}", receive_tickets_url, magic_link_refresh_token);
             let link = self.deep_linker.create_with_custom_data(&fallback_url, custom_data)?;
             receive_tickets_url = link

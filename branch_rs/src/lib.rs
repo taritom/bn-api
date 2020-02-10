@@ -18,6 +18,7 @@ extern crate serde;
 use log::Level::Debug;
 use reqwest::StatusCode;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub struct BranchClient {
     pub links: LinksResource,
@@ -110,7 +111,7 @@ pub struct DeepLinkData {
     #[serde(rename = "$web_only")]
     pub web_only: bool,
     #[serde(flatten)]
-    pub custom_data: Value,
+    pub custom_data: HashMap<String, Value>,
 }
 
 #[derive(Debug, Error)]

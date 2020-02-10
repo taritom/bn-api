@@ -1,11 +1,16 @@
 use branch_rs::prelude::*;
 use errors::*;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub trait DeepLinker {
     fn create_deep_link(&self, raw_link: &str) -> Result<String, BigNeonError>;
     fn create_deep_link_with_alias(&self, raw_link: &str, alias: &str) -> Result<String, BigNeonError>;
-    fn create_with_custom_data(&self, fallback_link: &str, custom_data: Value) -> Result<String, BigNeonError>;
+    fn create_with_custom_data(
+        &self,
+        fallback_link: &str,
+        custom_data: HashMap<String, Value>,
+    ) -> Result<String, BigNeonError>;
 }
 
 pub struct BranchDeepLinker {
@@ -52,7 +57,11 @@ impl DeepLinker for BranchDeepLinker {
         })?)
     }
 
-    fn create_with_custom_data(&self, fallback_link: &str, custom_data: Value) -> Result<String, BigNeonError> {
+    fn create_with_custom_data(
+        &self,
+        fallback_link: &str,
+        custom_data: HashMap<String, Value>,
+    ) -> Result<String, BigNeonError> {
         Ok(self.client.links.create(DeepLink {
             data: DeepLinkData {
                 fallback_url: Some(fallback_link.to_string()),

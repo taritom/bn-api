@@ -1,11 +1,5 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
-use bigneon_db::schema::domain_events;
-use bigneon_db::utils::dates;
-use diesel;
-use diesel::prelude::*;
-use diesel::RunQueryDsl;
-use uuid::Uuid;
 
 #[test]
 fn find_all() {

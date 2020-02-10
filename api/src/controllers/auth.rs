@@ -125,7 +125,7 @@ pub fn token_refresh(
     // If the user changes their password invalidate all refresh tokens
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
     if password_modified_timestamp > token.claims.issued {
-        return application::unauthorized_with_message("Invalid token", None, None);
+        return application::unauthorized_with_message("Token no longer valid", None, None);
     }
 
     let response = TokenResponse::create_from_refresh_token(
