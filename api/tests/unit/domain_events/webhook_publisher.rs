@@ -1,4 +1,5 @@
 use bigneon_api::auth::default_token_issuer::DefaultTokenIssuer;
+use bigneon_api::config::Config;
 use bigneon_api::domain_events::webhook_publisher::WebhookPublisher;
 use bigneon_api::utils::deep_linker::BranchDeepLinker;
 use bigneon_db::prelude::*;
@@ -6,18 +7,20 @@ use chrono::prelude::*;
 use std::collections::HashMap;
 use support::database::TestDatabase;
 use uuid::Uuid;
-use bigneon_api::config::Config;
 
 #[test]
 fn webhook_payloads() {
     let project = TestDatabase::new();
     let connection = project.connection.get();
     let organization = project.create_organization().with_fees().finish();
-    let config =  Config::new(Environment::Test);
+    let config = Config::new(Environment::Test);
     let publisher = WebhookPublisher::new(
         "http://localhost:5432".to_string(),
         DefaultTokenIssuer::new("asdf".into(), "asdf".into()),
-        Box::new(BranchDeepLinker::new(config.branch_io_base_url.clone(), config.branch_io_branch_key.clone())),
+        Box::new(BranchDeepLinker::new(
+            config.branch_io_base_url.clone(),
+            config.branch_io_branch_key.clone(),
+        )),
     );
     //let domain_event_publisher = project.create_domain_event_publisher().finish();
     let event_start = NaiveDateTime::parse_from_str("2055-06-14 16:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
