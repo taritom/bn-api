@@ -6,16 +6,18 @@ use chrono::prelude::*;
 use std::collections::HashMap;
 use support::database::TestDatabase;
 use uuid::Uuid;
+use bigneon_api::config::Config;
 
 #[test]
 fn webhook_payloads() {
     let project = TestDatabase::new();
     let connection = project.connection.get();
     let organization = project.create_organization().with_fees().finish();
+    let config =  Config::new(Environment::Test);
     let publisher = WebhookPublisher::new(
         "http://localhost:5432".to_string(),
         DefaultTokenIssuer::new("asdf".into(), "asdf".into()),
-        Box::new(BranchDeepLinker::new("asdf".into(), "key".into())),
+        Box::new(BranchDeepLinker::new(config.branch_io_base_url.clone(), config.branch_io_branch_key.clone())),
     );
     //let domain_event_publisher = project.create_domain_event_publisher().finish();
     let event_start = NaiveDateTime::parse_from_str("2055-06-14 16:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
@@ -233,10 +235,8 @@ fn webhook_payloads() {
     .commit(connection)
     .unwrap();
 
-    let order_payloads = publisher.create_webhook_payloads(&domain_event, connection);
+    let mut order_payloads = publisher.create_webhook_payloads(&domain_event, connection).unwrap();
 
-    println!("{}", order_payloads);
-    let mut order_payloads = order_payloads.unwrap();
     assert_eq!(order_payloads.len(), 1);
     let order_payload = order_payloads.remove(0);
 
