@@ -833,7 +833,7 @@ impl User {
         token_issuer: &dyn TokenIssuer,
         expiry: Duration,
     ) -> Result<String, DatabaseError> {
-        Ok(token_issuer.issue_with_limited_scopes(self.id, vec![Scopes::TokenUpgrade], expiry)?)
+        Ok(token_issuer.issue_with_limited_scopes(self.id, vec![Scopes::TokenRefresh], expiry)?)
     }
 
     fn email_unique(
