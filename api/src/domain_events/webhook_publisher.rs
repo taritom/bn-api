@@ -361,8 +361,8 @@ impl WebhookPublisher {
             custom_data.insert("transfer_id".to_string(), json!(transfer.id));
             custom_data.insert("domain_event".to_string(), json!(event_type));
 
-            let fallback_url = format!("{}?refresh_token={}", receive_tickets_url, magic_link_refresh_token);
-            let link = self.deep_linker.create_with_custom_data(&fallback_url, custom_data)?;
+            let desktop_url = format!("{}?refresh_token={}", receive_tickets_url, magic_link_refresh_token);
+            let link = self.deep_linker.create_with_custom_data(&desktop_url, custom_data)?;
             receive_tickets_url = link
         }
 
