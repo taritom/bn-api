@@ -114,8 +114,8 @@ impl WebhookPublisher {
                 custom_data.insert("order_id".to_string(), json!(order_id));
                 custom_data.insert("domain_event".to_string(), json!(domain_event.event_type));
 
-                let fallback_url = format!("{}?refresh_token={}", self.front_end_url, magic_link_refresh_token);
-                let link = self.deep_linker.create_with_custom_data(&fallback_url, custom_data)?;
+                let desktop_url = format!("{}?refresh_token={}", self.front_end_url, magic_link_refresh_token);
+                let link = self.deep_linker.create_with_custom_data(&desktop_url, custom_data)?;
                 data.insert("magic_link".to_string(), json!(link));
                 data.insert("timestamp".to_string(), json!(domain_event.created_at.timestamp()));
                 data.insert("magic_link_refresh_token".to_string(), json!(magic_link_refresh_token));

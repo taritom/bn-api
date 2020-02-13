@@ -64,7 +64,7 @@ impl DeepLinker for BranchDeepLinker {
     ) -> Result<String, BigNeonError> {
         Ok(self.client.links.create(DeepLink {
             data: DeepLinkData {
-                fallback_url: Some(fallback_link.to_string()),
+                desktop_url: Some(fallback_link.to_string()),
                 custom_data,
                 ..Default::default()
             },
