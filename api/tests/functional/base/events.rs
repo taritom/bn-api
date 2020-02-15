@@ -894,6 +894,7 @@ pub fn expected_show_json(
         facebook_pixel_key: Option<String>,
         extra_admin_data: Option<Value>,
         facebook_event_id: Option<String>,
+        updated_at: NaiveDateTime,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -998,6 +999,7 @@ pub fn expected_show_json(
         facebook_pixel_key: None,
         extra_admin_data: None,
         facebook_event_id: None,
+        updated_at: event.updated_at,
     })
     .unwrap()
 }

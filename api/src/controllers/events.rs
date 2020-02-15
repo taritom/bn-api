@@ -546,6 +546,7 @@ pub fn show(
             .extra_admin_data
             .and_then(|data| if user_has_privileges { Some(data) } else { None }),
         facebook_event_id: event.facebook_event_id,
+        updated_at: event.updated_at,
     };
 
     Ok(HttpResponse::Ok().json(&payload))
