@@ -667,29 +667,33 @@ impl Event {
         let associated_with_active_orders = self.associated_with_active_orders(conn)?;
 
         if associated_with_active_orders {
-            if let Some(updated_date) = attributes.event_start {
-                if updated_date < Utc::now().naive_utc() {
-                    validation_errors = validators::append_validation_error(
-                        validation_errors,
-                        "event.event_start",
-                        Err(create_validation_error(
-                            "cannot_move_event_dates_in_past",
-                            "Event with sales cannot move to past date.",
-                        )),
-                    );
+            if attributes.event_start != self.event_start {
+                if let Some(updated_date) = attributes.event_start {
+                    if updated_date < Utc::now().naive_utc() {
+                        validation_errors = validators::append_validation_error(
+                            validation_errors,
+                            "event.event_start",
+                            Err(create_validation_error(
+                                "cannot_move_event_dates_in_past",
+                                "Event with sales cannot move to past date.",
+                            )),
+                        );
+                    }
                 }
             }
 
-            if let Some(updated_date) = attributes.event_end {
-                if updated_date < Utc::now().naive_utc() {
-                    validation_errors = validators::append_validation_error(
-                        validation_errors,
-                        "event.event_end",
-                        Err(create_validation_error(
-                            "cannot_move_event_dates_in_past",
-                            "Event with sales cannot move to past date.",
-                        )),
-                    );
+            if attributes.event_end != self.event_end {
+                if let Some(updated_date) = attributes.event_end {
+                    if updated_date < Utc::now().naive_utc() {
+                        validation_errors = validators::append_validation_error(
+                            validation_errors,
+                            "event.event_end",
+                            Err(create_validation_error(
+                                "cannot_move_event_dates_in_past",
+                                "Event with sales cannot move to past date.",
+                            )),
+                        );
+                    }
                 }
             }
         }
