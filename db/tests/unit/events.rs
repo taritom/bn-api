@@ -1840,6 +1840,118 @@ fn guest_list() {
 }
 
 #[test]
+fn update_fails_to_move_event_into_past() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_ticket_pricing().finish();
+
+    // Can move into the past when no sales have occurred
+    assert!(event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_minutes(-2).finish()),
+                event_end: Some(dates::now().add_minutes(-1).finish()),
+                ..Default::default()
+            },
+            connection
+        )
+        .is_ok());
+
+    // Can move back to the future
+    assert!(event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_minutes(1).finish()),
+                event_end: Some(dates::now().add_minutes(2).finish()),
+                ..Default::default()
+            },
+            connection
+        )
+        .is_ok());
+
+    // Once a sale has been made can no longer move to the past or out of the past
+    let event = event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_minutes(-2).finish()),
+                event_end: Some(dates::now().add_minutes(-1).finish()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    project.create_order().for_event(&event).finish();
+
+    // Attempt to move to alter the dates
+    let result = event.update(
+        None,
+        EventEditableAttributes {
+            event_start: Some(dates::now().add_minutes(-3).finish()),
+            event_end: Some(dates::now().add_minutes(-2).finish()),
+            ..Default::default()
+        },
+        connection,
+    );
+    match result {
+        Ok(_) => {
+            panic!("Expected error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("event.event_start"));
+                assert_eq!(errors["event.event_start"].len(), 1);
+                assert_eq!(errors["event.event_start"][0].code, "cannot_move_event_dates_in_past");
+                assert_eq!(
+                    &errors["event.event_start"][0].message.clone().unwrap().into_owned(),
+                    "Event with sales cannot move to past date."
+                );
+
+                assert!(errors.contains_key("event.event_end"));
+                assert_eq!(errors["event.event_end"].len(), 1);
+                assert_eq!(errors["event.event_end"][0].code, "cannot_move_event_dates_in_past");
+                assert_eq!(
+                    &errors["event.event_end"][0].message.clone().unwrap().into_owned(),
+                    "Event with sales cannot move to past date."
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // If the dates sent are the same as those now, it does not error instead ignoring those fields
+    let event = event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: event.event_start,
+                event_end: event.event_end,
+                name: Some("New Name".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    assert_eq!("New Name".to_string(), event.name);
+
+    // Can also use future dates still for event moving it out from the past
+    assert!(event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_days(1).finish()),
+                event_end: Some(dates::now().add_days(2).finish()),
+                ..Default::default()
+            },
+            connection
+        )
+        .is_ok());
+}
+
+#[test]
 fn publish_fails_without_required_fields() {
     let project = TestProject::new();
     let connection = project.get_connection();
