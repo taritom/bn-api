@@ -290,8 +290,7 @@ pub fn create_event(
             .ok_or_else(|| {
                 ApplicationError::unprocessable("Cannot publish this event in Facebook without a start time")
             })?
-            .naive_local()
-            .to_string(),
+            .to_rfc3339(),
     );
 
     match data.location_type {
