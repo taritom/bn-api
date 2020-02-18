@@ -189,10 +189,9 @@ impl DatabaseError {
                     });
 
                     match kind {
-                        DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
-                            ErrorCode::DuplicateKeyError,
-                            Some(format!("{}, {}", message, e.to_string())),
-                        )),
+                        DatabaseErrorKind::UniqueViolation => {
+                            Err(DatabaseError::new(ErrorCode::DuplicateKeyError, None))
+                        }
                         DatabaseErrorKind::ForeignKeyViolation => Err(DatabaseError::new(
                             ErrorCode::ForeignKeyError,
                             Some(format!("{} {}", message, e.to_string())),
@@ -225,6 +224,13 @@ impl DatabaseError {
     pub fn business_process_error<T>(message: &str) -> Result<T, DatabaseError> {
         Err(DatabaseError::new(
             ErrorCode::BusinessProcessError,
+            Some(message.to_string()),
+        ))
+    }
+
+    pub fn conflict_error<T>(message: &str) -> Result<T, DatabaseError> {
+        Err(DatabaseError::new(
+            ErrorCode::DuplicateKeyError,
             Some(message.to_string()),
         ))
     }
