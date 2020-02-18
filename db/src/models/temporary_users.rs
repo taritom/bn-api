@@ -76,7 +76,6 @@ impl TemporaryUser {
             .filter(temporary_user_links::temporary_user_id.eq(self.id))
             .select(schema::users::all_columns)
             .order_by(temporary_user_links::created_at.desc())
-            .distinct()
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find users for temporary user")
     }

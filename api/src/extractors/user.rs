@@ -27,7 +27,7 @@ impl FromRequest<AppState> for User {
 
                 match parts.next() {
                     Some(access_token) => {
-                        let token = decode::<AccessToken>(
+                        let mut token = decode::<AccessToken>(
                             &access_token,
                             (*req.state()).config.token_issuer.token_secret.as_bytes(),
                             &Validation::default(),
@@ -37,30 +37,15 @@ impl FromRequest<AppState> for User {
                         let connection = conn.get();
                         let user_id = token.claims.get_id().map_err(|e| BigNeonError::from(e))?;
                         // Check for temporary user promotion
-                        let mut user = None;
-                        if let Some(ref scopes) = token.claims.scopes {
-                            if scopes.contains(&Scopes::TemporaryUserPromote.to_string()) {
-                                user = Some(
-                                    promote_temp_to_user(user_id, &connection)
-                                        .map_err(|_| ErrorUnauthorized("Could not promote temporary user"))?,
-                                );
-                            }
-                        }
-                        if user == None {
-                            user = Some(
-                                DbUser::find(user_id, &connection).map_err(|_| ErrorUnauthorized("Invalid Token"))?,
-                            )
-                        };
-                        match user {
-                            Some(user) => {
-                                if user.deleted_at.is_some() {
-                                    Err(ErrorUnauthorized("User account is disabled"))
-                                } else {
-                                    Ok(User::new(user, req, token.claims.scopes)
-                                        .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
-                                }
-                            }
-                            None => Err(ErrorInternalServerError("Invalid Token")),
+
+                        let user =
+                            DbUser::find(user_id, &connection).map_err(|_| ErrorUnauthorized("Invalid Token"))?;
+
+                        if user.deleted_at.is_some() {
+                            Err(ErrorUnauthorized("User account is disabled"))
+                        } else {
+                            Ok(User::new(user, req, token.claims.scopes)
+                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
                         }
                     }
                     None => {
@@ -71,20 +56,4 @@ impl FromRequest<AppState> for User {
             None => Err(ErrorUnauthorized("Missing auth token")),
         }
     }
-}
-
-fn promote_temp_to_user(user_id: Uuid, conn: &PgConnection) -> Result<DbUser, BigNeonError> {
-    let temp_user = TemporaryUser::find(user_id, &conn)?;
-    let user = temp_user.users(&conn)?.into_iter().next();
-    if let Some(user) = user {
-        return Ok(user);
-    }
-    Ok(DbUser::create(
-        None,
-        None,
-        temp_user.email.clone(),
-        temp_user.phone.clone(),
-        &Uuid::new_v4().to_string(),
-    )
-    .commit(None, &conn)?)
 }
