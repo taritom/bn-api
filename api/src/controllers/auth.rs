@@ -113,7 +113,7 @@ pub fn token_refresh(
     )?;
     let conn = connection.get();
     let user_id = token.claims.get_id()?;
-    let mut user;
+    let user;
     if let Some(ref scopes) = token.claims.scopes {
         // Promote temp user
         if scopes.contains(&Scopes::TemporaryUserPromote.to_string()) {

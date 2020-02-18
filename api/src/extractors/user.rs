@@ -1,14 +1,12 @@
 use actix_web::error::*;
 use actix_web::{FromRequest, HttpRequest};
 use auth::user::User;
-use bigneon_db::models::{Scopes, TemporaryUser, User as DbUser};
+use bigneon_db::models::User as DbUser;
 use bigneon_db::prelude::AccessToken;
-use diesel::PgConnection;
 use errors::*;
 use jwt::{decode, Validation};
 use middleware::RequestConnection;
 use server::AppState;
-use uuid::Uuid;
 
 impl FromRequest<AppState> for User {
     type Config = ();
@@ -27,7 +25,7 @@ impl FromRequest<AppState> for User {
 
                 match parts.next() {
                     Some(access_token) => {
-                        let mut token = decode::<AccessToken>(
+                        let token = decode::<AccessToken>(
                             &access_token,
                             (*req.state()).config.token_issuer.token_secret.as_bytes(),
                             &Validation::default(),

@@ -197,7 +197,7 @@ fn update_customer_io_webhooks(site_id: Option<&str>, api_key: Option<&str>, dat
         }
     }
 
-    let model = DomainEventPublisher::create_with_adapter(
+    DomainEventPublisher::create_with_adapter(
         None,
         missing_events,
         WebhookAdapters::CustomerIo,
