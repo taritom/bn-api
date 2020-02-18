@@ -330,9 +330,14 @@ impl Config {
             get_env_var(SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT);
         let sendgrid_template_bn_user_invite = get_env_var(SENDGRID_TEMPLATE_BN_USER_INVITE);
 
-        let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS)
-            .ok()
-            .map(|s| s.parse().expect("Not a valid integer for settlement period in days"));
+        // Force settlement period in days to 1 for testing
+        let settlement_period_in_days = if environment == Environment::Test {
+            Some(1)
+        } else {
+            env::var(&SETTLEMENT_PERIOD_IN_DAYS)
+                .ok()
+                .map(|s| s.parse().expect("Not a valid integer for settlement period in days"))
+        };
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 

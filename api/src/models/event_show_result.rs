@@ -50,6 +50,7 @@ pub struct EventShowResult {
     pub facebook_pixel_key: Option<String>,
     pub extra_admin_data: Option<Value>,
     pub facebook_event_id: Option<String>,
+    pub updated_at: NaiveDateTime,
 }
 
 //This struct is used to just contain the id and name of the org

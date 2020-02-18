@@ -56,8 +56,14 @@ pub fn create(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
-    let response: HttpResponse =
-        settlement_adjustments::create((database.connection.clone().into(), path, json, auth_user)).into();
+    let response: HttpResponse = settlement_adjustments::create((
+        database.connection.clone().into(),
+        test_request.extract_state(),
+        path,
+        json,
+        auth_user,
+    ))
+    .into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -88,12 +94,17 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement_adjustment.id;
-    let response: HttpResponse =
-        settlement_adjustments::destroy((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = settlement_adjustments::destroy((
+        database.connection.clone().into(),
+        test_request.extract_state(),
+        path,
+        auth_user,
+    ))
+    .into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
-    assert!(Settlement::find(settlement_adjustment.id, connection).is_err());
+    assert!(SettlementAdjustment::find(settlement_adjustment.id, connection).is_err());
 }
