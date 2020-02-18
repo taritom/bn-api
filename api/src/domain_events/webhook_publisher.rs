@@ -167,7 +167,13 @@ impl WebhookPublisher {
                     let mut recipient_data = data.clone();
                     let mut transferer_data = data;
 
-                    self.recipient_payload_data(&transfer, domain_event.event_type, &mut recipient_data, conn)?;
+                    self.recipient_payload_data(
+                        &transfer,
+                        &self.front_end_url,
+                        domain_event.event_type,
+                        &mut recipient_data,
+                        conn,
+                    )?;
                     result.push(recipient_data);
 
                     Self::transferer_payload_data(&transfer, domain_event.event_type, &mut transferer_data, conn)?;
@@ -341,6 +347,7 @@ impl WebhookPublisher {
     fn recipient_payload_data(
         &self,
         transfer: &Transfer,
+        front_end_url: &str,
         event_type: DomainEventTypes,
         data: &mut HashMap<String, serde_json::Value>,
         conn: &PgConnection,
@@ -354,14 +361,29 @@ impl WebhookPublisher {
         if let Some(user_id) = transfer.destination_user_id {
             // TODO: Implement magic link for temp users
             let user = User::find(user_id, conn)?;
-            let magic_link_refresh_token = user.create_magic_link_token(&self.token_issuer, Duration::minutes(15))?;
+            let magic_link_refresh_token = user.create_magic_link_token(&self.token_issuer, Duration::days(90))?;
             let mut custom_data = HashMap::<String, Value>::new();
 
             custom_data.insert("refresh_token".to_string(), json!(&magic_link_refresh_token));
             custom_data.insert("transfer_id".to_string(), json!(transfer.id));
             custom_data.insert("domain_event".to_string(), json!(event_type));
 
-            let desktop_url = format!("{}?refresh_token={}", receive_tickets_url, magic_link_refresh_token);
+            let desktop_url = format!("{}/my-events?refresh_token={}", front_end_url, magic_link_refresh_token);
+            let link = self.deep_linker.create_with_custom_data(&desktop_url, custom_data)?;
+            receive_tickets_url = link
+        } else if let Some(temp_id) = transfer.destination_temporary_user_id {
+            let token = self.token_issuer.issue_with_limited_scopes(
+                temp_id,
+                vec![Scopes::TemporaryUserPromote],
+                Duration::days(90),
+            )?;
+            let mut custom_data = HashMap::<String, Value>::new();
+
+            custom_data.insert("refresh_token".to_string(), json!(&token));
+            custom_data.insert("transfer_id".to_string(), json!(transfer.id));
+            custom_data.insert("domain_event".to_string(), json!(event_type));
+
+            let desktop_url = format!("{}?refresh_token={}", receive_tickets_url, token);
             let link = self.deep_linker.create_with_custom_data(&desktop_url, custom_data)?;
             receive_tickets_url = link
         }

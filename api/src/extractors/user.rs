@@ -1,12 +1,14 @@
 use actix_web::error::*;
 use actix_web::{FromRequest, HttpRequest};
 use auth::user::User;
-use bigneon_db::models::User as DbUser;
+use bigneon_db::models::{Scopes, TemporaryUser, User as DbUser};
 use bigneon_db::prelude::AccessToken;
+use diesel::PgConnection;
 use errors::*;
 use jwt::{decode, Validation};
 use middleware::RequestConnection;
 use server::AppState;
+use uuid::Uuid;
 
 impl FromRequest<AppState> for User {
     type Config = ();
@@ -31,12 +33,26 @@ impl FromRequest<AppState> for User {
                             &Validation::default(),
                         )
                         .map_err(|e| BigNeonError::from(e))?;
-                        let connection = req.connection()?;
-                        match DbUser::find(
-                            token.claims.get_id().map_err(|e| BigNeonError::from(e))?,
-                            connection.get(),
-                        ) {
-                            Ok(user) => {
+                        let conn = req.connection()?;
+                        let connection = conn.get();
+                        let user_id = token.claims.get_id().map_err(|e| BigNeonError::from(e))?;
+                        // Check for temporary user promotion
+                        let mut user = None;
+                        if let Some(ref scopes) = token.claims.scopes {
+                            if scopes.contains(&Scopes::TemporaryUserPromote.to_string()) {
+                                user = Some(
+                                    promote_temp_to_user(user_id, &connection)
+                                        .map_err(|_| ErrorUnauthorized("Could not promote temporary user"))?,
+                                );
+                            }
+                        }
+                        if user == None {
+                            user = Some(
+                                DbUser::find(user_id, &connection).map_err(|_| ErrorUnauthorized("Invalid Token"))?,
+                            )
+                        };
+                        match user {
+                            Some(user) => {
                                 if user.deleted_at.is_some() {
                                     Err(ErrorUnauthorized("User account is disabled"))
                                 } else {
@@ -44,7 +60,7 @@ impl FromRequest<AppState> for User {
                                         .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
                                 }
                             }
-                            Err(e) => Err(ErrorInternalServerError(e)),
+                            None => Err(ErrorInternalServerError("Invalid Token")),
                         }
                     }
                     None => {
@@ -55,4 +71,20 @@ impl FromRequest<AppState> for User {
             None => Err(ErrorUnauthorized("Missing auth token")),
         }
     }
+}
+
+fn promote_temp_to_user(user_id: Uuid, conn: &PgConnection) -> Result<DbUser, BigNeonError> {
+    let temp_user = TemporaryUser::find(user_id, &conn)?;
+    let user = temp_user.users(&conn)?.into_iter().next();
+    if let Some(user) = user {
+        return Ok(user);
+    }
+    Ok(DbUser::create(
+        None,
+        None,
+        temp_user.email.clone(),
+        temp_user.phone.clone(),
+        &Uuid::new_v4().to_string(),
+    )
+    .commit(None, &conn)?)
 }
