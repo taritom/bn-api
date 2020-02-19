@@ -61,6 +61,7 @@ pub fn main() {
         .subcommand(
             SubCommand::with_name("generate-genre-slugs").about("Creates any missing genre and city genre slugs"),
         )
+        .subcommand(SubCommand::with_name("version").about("Get the current version"))
         .get_matches();
 
     match matches.subcommand() {
@@ -72,10 +73,16 @@ pub fn main() {
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
         ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(config, database),
         ("generate-genre-slugs", Some(_)) => generate_genre_slugs(database),
+        ("version", Some(_)) => version(),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
     }
+}
+
+fn version() {
+    const APP_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+    println!("{}", APP_VERSION);
 }
 
 fn generate_genre_slugs(database: Database) {
