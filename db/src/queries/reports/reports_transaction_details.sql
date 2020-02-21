@@ -80,7 +80,7 @@ FROM orders o
 		FROM artist_genres ag
 		INNER JOIN genres g ON ag.genre_id = g.id
 		GROUP BY ag.artist_id) AS csvg ON ea.artist_id = csvg.artist_id
-	WHERE ea.rank = 0
+	    WHERE ea.rank = 0
         GROUP BY ea.event_id, csvg.headline_artist_alt_genres, csvg.artist_id
     ) AS csvgo ON oi.event_id = csvgo.event_id
     LEFT JOIN (SELECT g.name AS headline_artist_main_genre, ea.event_id
@@ -89,7 +89,7 @@ FROM orders o
         INNER JOIN genres g ON a.main_genre_id = g.id
         INNER JOIN events e ON ea.event_id = e.id
         INNER JOIN order_items oi ON e.id = oi.event_id
-	WHERE ea.rank = 0
+	    WHERE ea.rank = 0
         GROUP BY g.name, ea.event_id
     ) AS mgo ON oi.event_id = mgo.event_id
 WHERE o.status = 'Paid'
