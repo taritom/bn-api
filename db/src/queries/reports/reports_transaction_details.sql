@@ -49,8 +49,8 @@ SELECT COUNT(*) OVER ()                                                         
     o.content,
     o.platform,
     ti_agg.check_in_source,
-    csvgo.headline_artist_alt_genres,
-    mgo.headline_artist_main_genre
+    g.headline_artist_alt_genres,
+    g.headline_artist_main_genre
 FROM orders o
     LEFT JOIN order_items oi ON (o.id = oi.order_id AND oi.item_type = 'Tickets')
     LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)
@@ -73,25 +73,16 @@ FROM orders o
     LEFT JOIN holds h ON oi.hold_id = h.id
     LEFT JOIN events e ON oi.event_id = e.id
     LEFT JOIN users u ON COALESCE(o.on_behalf_of_user_id, o.user_id) = u.id
-    LEFT JOIN (SELECT csvg.headline_artist_alt_genres, csvg.artist_id, ea.event_id
+    LEFT JOIN (SELECT csvg.headline_artist_alt_genres, ea.event_id, g.name AS headline_artist_main_genre
         FROM event_artists ea
-        INNER JOIN events e on ea.event_id = e.id
-        INNER JOIN (SELECT string_agg(g.name, ',') AS headline_artist_alt_genres, ag.artist_id
+        LEFT JOIN (SELECT string_agg(g.name, ',') AS headline_artist_alt_genres, ag.artist_id
 		FROM artist_genres ag
 		INNER JOIN genres g ON ag.genre_id = g.id
 		GROUP BY ag.artist_id) AS csvg ON ea.artist_id = csvg.artist_id
-	    WHERE ea.rank = 0
-        GROUP BY ea.event_id, csvg.headline_artist_alt_genres, csvg.artist_id
-    ) AS csvgo ON oi.event_id = csvgo.event_id
-    LEFT JOIN (SELECT g.name AS headline_artist_main_genre, ea.event_id
-        FROM event_artists ea
-        INNER JOIN artists a ON ea.artist_id = a.id
-        INNER JOIN genres g ON a.main_genre_id = g.id
-        INNER JOIN events e ON ea.event_id = e.id
-        INNER JOIN order_items oi ON e.id = oi.event_id
-	    WHERE ea.rank = 0
-        GROUP BY g.name, ea.event_id
-    ) AS mgo ON oi.event_id = mgo.event_id
+	INNER JOIN artists a on ea.artist_id = a.id
+	LEFT JOIN genres g on a.main_genre_id = g.id
+	WHERE ea.rank = 0
+    ) AS g ON oi.event_id = g.event_id
 WHERE o.status = 'Paid'
   AND ($1 IS NULL OR oi.event_id = $1)
   AND ($2 IS NULL OR e.organization_id = $2)
