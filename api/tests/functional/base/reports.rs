@@ -424,6 +424,6 @@ fn build_transaction_report_row(
         platform: None,
         check_in_source: None,
         headline_artist_alt_genres: None,
-        headline_artist_main_genre: None
+        headline_artist_main_genre: None,
     }
 }
