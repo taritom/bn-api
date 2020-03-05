@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
 use diesel::expression::dsl;
 use diesel::pg::expression::dsl::any;
@@ -40,6 +40,7 @@ pub struct DomainEventPublisher {
     pub deleted_at: Option<NaiveDateTime>,
     pub adapter: Option<WebhookAdapters>,
     pub adapter_config: Option<Value>,
+    pub blocked_until: NaiveDateTime,
 }
 
 impl Eq for DomainEventPublisher {}
@@ -316,6 +317,47 @@ impl DomainEventPublisher {
             .set((attributes, domain_event_publishers::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update domain event publisher")
+    }
+
+    pub fn acquire_lock(&self, timeout: i64, conn: &PgConnection) -> Result<DomainEventPublisher, DatabaseError> {
+        let timeout = Utc::now().naive_utc() + Duration::seconds(timeout);
+        let db_blocked = DomainEventPublisher::find(self.id, conn)?;
+        if db_blocked.blocked_until > Utc::now().naive_utc() {
+            return DatabaseError::concurrency_error("Another process is busy with this publisher");
+        };
+        let result: Option<DomainEventPublisher> = diesel::update(self)
+            .filter(domain_event_publishers::blocked_until.le(dsl::now))
+            .set((
+                domain_event_publishers::blocked_until.eq(timeout),
+                domain_event_publishers::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Event Publisher")
+            .optional()?;
+
+        match result {
+            Some(publisher) => Ok(publisher),
+            None => DatabaseError::concurrency_error("Another process is busy with this publisher"),
+        }
+    }
+
+    pub fn release_lock(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let result: Option<DomainEventPublisher> = diesel::update(self)
+            .filter(domain_event_publishers::blocked_until.eq(self.blocked_until))
+            .set((
+                domain_event_publishers::blocked_until.eq(dsl::now),
+                domain_event_publishers::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Event Publisher")
+            .optional()?;
+
+        match result {
+            Some(_) => Ok(()),
+            None => DatabaseError::concurrency_error(
+                "Failed to release lock, another process has acquired a lock on this publisher in the interim. Consider raising the timeout value calling acquire_lock.",
+            ),
+        }
     }
 }
 
