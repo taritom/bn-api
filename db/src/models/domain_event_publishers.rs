@@ -220,7 +220,6 @@ impl DomainEventPublisher {
                 domain_event_published::domain_event_publisher_id.eq(self.id),
                 domain_event_published::domain_event_id.eq(domain_event.id),
             ))
-            .on_conflict_do_nothing()
             .execute(conn)
             .to_db_error(ErrorCode::InsertError, "Could not insert domain event published")?;
 

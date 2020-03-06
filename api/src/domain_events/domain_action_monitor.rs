@@ -74,7 +74,7 @@ impl DomainActionMonitor {
 
         let connection = conn.get();
 
-        let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
+        let domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
             return Ok(0);
@@ -86,12 +86,11 @@ impl DomainActionMonitor {
             .unwrap()
             .last_domain_event_seq
             .unwrap_or(-1);
-        loop {
-            let domain_events = DomainEvent::find_after_seq(last_seq_pub, 500, connection)?;
-            if domain_events.len() == 0 {
-                break;
-            }
-            for publisher in domain_event_publishers.iter_mut() {
+
+        let domain_events = DomainEvent::find_after_seq(last_seq_pub, 500, connection)?;
+
+        if domain_events.len() > 0 {
+            for publisher in domain_event_publishers.iter() {
                 match &mut publisher.acquire_lock(60, &connection) {
                     Ok(locked_pub) => {
                         conn.begin_transaction()?;
@@ -114,6 +113,7 @@ impl DomainActionMonitor {
                 }
             }
         }
+
         Ok(events_published)
     }
 
