@@ -74,7 +74,7 @@ impl DomainActionMonitor {
 
         let connection = conn.get();
 
-        let domain_event_publishers = DomainEventPublisher::find_all(connection)?;
+        let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
             return Ok(0);
@@ -90,24 +90,25 @@ impl DomainActionMonitor {
         let domain_events = DomainEvent::find_after_seq(last_seq_pub, 500, connection)?;
 
         if domain_events.len() > 0 {
-            for publisher in domain_event_publishers.iter() {
-                match &mut publisher.acquire_lock(60, &connection) {
-                    Ok(locked_pub) => {
-                        conn.begin_transaction()?;
+            for publisher in domain_event_publishers.iter_mut() {
+                match &mut publisher.acquire_lock(60, connection) {
+                    Ok(_) => {
                         for event in &domain_events {
-                            if locked_pub.last_domain_event_seq.unwrap_or(-1) < event.seq
-                                && locked_pub.event_types.contains(&event.event_type)
-                                && (locked_pub.organization_id.is_none()
-                                    || locked_pub.organization_id == event.organization_id)
+                            conn.begin_transaction()?;
+                            if publisher.last_domain_event_seq.unwrap_or(-1) < event.seq
+                                && publisher.event_types.contains(&event.event_type)
+                                && (publisher.organization_id.is_none()
+                                    || publisher.organization_id == event.organization_id)
                             {
                                 jlog!(Info, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id, "event": &event});
-                                locked_pub.publish(&event, &config.front_end_url, connection)?;
+                                publisher.publish(&event, &config.front_end_url, connection)?;
                             }
-                            locked_pub.update_last_domain_event_seq(event.seq, connection)?;
+                            publisher.update_last_domain_event_seq(event.seq, connection)?;
+                            conn.commit_transaction()?;
                             events_published += 1;
+                            publisher.renew_lock(60, connection)?
                         }
-                        conn.commit_transaction()?;
-                        locked_pub.release_lock(&connection)?;
+                        publisher.release_lock(connection)?;
                     }
                     _ => continue,
                 }
