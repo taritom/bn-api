@@ -333,3 +333,57 @@ fn update() {
     assert_eq!(domain_event_publisher.webhook_url, new_webhook_url);
     assert_eq!(domain_event_publisher.import_historic_events, false);
 }
+
+#[test]
+fn acquire_lock() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let domain_event_publisher = DomainEventPublisher::create(
+        Some(organization.id),
+        vec![DomainEventTypes::TransferTicketStarted],
+        "http://localhost:7644/webhook".to_string(),
+        true,
+    )
+    .commit(connection)
+    .unwrap();
+
+    let locked_publisher = domain_event_publisher.acquire_lock(60, connection);
+    assert!(locked_publisher.is_ok());
+
+    // pretend this is from another thread
+    let domain_event_publisher_alias = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+
+    let attempted_lock_publisher_alias = domain_event_publisher_alias.acquire_lock(60, connection);
+    assert!(attempted_lock_publisher_alias.is_err());
+}
+
+#[test]
+fn release_lock() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let domain_event_publisher = DomainEventPublisher::create(
+        Some(organization.id),
+        vec![DomainEventTypes::TransferTicketStarted],
+        "http://localhost:7644/webhook".to_string(),
+        true,
+    )
+    .commit(connection)
+    .unwrap();
+
+    // pretend this is from another thread
+    let domain_event_publisher_alias = DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+
+    let locked_publisher = domain_event_publisher.acquire_lock(60, connection);
+    assert!(locked_publisher.is_ok());
+
+    let attempted_lock_publisher_alias = domain_event_publisher_alias.acquire_lock(60, connection);
+    assert!(attempted_lock_publisher_alias.is_err());
+
+    let released = locked_publisher.unwrap().release_lock(connection);
+    assert!(released.is_ok());
+
+    let successful_lock_publisher_alias = domain_event_publisher_alias.acquire_lock(60, connection);
+    assert!(successful_lock_publisher_alias.is_ok());
+}
