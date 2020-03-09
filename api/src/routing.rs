@@ -8,13 +8,16 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
     app.resource("/admin/stuck_domain_actions", |r| {
-        r.method(Method::GET).with(admin::admin_stuck_domain_actions);
+        r.method(Method::GET).with(admin::admin::admin_stuck_domain_actions);
     })
     .resource("/admin/ticket_count", |r| {
-        r.method(Method::GET).with(admin::admin_ticket_count);
+        r.method(Method::GET).with(admin::admin::admin_ticket_count);
     })
     .resource("/admin/orders", |r| {
-        r.method(Method::GET).with(admin::orders);
+        r.method(Method::GET).with(admin::admin::orders);
+    })
+    .resource("/admin/reports", |r| {
+        r.method(Method::GET).with(admin::reports::get_report);
     })
     .resource("/a/t", |r| {
         r.method(Method::GET).with(analytics::track);
