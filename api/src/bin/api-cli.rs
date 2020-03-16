@@ -6,9 +6,12 @@ extern crate dotenv;
 extern crate log;
 #[macro_use]
 extern crate logging;
+#[macro_use]
 extern crate clap;
 extern crate diesel;
 extern crate uuid;
+#[macro_use]
+extern crate serde_json;
 
 use bigneon_api::config::Config;
 use bigneon_api::db::Database;
@@ -20,6 +23,7 @@ use clap::*;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use log::Level::*;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::{thread, time};
 use uuid::Uuid;
@@ -36,33 +40,36 @@ pub fn main() {
     let service_locator = ServiceLocator::new(&config).expect("Expected service locator to load");
     let database = Database::from_config(&config);
 
-    let matches = App::new("Big Neon API CLI")
-        .author("Big Neon")
-        .about("Command Line Interface for running tasks for the Big Neon API")
-        .subcommand(SubCommand::with_name("sync-purchase-metadata").about("Syncs purchase metadata"))
-        .subcommand(
-            SubCommand::with_name("sync-spotify-genres")
-                .about("Syncs spotify genres across artist records appending any missing genres"),
-        )
-        .subcommand(
-            SubCommand::with_name("regenerate-interaction-records")
-                .about("Regenerate interaction records for organization users")
-                .arg(
-                    Arg::with_name("organization")
-                        .help("The organization id to limit this to")
-                        .required(false),
-                ),
-        )
-        .subcommand(SubCommand::with_name("backpopulate-temporary-user-data").about("Backpopulate temporary user data"))
-        .subcommand(
-            SubCommand::with_name("schedule-missing-domain-actions")
-                .about("Creates any missing reoccurring domain actions"),
-        )
-        .subcommand(
-            SubCommand::with_name("generate-genre-slugs").about("Creates any missing genre and city genre slugs"),
-        )
-        .subcommand(SubCommand::with_name("version").about("Get the current version"))
-        .get_matches();
+    let matches = clap_app!(myapp =>
+        (name: "Big Neon CLI Utility")
+        (author: "Big Neon")
+        (about:"Command Line Interface for running tasks for the Big Neon API" )
+        (@subcommand sync =>
+          (name: "sync-purchase-metadata")
+          (about: "Syncs purchase metadata"))
+        (@subcommand sync_spotify_genres=>
+          (name: "sync-spotify-genres")
+          (about: "Syncs spotify genres across artist records appending any missing genres"))
+        (@subcommand regenerate_interaction_records =>
+          (name: "regenerate-interaction-records" )
+          (about: "Regenerate interaction records for organization users")
+          (@arg organization: +required  "The organization id to limit this to"))
+        (@subcommand backpopulate_temporary_user_data =>
+          (name: "backpopulate-temporary-user-data")
+          (about: "Backpopulate temporary user data")    )
+        (@subcommand   schedule_missing_domain_actions =>
+          (name: "schedule-missing-domain-actions")
+          (about: "Creates any missing reoccurring domain actions"))
+        (@subcommand generate_genre_slugs =>
+          (name: "generate-genre-slugs")
+          (about: "Creates any missing genre and city genre slugs"))
+        (@subcommand update_customer_io_webhooks =>
+          (name: "update-customer-io-webhooks")
+          (about: "Creates any missing Customer.io webhooks needed for communications")
+          (@arg site_id: +required "The site_id obtained from Customer.io")
+          (@arg api_key: +required "The api key obtained from Customer.io")))
+    .subcommand(SubCommand::with_name("version").about("Get the current version"))
+    .get_matches();
 
     match matches.subcommand() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
@@ -74,6 +81,9 @@ pub fn main() {
         ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(config, database),
         ("generate-genre-slugs", Some(_)) => generate_genre_slugs(database),
         ("version", Some(_)) => version(),
+        ("update-customer-io-webhooks", Some(args)) => {
+            update_customer_io_webhooks(args.value_of("site_id"), args.value_of("api_key"), database)
+        }
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
@@ -162,6 +172,48 @@ fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
         thread::sleep(time::Duration::from_secs(1));
         paging.page = Some(paging.page.unwrap_or(0) + 1);
     }
+}
+
+fn update_customer_io_webhooks(site_id: Option<&str>, api_key: Option<&str>, database: Database) {
+    info!("Updating/ensuring Customer.io webhooks");
+    let connection = database.get_connection().expect("Could not connect to database");
+    let conn = connection.get();
+    let publishers = DomainEventPublisher::find_all(conn).unwrap();
+    use bigneon_db::models::DomainEventTypes::*;
+    let event_types: Vec<DomainEventTypes> = vec![
+        OrderCompleted,
+        OrderRefund,
+        OrderResendConfirmationTriggered,
+        UserCreated,
+        TemporaryUserCreated,
+        TransferTicketStarted,
+        TransferTicketCancelled,
+        TransferTicketCompleted,
+    ];
+    let mut publisher_by_event_type = HashMap::<DomainEventTypes, &DomainEventPublisher>::new();
+    for publisher in publishers.iter() {
+        for event_type in publisher.event_types.iter() {
+            publisher_by_event_type.entry(*event_type).or_insert(publisher);
+        }
+    }
+
+    let mut missing_events = vec![];
+    for event_type in event_types {
+        if !publisher_by_event_type.contains_key(&event_type) {
+            missing_events.push(event_type);
+        }
+    }
+
+    DomainEventPublisher::create_with_adapter(
+        None,
+        missing_events,
+        WebhookAdapters::CustomerIo,
+        json!({
+        "site_id": site_id,"api_key": api_key
+        }),
+    )
+    .commit(conn)
+    .unwrap();
 }
 
 fn schedule_missing_domain_actions(config: Config, database: Database) {

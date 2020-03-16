@@ -51,7 +51,7 @@ pub fn create_auth_user_from_user(
     let test_request = TestRequest::create();
     if [Roles::Super, Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, database.connection.get()).unwrap();
-        AuthUser::new(user, &test_request.request).unwrap()
+        AuthUser::new(user, &test_request.request, None).unwrap()
     } else {
         let organization = match organization {
             Some(organization) => (*organization).clone(),
@@ -73,7 +73,7 @@ pub fn create_auth_user_from_user(
             .add_user(user.id, vec![role], event_ids, database.connection.get())
             .unwrap();
 
-        AuthUser::new(user.clone(), &test_request.request).unwrap()
+        AuthUser::new(user.clone(), &test_request.request, None).unwrap()
     }
 }
 

@@ -1,4 +1,3 @@
-use crate::auth::claims;
 use crate::auth::user::User;
 use crate::errors::*;
 use crate::jwt::{decode, Validation};
@@ -6,7 +5,7 @@ use crate::middleware::RequestConnection;
 use crate::server::AppState;
 use actix_web::error::*;
 use actix_web::{FromRequest, HttpRequest};
-use bigneon_db::models::User as DbUser;
+use bigneon_db::models::{AccessToken, User as DbUser};
 
 impl FromRequest<AppState> for User {
     type Config = ();
@@ -25,23 +24,25 @@ impl FromRequest<AppState> for User {
 
                 match parts.next() {
                     Some(access_token) => {
-                        let token = decode::<claims::AccessToken>(
+                        let token = decode::<AccessToken>(
                             &access_token,
-                            (*req.state()).config.token_secret.as_bytes(),
+                            (*req.state()).config.token_issuer.token_secret.as_bytes(),
                             &Validation::default(),
                         )
                         .map_err(|e| BigNeonError::from(e))?;
-                        let connection = req.connection()?;
-                        match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => {
-                                if user.deleted_at.is_some() {
-                                    Err(ErrorUnauthorized("User account is disabled"))
-                                } else {
-                                    Ok(User::new(user, req)
-                                        .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
-                                }
-                            }
-                            Err(e) => Err(ErrorInternalServerError(e)),
+                        let conn = req.connection()?;
+                        let connection = conn.get();
+                        let user_id = token.claims.get_id().map_err(|e| BigNeonError::from(e))?;
+                        // Check for temporary user promotion
+
+                        let user =
+                            DbUser::find(user_id, &connection).map_err(|_| ErrorUnauthorized("Invalid Token"))?;
+
+                        if user.deleted_at.is_some() {
+                            Err(ErrorUnauthorized("User account is disabled"))
+                        } else {
+                            Ok(User::new(user, req, token.claims.scopes)
+                                .map_err(|_| ErrorUnauthorized("User has invalid role data"))?)
                         }
                     }
                     None => {
