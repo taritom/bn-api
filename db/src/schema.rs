@@ -482,6 +482,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         role -> Array<Text>,
+        additional_scopes -> Nullable<Jsonb>,
     }
 }
 

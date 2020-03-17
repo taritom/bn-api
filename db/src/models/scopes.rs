@@ -1,4 +1,4 @@
-use models::Roles;
+use models::{AdditionalOrgMemberScopes, Roles};
 use serde::Serialize;
 use serde::Serializer;
 use std::fmt;
@@ -262,8 +262,12 @@ impl FromStr for Scopes {
     }
 }
 
-pub fn get_scopes(roles: Vec<Roles>) -> Vec<Scopes> {
+pub fn get_scopes(roles: Vec<Roles>, additional_scopes: Option<AdditionalOrgMemberScopes>) -> Vec<Scopes> {
     let mut scopes: Vec<Scopes> = roles.into_iter().flat_map(|r| get_scopes_for_role(r)).collect();
+    if let Some(extra_scopes) = additional_scopes {
+        scopes.append(&mut extra_scopes.additional.clone());
+        scopes.retain(|&scope| !extra_scopes.revoked.contains(&scope));
+    }
     scopes.sort();
     scopes.dedup();
     scopes
@@ -526,7 +530,7 @@ fn scopes_to_string() {
 
 #[test]
 fn get_scopes_test() {
-    let mut res = get_scopes(vec![Roles::OrgOwner])
+    let mut res = get_scopes(vec![Roles::OrgOwner], None)
         .iter()
         .map(|i| i.to_string())
         .collect::<Vec<String>>();
@@ -592,89 +596,7 @@ fn get_scopes_test() {
         ],
         res
     );
-    let mut res = get_scopes(vec![Roles::Admin])
-        .iter()
-        .map(|i| i.to_string())
-        .collect::<Vec<String>>();
-    res.sort();
-    assert_equiv!(
-        vec![
-            "artist:write",
-            "box-office-ticket:read",
-            "box-office-ticket:write",
-            "code:read",
-            "code:write",
-            "comp:read",
-            "comp:write",
-            "dashboard:read",
-            "event:broadcast",
-            "event:cancel",
-            "event:clone",
-            "event:data-read",
-            "event:delete",
-            "event:financial-reports",
-            "event:interest",
-            "event:reports",
-            "event:scan",
-            "event:view-guests",
-            "event:write",
-            "event-report-subscriber:delete",
-            "event-report-subscriber:read",
-            "event-report-subscriber:write",
-            "hold:read",
-            "hold:write",
-            "note:delete",
-            "note:read",
-            "note:write",
-            "order:make-external-payment",
-            "order:read",
-            "order:read-own",
-            "order:refund",
-            "order:refund-override",
-            "order:resend-confirmation",
-            "org:admin",
-            "org:admin-users",
-            "org:fans",
-            "org:financial-reports",
-            "org:modify-settlement-type",
-            "org:read",
-            "org:read-events",
-            "org:reports",
-            "org:users",
-            "org:write",
-            "org-venue:delete",
-            "org-venue:read",
-            "org-venue:write",
-            "redeem:ticket",
-            "region:write",
-            "report:admin",
-            "scan-report:read",
-            "settlement-adjustment:delete",
-            "settlement-adjustment:write",
-            "settlement:read",
-            "settlement:read-early",
-            "settlement:write",
-            "ticket-type:read",
-            "ticket-type:write",
-            "ticket:admin",
-            "ticket:read",
-            "ticket:transfer",
-            "ticket:write",
-            "ticket:write-own",
-            "transfer:cancel",
-            "transfer:cancel-accepted",
-            "transfer:cancel-own",
-            "transfer:read",
-            "transfer:read-own",
-            "user:read",
-            "user:delete",
-            "venue:write",
-            "websocket:initiate",
-        ],
-        res
-    );
-
-    let mut res = get_scopes(vec![Roles::Super])
+    let mut res = get_scopes(vec![Roles::Admin], None)
         .iter()
         .map(|i| i.to_string())
         .collect::<Vec<String>>();
@@ -756,7 +678,89 @@ fn get_scopes_test() {
         res
     );
 
-    let res = get_scopes(vec![Roles::OrgOwner, Roles::Admin])
+    let mut res = get_scopes(vec![Roles::Super], None)
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>();
+    res.sort();
+    assert_equiv!(
+        vec![
+            "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "dashboard:read",
+            "event:broadcast",
+            "event:cancel",
+            "event:clone",
+            "event:data-read",
+            "event:delete",
+            "event:financial-reports",
+            "event:interest",
+            "event:reports",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
+            "hold:read",
+            "hold:write",
+            "note:delete",
+            "note:read",
+            "note:write",
+            "order:make-external-payment",
+            "order:read",
+            "order:read-own",
+            "order:refund",
+            "order:refund-override",
+            "order:resend-confirmation",
+            "org:admin",
+            "org:admin-users",
+            "org:fans",
+            "org:financial-reports",
+            "org:modify-settlement-type",
+            "org:read",
+            "org:read-events",
+            "org:reports",
+            "org:users",
+            "org:write",
+            "org-venue:delete",
+            "org-venue:read",
+            "org-venue:write",
+            "redeem:ticket",
+            "region:write",
+            "report:admin",
+            "scan-report:read",
+            "settlement-adjustment:delete",
+            "settlement-adjustment:write",
+            "settlement:read",
+            "settlement:read-early",
+            "settlement:write",
+            "ticket-type:read",
+            "ticket-type:write",
+            "ticket:admin",
+            "ticket:read",
+            "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
+            "transfer:cancel",
+            "transfer:cancel-accepted",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
+            "user:read",
+            "user:delete",
+            "venue:write",
+            "websocket:initiate",
+        ],
+        res
+    );
+
+    let res = get_scopes(vec![Roles::OrgOwner, Roles::Admin], None)
         .iter()
         .map(|i| i.to_string())
         .collect::<Vec<String>>();
@@ -830,6 +834,78 @@ fn get_scopes_test() {
             "transfer:read",
             "transfer:read-own",
             "user:delete",
+            "user:read",
+            "venue:write",
+            "websocket:initiate",
+        ],
+        res
+    );
+
+    let res = get_scopes(
+        vec![Roles::OrgOwner],
+        Some(AdditionalOrgMemberScopes {
+            additional: vec![Scopes::SettlementAdjustmentDelete],
+            revoked: vec![Scopes::EventWrite],
+        }),
+    )
+    .iter()
+    .map(|i| i.to_string())
+    .collect::<Vec<String>>();
+    assert_equiv!(
+        vec![
+            "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "dashboard:read",
+            "event:broadcast",
+            "event:cancel",
+            "event:clone",
+            "event:data-read",
+            "event:delete",
+            "event:financial-reports",
+            "event:interest",
+            "event:reports",
+            "event:scan",
+            "event:view-guests",
+            "event-report-subscriber:delete",
+            "event-report-subscriber:read",
+            "event-report-subscriber:write",
+            "hold:read",
+            "hold:write",
+            "note:delete",
+            "note:read",
+            "note:write",
+            "order:make-external-payment",
+            "order:read",
+            "order:read-own",
+            "order:refund",
+            "order:resend-confirmation",
+            "org:admin-users",
+            "org:fans",
+            "org:read",
+            "org:read-events",
+            "org:reports",
+            "org:users",
+            "org:write",
+            "redeem:ticket",
+            "scan-report:read",
+            "settlement-adjustment:delete",
+            "settlement:read",
+            "ticket-type:read",
+            "ticket-type:write",
+            "ticket:admin",
+            "ticket:read",
+            "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
+            "transfer:cancel-own",
+            "transfer:cancel",
+            "transfer:read-own",
+            "transfer:read",
             "user:read",
             "venue:write",
             "websocket:initiate",
