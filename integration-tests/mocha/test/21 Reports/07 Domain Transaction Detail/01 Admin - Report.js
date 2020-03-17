@@ -7,49 +7,29 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/venues';
+const apiEndPoint = '/admin/reports?name=domain_transaction_detail';
 
 
 var response;
 var responseBody;
 
 
-const post = async function (request_body) {
-    return baseUrl
-        .post(pm.substitute(apiEndPoint))
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_owner_token}}'))
-
-        .send(pm.substitute(request_body));
-};
-
 const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_owner_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{token}}'))
 
         .set('Accept', 'application/json')
         .send();
 };
 
-let requestBody = `{
-	"name":"Test venue_{{$timestamp}}",
-	"address": "1 street street",
-	"city": "City",
-	"country": "Country",
-	"phone": "5555555555",
-	"google_place_id": null,
-	"state": "California",
-	"postal_code": "23233",
-	"timezone": "America/Los_Angeles"
-}`;
+let requestBody = ``;
 
 
-describe('OrgOwner - Create Venue - Public - 401', function () {
+describe('Admin - Report', function () {
     before(async function () {
-        response = await post(requestBody);
+        response = await get(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -66,11 +46,16 @@ describe('OrgOwner - Create Venue - Public - 401', function () {
 
     });
 
-    it("should be 401", function () {
-        expect(response.status).to.equal(401);
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
     })
+    it("should not be empty", function () {
+        let json = JSON.parse(responseBody);
+
+        expect(json).to.not.be.empty;
+    });
 
 
 });
 
-            
+

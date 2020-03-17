@@ -1,34 +1,42 @@
+use crate::controllers::*;
+use crate::middleware::*;
+use crate::server::AppState;
 use actix_web::middleware::cors::CorsBuilder;
 use actix_web::{http::Method, App, HttpResponse};
-use controllers::*;
-use server::AppState;
+use bigneon_db::models::Scopes;
 
 pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
     app.resource("/admin/stuck_domain_actions", |r| {
-        r.method(Method::GET).with(admin::admin_stuck_domain_actions);
+        r.method(Method::GET).with(admin::admin::admin_stuck_domain_actions);
     })
     .resource("/admin/ticket_count", |r| {
-        r.method(Method::GET).with(admin::admin_ticket_count);
+        r.method(Method::GET).with(admin::admin::admin_ticket_count);
     })
     .resource("/admin/orders", |r| {
-        r.method(Method::GET).with(admin::orders);
+        r.method(Method::GET).with(admin::admin::orders);
+    })
+    .resource("/admin/reports", |r| {
+        r.method(Method::GET).with(admin::reports::get_report);
     })
     .resource("/a/t", |r| {
         r.method(Method::GET).with(analytics::track);
     })
     .resource("/artists/search", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::AnonymousOnly));
         r.method(Method::GET).with(artists::search);
     })
     .resource("/artists/{id}/toggle_privacy", |r| {
         r.method(Method::PUT).with(artists::toggle_privacy);
     })
     .resource("/artists/{id}", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(artists::show);
         r.method(Method::PUT).with(artists::update);
     })
     .resource("/artists", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::AnonymousOnly));
         r.method(Method::GET).with(artists::index);
         r.method(Method::POST).with(artists::create);
     })
@@ -76,6 +84,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(event_report_subscribers::destroy);
     })
     .resource("/events", |r| {
+        // In future it may be better to cache this for every user to save the database hit
+        r.middleware(CacheResource::new(CacheUsersBy::GlobalRoles));
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
     })
@@ -83,6 +93,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::checkins);
     })
     .resource("/events/{id}", |r| {
+        // In future it may be better to cache this for every user to save the database hit
+        r.middleware(CacheResource::new(CacheUsersBy::GlobalRoles));
         r.method(Method::GET).with(events::show);
         r.method(Method::PUT).with(events::update);
         r.method(Method::DELETE).with(events::cancel);
@@ -133,6 +145,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
         r.method(Method::POST).with(events::redeem_ticket);
     })
+    .resource("/events/{id}/redeem", |r| {
+        r.method(Method::POST).with(events::redeem_ticket);
+    })
     .resource("/events/{id}/report_subscribers", |r| {
         r.method(Method::GET).with(event_report_subscribers::index);
         r.method(Method::POST).with(event_report_subscribers::create);
@@ -166,6 +181,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/users/{user_id}", |r| {
         r.method(Method::DELETE).with(events::remove_user);
     })
+    .resource("/events/{id}/websockets", |r| {
+        r.method(Method::GET).with(websockets::initate);
+    })
     .resource("/external/facebook/pages", |r| {
         r.method(Method::GET).with(external::facebook::pages)
     })
@@ -182,6 +200,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(external::facebook::disconnect);
     })
     .resource("/genres", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(genres::index);
     })
     .resource("/invitations/{id}", |r| {
@@ -245,6 +264,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders/{id}", |r| {
         r.method(Method::GET).with(orders::show);
     })
+    .resource("/organization_venues/{id}", |r| {
+        r.method(Method::GET).with(organization_venues::show);
+        r.method(Method::DELETE).with(organization_venues::destroy);
+    })
     .resource("/organizations/{id}/artists", |r| {
         r.method(Method::GET).with(artists::show_from_organizations);
         r.method(Method::POST).with(organizations::add_artist);
@@ -256,12 +279,24 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::export_event_data);
     })
     .resource("/organizations/{id}/fans/{user_id}/activity", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::OrganizationScopePresence(
+            OrganizationLoad::Path,
+            Scopes::OrgFans,
+        )));
         r.method(Method::GET).with(users::activity);
     })
     .resource("/organizations/{id}/fans/{user_id}/history", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::OrganizationScopePresence(
+            OrganizationLoad::Path,
+            Scopes::OrgFans,
+        )));
         r.method(Method::GET).with(users::history);
     })
     .resource("/organizations/{id}/fans/{user_id}", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::OrganizationScopePresence(
+            OrganizationLoad::Path,
+            Scopes::OrgFans,
+        )));
         r.method(Method::GET).with(users::profile);
     })
     .resource("/organizations/{id}/fee_schedule", |r| {
@@ -269,10 +304,18 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(organizations::add_fee_schedule);
     })
     .resource("/organizations/{id}/fans", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::OrganizationScopePresence(
+            OrganizationLoad::Path,
+            Scopes::OrgFans,
+        )));
         r.method(Method::GET).with(organizations::search_fans);
     })
     .resource("/organizations/{id}/invites/{invite_id}", |r| {
         r.method(Method::DELETE).with(organization_invites::destroy);
+    })
+    .resource("/organizations/{id}/organization_venues", |r| {
+        r.method(Method::GET).with(organization_venues::organizations_index);
+        r.method(Method::POST).with(organization_venues::create);
     })
     .resource("/organizations/{id}/settlements", |r| {
         r.method(Method::GET).with(settlements::index);
@@ -292,7 +335,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/organizations/{id}/venues", |r| {
         r.method(Method::GET).with(venues::show_from_organizations);
-        r.method(Method::POST).with(organizations::add_venue);
     })
     .resource("/organizations/{id}", |r| {
         r.method(Method::GET).with(organizations::show);
@@ -316,15 +358,23 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(redemption_codes::show)
     })
     .resource("/regions/{id}", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(regions::show);
         r.method(Method::PUT).with(regions::update);
     })
     .resource("/regions", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(regions::index);
         r.method(Method::POST).with(regions::create)
     })
     .resource("/reports/{id}", |r| {
         r.method(Method::GET).with(reports::get_report);
+    })
+    .resource("/send_download_link", |r| {
+        r.method(Method::POST).with(send_download_link::create);
+    })
+    .resource("/send_download_link/resend", |r| {
+        r.method(Method::POST).with(send_download_link::resend);
     })
     .resource("/slugs", |r| {
         r.method(Method::GET).with(slugs::index);
@@ -410,8 +460,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/users/{id}/organizations", |r| {
         r.method(Method::GET).with(users::list_organizations);
     })
-    .resource("/venues/{id}/organizations", |r| {
-        r.method(Method::POST).with(venues::add_to_organization);
+    .resource("/venues/{id}/organization_venues", |r| {
+        r.method(Method::GET).with(organization_venues::venues_index);
+        r.method(Method::POST).with(organization_venues::create);
     })
     .resource("/venues/{id}/stages", |r| {
         r.method(Method::POST).with(stages::create);
@@ -421,14 +472,17 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(venues::toggle_privacy);
     })
     .resource("/venues/{id}", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(venues::show);
         r.method(Method::PUT).with(venues::update);
     })
     .resource("/venues", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::AnonymousOnly));
         r.method(Method::GET).with(venues::index);
         r.method(Method::POST).with(venues::create);
     })
     .resource("/sitemap.xml", |r| {
+        r.middleware(CacheResource::new(CacheUsersBy::None));
         r.method(Method::GET).with(sitemap_gen::index);
     })
     .register()

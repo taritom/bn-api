@@ -1,4 +1,5 @@
 use chrono::prelude::Utc;
+use chrono::Duration;
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{exists, select};
@@ -13,7 +14,6 @@ use schema::{event_users, events, genres, organization_users, organizations, use
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use time::Duration;
 use utils::errors::Optional;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::pagination::Paginate;
@@ -175,6 +175,13 @@ impl User {
                 .per_page(paging.limit.unwrap_or(100) as i64)
                 .load_and_count_pages(conn),
         )
+    }
+
+    pub fn admins(conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
+        users::table
+            .filter(users::role.overlaps_with(vec![Roles::Admin, Roles::Super]))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load admin users")
     }
 
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
@@ -846,6 +853,41 @@ impl User {
         DatabaseError::wrap(ErrorCode::QueryError, "Error loading user", query.first::<User>(conn))
     }
 
+    pub fn create_magic_link_token(
+        &self,
+        token_issuer: &dyn TokenIssuer,
+        expiry: Duration,
+        fail_on_error: bool,
+        conn: &PgConnection,
+    ) -> Result<Option<String>, DatabaseError> {
+        if self.role.contains(&Roles::Admin) || self.role.contains(&Roles::Super) {
+            return if fail_on_error {
+                DatabaseError::business_process_error(
+                    "Cannot create a magic link for users who have admin or superadmin roles",
+                )
+            } else {
+                Ok(None)
+            };
+        }
+
+        if self.organizations(conn)?.len() > 0 {
+            return if fail_on_error {
+                DatabaseError::business_process_error(
+                    "Cannot create a magic link for \
+                     users who have organization access",
+                )
+            } else {
+                Ok(None)
+            };
+        }
+
+        Ok(Some(token_issuer.issue_with_limited_scopes(
+            self.id,
+            vec![Scopes::TokenRefresh],
+            expiry,
+        )?))
+    }
+
     fn email_unique(
         id: Uuid,
         email: String,
@@ -942,7 +984,7 @@ impl User {
     }
 
     pub fn get_global_scopes(&self) -> Vec<Scopes> {
-        scopes::get_scopes(self.role.clone())
+        scopes::get_scopes(self.role.clone(), None)
     }
 
     pub fn event_users(&self, conn: &PgConnection) -> Result<Vec<EventUser>, DatabaseError> {
@@ -999,7 +1041,10 @@ impl User {
         Ok((events_by_organization, readonly_events_by_organization))
     }
 
-    pub fn get_roles_by_organization(&self, conn: &PgConnection) -> Result<HashMap<Uuid, Vec<Roles>>, DatabaseError> {
+    pub fn get_roles_by_organization(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, (Vec<Roles>, Option<AdditionalOrgMemberScopes>)>, DatabaseError> {
         let mut roles_by_organization = HashMap::new();
         for organization in self.organizations(conn)? {
             roles_by_organization.insert(organization.id.clone(), organization.get_roles_for_user(self, conn)?);

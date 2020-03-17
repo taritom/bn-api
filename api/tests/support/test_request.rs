@@ -1,10 +1,13 @@
 use actix_web::{test, FromRequest, HttpRequest, Path, Query, State};
+use bigneon_api::auth::default_token_issuer::DefaultTokenIssuer;
 use bigneon_api::config::Config;
 use bigneon_api::db::Database;
 use bigneon_api::server::AppState;
 use bigneon_api::utils::spotify;
 use bigneon_db::models::Environment;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 pub struct TestRequest {
     pub request: HttpRequest<AppState>,
@@ -22,19 +25,20 @@ impl TestRequest {
 
     pub fn create_with_uri_custom_params(path: &str, params: Vec<&'static str>) -> TestRequest {
         let mut config = Config::new(Environment::Test);
-        config.token_secret = "test_secret".into();
-        config.token_issuer = "bn-api-test".into();
+        config.token_issuer = Box::new(DefaultTokenIssuer::new("test_secret".into(), "bn-api-test".into()));
         config.api_keys_encryption_key = "test_encryption_key".to_string();
         config.google_recaptcha_secret_key = None;
         if config.spotify_auth_token.is_some() {
             spotify::SINGLETON.set_auth_token(&config.spotify_auth_token.clone().unwrap());
         }
 
+        let clients = Arc::new(Mutex::new(HashMap::new()));
         let test_request = test::TestRequest::with_state(
             AppState::new(
                 config.clone(),
                 Database::from_config(&config),
                 Database::readonly_from_config(&config),
+                clients,
             )
             .expect("Failed to generate app state for testing"),
         );

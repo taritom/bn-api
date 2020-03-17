@@ -1,15 +1,15 @@
+use crate::auth::user::User;
+use crate::db::Connection;
+use crate::errors::BigNeonError;
+use crate::extractors::*;
+use crate::helpers::application;
+use crate::models::{PathParameters, WebPayload};
+use crate::server::AppState;
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
-use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
-use db::Connection;
-use errors::BigNeonError;
-use extractors::*;
-use helpers::application;
 use log::Level::Warn;
-use models::{PathParameters, WebPayload};
 use serde_with::rust::double_option;
-use server::AppState;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -196,7 +196,7 @@ pub fn link(
             jlog!(Warn, "Error when creating an aliased link",
             {"error": e.description(), "raw_url": &raw_url, "alias": hold.redemption_code.as_ref().unwrap()});
             // Alias might not be unique, create without
-            linker.create_deep_link(&raw_url)?
+            linker.create_deep_link_with_fallback(&raw_url)
         }
     };
     Ok(HttpResponse::Ok().json(json!({ "link": link })))

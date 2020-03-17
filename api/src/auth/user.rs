@@ -1,15 +1,15 @@
+use crate::errors::*;
+use crate::extractors::OptionalUser;
+use crate::server::AppState;
 use actix_web::{HttpRequest, Result};
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::{scopes, Event, EventUser, Order, Organization, Roles, Scopes};
 use bigneon_db::prelude::errors::EnumParseError;
 use bigneon_db::prelude::Optional;
 use diesel::PgConnection;
-use errors::*;
-use extractors::OptionalUser;
 use log::Level::Warn;
 use logging::*;
 use serde_json::Value;
-use server::AppState;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -22,18 +22,31 @@ pub struct User {
     pub ip_address: Option<String>,
     pub uri: String,
     pub method: String,
+    pub global_scopes_only: bool,
 }
 
 impl User {
-    pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> Result<User, EnumParseError> {
-        let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
-        Ok(User {
-            user,
-            global_scopes,
+    pub fn new(
+        user: DbUser,
+        request: &HttpRequest<AppState>,
+        limited_scopes: Option<Vec<String>>,
+    ) -> Result<User, EnumParseError> {
+        let mut result = User {
+            user: user.clone(),
+            global_scopes: vec![],
             ip_address: request.connection_info().remote().map(|i| i.to_string()),
             uri: request.uri().to_string(),
             method: request.method().to_string(),
-        })
+            global_scopes_only: false,
+        };
+        if let Some(scopes) = limited_scopes {
+            result.global_scopes = scopes;
+            result.global_scopes_only = true;
+        } else {
+            let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
+            result.global_scopes = global_scopes;
+        }
+        Ok(result)
     }
 
     pub fn id(&self) -> Uuid {
@@ -52,6 +65,14 @@ impl User {
         connection: Option<&PgConnection>,
         log_on_failure: bool,
     ) -> Result<bool, BigNeonError> {
+        if self.global_scopes_only {
+            if self.global_scopes.contains(&scope.to_string()) {
+                return Ok(true);
+            } else {
+                return Ok(false);
+            }
+        }
+
         if self.global_scopes.contains(&scope.to_string()) {
             return Ok(true);
         }
@@ -60,12 +81,13 @@ impl User {
 
         if let (Some(organization), Some(connection)) = (organization, connection) {
             let organization_scopes = organization.get_scopes_for_user(&self.user, connection)?;
+
             logging_data.insert("organization_scopes", json!(organization_scopes));
             logging_data.insert("organization_id", json!(organization.id));
 
             if let Some(event_id) = event_id {
                 // If the user's roles include an event limited role
-                let user_roles = organization.get_roles_for_user(&self.user, connection)?;
+                let (user_roles, additional_scopes) = organization.get_roles_for_user(&self.user, connection)?;
                 if Roles::get_event_limited_roles()
                     .iter()
                     .find(|r| user_roles.contains(&r))
@@ -73,7 +95,7 @@ impl User {
                 {
                     let event_user = EventUser::find_by_event_id_user_id(event_id, self.id(), connection).optional()?;
                     if let Some(event_user) = event_user {
-                        let scopes = scopes::get_scopes(vec![event_user.role]);
+                        let scopes = scopes::get_scopes(vec![event_user.role], additional_scopes);
 
                         if scopes.contains(&scope) {
                             return Ok(true);

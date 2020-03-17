@@ -1,14 +1,14 @@
+use crate::auth::user::User;
+use crate::db::{Connection, ReadonlyConnection};
+use crate::errors::*;
+use crate::extractors::*;
+use crate::helpers::application;
+use crate::models::WebPayload;
+use crate::models::{OrganizationUserPathParameters, PathParameters};
+use crate::server::AppState;
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
-use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
-use db::{Connection, ReadonlyConnection};
-use errors::*;
-use extractors::*;
-use helpers::application;
-use models::WebPayload;
-use models::{OrganizationUserPathParameters, PathParameters};
-use server::AppState;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -199,19 +199,6 @@ pub fn update(
     updated_organization.decrypt(&state.config.api_keys_encryption_key)?;
 
     Ok(HttpResponse::Ok().json(&updated_organization))
-}
-
-pub fn add_venue(
-    (connection, parameters, new_venue, user): (Connection, Path<PathParameters>, Json<NewVenue>, User),
-) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    let organization = Organization::find(parameters.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
-
-    let mut new_venue = new_venue.into_inner();
-    new_venue.organization_id = Some(parameters.id);
-    let venue = new_venue.commit(connection)?;
-    Ok(HttpResponse::Created().json(&venue))
 }
 
 pub fn add_artist(

@@ -273,6 +273,53 @@ fn mark_settled() {
 }
 
 #[test]
+fn find_organization_users() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization_owner = project.create_user().finish();
+    let organization_user = project.create_user().finish();
+    let organization2_owner = project.create_user().finish();
+    let user = project.create_user().finish();
+    let admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, connection)
+        .unwrap();
+    let organization = project
+        .create_organization()
+        .with_member(&organization_owner, Roles::OrgOwner)
+        .with_member(&organization_user, Roles::OrgMember)
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_member(&organization2_owner, Roles::OrgOwner)
+        .finish();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization2)
+        .finish();
+    let organization_users = Event::find_organization_users(event.id, connection).unwrap();
+    assert!(organization_users.contains(&organization_owner));
+    assert!(organization_users.contains(&organization_user));
+    assert!(organization_users.contains(&admin));
+    assert!(!organization_users.contains(&organization2_owner));
+    assert!(!organization_users.contains(&user));
+
+    let organization_users = Event::find_organization_users(event2.id, connection).unwrap();
+    assert!(!organization_users.contains(&organization_owner));
+    assert!(!organization_users.contains(&organization_user));
+    assert!(organization_users.contains(&admin));
+    assert!(organization_users.contains(&organization2_owner));
+    assert!(!organization_users.contains(&user));
+}
+
+#[test]
 fn get_all_events_with_transactions_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1825,18 +1872,42 @@ fn guest_list() {
     let guest_list = event
         .guest_list(Some(order_id.clone()), &None, None, connection)
         .unwrap();
-    let guest_list_item = guest_list.0.first().unwrap();
-    assert_eq!(1, guest_list.1);
-    assert_eq!(normal_order.id, guest_list_item.ticket.order_id);
+    // Occasionally multiple orders have the same first few characters of their GUID leading to errors in test processing
+    assert!(guest_list.1 >= 1);
+
+    let mut found_guest_list_item = None;
+    for guest_list_item in guest_list.0 {
+        assert_eq!(
+            order_id,
+            guest_list_item.ticket.order_id.to_string()[&guest_list_item.ticket.order_id.to_string().len() - 8..]
+                .to_string()
+        );
+
+        if guest_list_item.ticket.order_id == normal_order.id {
+            found_guest_list_item = Some(guest_list_item);
+        }
+    }
+    assert!(found_guest_list_item.is_some());
+
     //Search by ticket_instance id
     let ticket_id = first_ticket.id.to_string();
     let ticket_id = ticket_id[&ticket_id.len() - 8..].to_string();
     let guest_list = event
         .guest_list(Some(ticket_id.clone()), &None, None, connection)
         .unwrap();
-    let guest_list_item = guest_list.0.first().unwrap();
-    assert_eq!(1, guest_list.1);
-    assert_eq!(first_ticket.id, guest_list_item.ticket.id);
+    assert!(guest_list.1 >= 1);
+
+    let mut found_guest_list_item = None;
+    for guest_list_item in guest_list.0 {
+        if guest_list_item.ticket.id == first_ticket.id {
+            assert_eq!(
+                ticket_id,
+                guest_list_item.ticket.id.to_string()[&guest_list_item.ticket.id.to_string().len() - 8..].to_string()
+            );
+            found_guest_list_item = Some(guest_list_item);
+        }
+    }
+    assert!(found_guest_list_item.is_some());
 }
 
 #[test]

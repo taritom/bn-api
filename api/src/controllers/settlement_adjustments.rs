@@ -1,12 +1,11 @@
-use actix_web::{HttpResponse, Path, State};
-use auth::user::User as AuthUser;
+use crate::auth::user::User as AuthUser;
+use crate::db::Connection;
+use crate::errors::*;
+use crate::extractors::*;
+use crate::helpers::application;
+use crate::models::PathParameters;
+use actix_web::{HttpResponse, Path};
 use bigneon_db::models::*;
-use db::Connection;
-use errors::*;
-use extractors::*;
-use helpers::application;
-use models::PathParameters;
-use server::AppState;
 
 pub fn index(
     (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
@@ -26,9 +25,8 @@ pub struct NewSettlementAdjustmentRequest {
 }
 
 pub fn create(
-    (connection, state, path, json, user): (
+    (connection, path, json, user): (
         Connection,
-        State<AppState>,
         Path<PathParameters>,
         Json<NewSettlementAdjustmentRequest>,
         AuthUser,
@@ -38,8 +36,7 @@ pub fn create(
     let connection = connection.get();
 
     let settlement = Settlement::find(path.id, connection)?;
-    let organization = Organization::find(settlement.organization_id, connection)?;
-    if state.config.settlement_period_in_days.is_none() && settlement.visible(&organization)? {
+    if settlement.status == SettlementStatus::FinalizedSettlement {
         return application::forbidden("Unable to create new adjustments, settlement has been finalized");
     }
 
@@ -54,14 +51,13 @@ pub fn create(
 }
 
 pub fn destroy(
-    (connection, state, path, user): (Connection, State<AppState>, Path<PathParameters>, AuthUser),
+    (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     user.requires_scope(Scopes::SettlementAdjustmentDelete)?;
     let settlement_adjustment = SettlementAdjustment::find(path.id, connection)?;
     let settlement = Settlement::find(settlement_adjustment.settlement_id, connection)?;
-    let organization = Organization::find(settlement.organization_id, connection)?;
-    if state.config.settlement_period_in_days.is_none() && settlement.visible(&organization)? {
+    if settlement.status == SettlementStatus::FinalizedSettlement {
         return application::forbidden("Unable to delete adjustments, settlement has been finalized");
     }
 

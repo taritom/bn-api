@@ -1,22 +1,23 @@
+use crate::auth::user::User;
+use crate::communications::mailers;
+use crate::communications::smsers;
+use crate::db::Connection;
+use crate::errors::BigNeonError;
+use crate::extractors::*;
+use crate::helpers::application;
+use crate::models::*;
+use crate::server::AppState;
+use crate::utils::serializers::default_as_false;
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
-use auth::user::User;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
-use communications::mailers;
-use communications::smsers;
-use db::Connection;
+use chrono::Duration;
 use diesel::pg::PgConnection;
 use diesel::Connection as DieselConnection;
-use errors::BigNeonError;
-use extractors::*;
-use helpers::application;
 use log::Level::Debug;
-use models::*;
 use phonenumber::PhoneNumber;
-use server::AppState;
 use std::cmp;
 use std::collections::HashMap;
-use utils::serializers::default_as_false;
 use uuid::Uuid;
 
 pub fn index(
@@ -42,7 +43,9 @@ pub fn activity(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn show((conn, path, auth_user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub fn show(
+    (state, conn, path, auth_user): (State<AppState>, Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
     let mut organization_ids = Vec::new();
@@ -65,11 +68,37 @@ pub fn show((conn, path, auth_user): (Connection, Path<PathParameters>, User)) -
     } else {
         None
     };
-    Ok(HttpResponse::Ok().json(json!(order.for_display(
-        organization_id_filter,
-        auth_user.id(),
-        connection
-    )?)))
+    #[derive(Serialize)]
+    struct R {
+        #[serde(flatten)]
+        order: DisplayOrder,
+        app_download_link: Option<String>,
+    }
+
+    let order = order.for_display(organization_id_filter, auth_user.id(), connection)?;
+    let order_id = order.id;
+    let mut result = R {
+        order,
+        app_download_link: None,
+    };
+    if purchased_for_user_id == auth_user.id() {
+        let linker = state.service_locator.create_deep_linker()?;
+        let token_issuer = state.service_locator.token_issuer();
+        let user = DbUser::find(purchased_for_user_id, connection)?;
+
+        let refresh_token = user.create_magic_link_token(token_issuer, Duration::minutes(60), false, connection)?;
+        let fallback_url = format!(
+            "{}/send-download-link?refresh_token={}",
+            &state.config.front_end_url,
+            refresh_token.unwrap_or("".to_string())
+        );
+        let mut data = HashMap::new();
+        data.insert("order_id".to_string(), json!(order_id));
+        let link = linker.create_with_custom_data(&fallback_url, data)?;
+        result.app_download_link = Some(link);
+    }
+
+    Ok(HttpResponse::Ok().json(json!(result)))
 }
 
 pub fn resend_confirmation(

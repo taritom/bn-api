@@ -1,30 +1,32 @@
+use crate::auth::user::User as AuthUser;
+use crate::controllers::organizations::DisplayOrganizationUser;
+use crate::controllers::ticket_types;
+use crate::db::Connection;
+use crate::db::{CacheDatabase, ReadonlyConnection};
+use crate::domain_events::executors::UpdateGenresPayload;
+use crate::errors::*;
+use crate::extractors::*;
+use crate::helpers::*;
+use crate::jwt::{encode, Header};
+use crate::models::*;
+use crate::server::AppState;
+use crate::utils::cloudinary::optimize_cloudinary;
+use crate::utils::redis::*;
+use crate::utils::ServiceLocator;
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
-use auth::user::User as AuthUser;
 use bigneon_db::dev::times;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
-use controllers::organizations::DisplayOrganizationUser;
-use controllers::ticket_types;
-use db::Connection;
-use db::ReadonlyConnection;
 use diesel::PgConnection;
-use domain_events::executors::UpdateGenresPayload;
-use errors::*;
-use extractors::*;
-use helpers::application;
-use jwt::{encode, Header};
-use models::*;
+use serde::Serialize;
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
-use server::AppState;
 use std::collections::HashMap;
 use url::Url;
-use utils::cloudinary::optimize_cloudinary;
-use utils::ServiceLocator;
 use uuid::Uuid;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Serialize)]
 pub struct SearchParameters {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     query: Option<String>,
@@ -586,23 +588,34 @@ pub fn clone(
 }
 
 pub fn publish(
-    (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
+    (connection, path, user, cache_database): (Connection, Path<PathParameters>, AuthUser, CacheDatabase),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
     event.publish(Some(user.id()), conn)?;
 
+    cache_database
+        .inner
+        .clone()
+        .and_then(|conn| caching::delete_by_key_fragment(conn, event.id.to_string()).ok());
+
     Ok(HttpResponse::Ok().finish())
 }
 
 pub fn unpublish(
-    (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
+    (connection, path, user, cache_database): (Connection, Path<PathParameters>, AuthUser, CacheDatabase),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
     event.unpublish(Some(user.id()), conn)?;
+
+    cache_database
+        .inner
+        .clone()
+        .and_then(|conn| caching::delete_by_key_fragment(conn, event.id.to_string()).ok());
+
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -623,20 +636,22 @@ pub struct TicketRedeemRequest {
 }
 
 pub fn redeem_ticket(
-    (connection, parameters, redeem_parameters, auth_user, state): (
+    (connection, parameters, redeem_parameters, auth_user, state, cache_database): (
         Connection,
-        Path<RedeemTicketPathParameters>,
+        Path<PathParameters>,
         Json<TicketRedeemRequest>,
         AuthUser,
         State<AppState>,
+        CacheDatabase,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let ticket = TicketInstance::find_for_processing(parameters.ticket_instance_id, parameters.id, connection)?;
-    let db_event = Event::find(ticket.event_id, connection)?;
+    let db_event = Event::find(parameters.id, connection)?;
     let organization = db_event.organization(connection)?;
     auth_user.requires_scope_for_organization_event(Scopes::RedeemTicket, &organization, &db_event, connection)?;
-    let redeemable = TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;
+    let ticket =
+        TicketInstance::find_by_event_id_redeem_key(parameters.id, redeem_parameters.redeem_key.clone(), connection)?;
+    let redeemable = TicketInstance::show_redeemable_ticket(ticket.id, connection)?;
 
     let result = TicketInstance::redeem_ticket(
         ticket.id,
@@ -659,11 +674,21 @@ pub fn redeem_ticket(
                     )?;
 
                     //Fetch the redeemable again to include the redeemed_by and redeemed_at fields
-                    let redeemable = TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;
+                    let redeemable = TicketInstance::show_redeemable_ticket(ticket.id, connection)?;
+
+                    // Publish redeem event for redis pubsub
+                    cache_database
+                        .inner
+                        .clone()
+                        .and_then(|conn| caching::publish(conn, RedisPubSubChannel::TicketRedemptions, messages::TicketRedemption {
+                            ticket_id: ticket.id,
+                            event_id: db_event.id,
+                            redeemer_id: auth_user.id()
+                        }).ok());
 
                     Ok(HttpResponse::Ok().json(redeemable))
                 }
-                None => Ok(HttpResponse::BadRequest().json(json!({ "error": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
+                None => Ok(HttpResponse::BadRequest().json(json!({ "error": "Could not redeem because the asset has not been assigned on the blockchain.".to_string()}))),
             }
         }
         RedeemResults::TicketTransferInProcess => {
@@ -688,7 +713,7 @@ pub fn show_from_organizations(
     let org = Organization::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::OrgReadEvents, &org, conn)?;
 
-    let user_roles = org.get_roles_for_user(&user.user, conn)?;
+    let (user_roles, _) = org.get_roles_for_user(&user.user, conn)?;
     let mut events = Event::find_all_events_for_organization(
         path.id,
         Some(
@@ -1308,7 +1333,7 @@ pub fn create_link(
     let long_link_url = Url::parse(long_link_raw.as_str())?;
 
     let deep_linker = state.service_locator.create_deep_linker()?;
-    let short_link = deep_linker.create_deep_link(&long_link_raw)?;
+    let short_link = deep_linker.create_deep_link_with_fallback(&long_link_raw);
     Ok(HttpResponse::Ok().json(LinkResult {
         link: short_link,
         long_link: long_link_url.as_str().to_string(),

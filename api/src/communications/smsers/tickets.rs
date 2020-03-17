@@ -1,8 +1,8 @@
+use crate::config::Config;
+use crate::errors::*;
+use crate::utils::deep_linker::DeepLinker;
 use bigneon_db::models::*;
-use config::Config;
 use diesel::pg::PgConnection;
-use errors::*;
-use utils::deep_linker::DeepLinker;
 
 pub fn transfer_cancelled(
     config: &Config,
@@ -37,14 +37,14 @@ pub fn transfer_drip_reminder(
     conn: &PgConnection,
     deep_linker: &dyn DeepLinker,
 ) -> Result<(), BigNeonError> {
-    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
-    let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
+    let receive_tickets_link = transfer.receive_url(&config.front_end_url, conn)?;
+    let link = deep_linker.create_deep_link_with_fallback(&receive_tickets_link);
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
     let body = format!(
         "{} Follow this link to receive them: {}",
         transfer.drip_header(event, SourceOrDestination::Destination, false, config.environment, conn)?,
-        shortened_link
+        link
     );
     Communication::new(
         CommunicationType::Sms,
@@ -70,15 +70,15 @@ pub fn send_tickets(
     conn: &PgConnection,
     deep_linker: &dyn DeepLinker,
 ) -> Result<(), BigNeonError> {
-    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
-    let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
+    let receive_tickets_link = transfer.receive_url(&config.front_end_url, conn)?;
+    let link = deep_linker.create_deep_link_with_fallback(&receive_tickets_link);
 
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
     let body = format!(
         "{} has sent you some tickets. Follow this link to receive them: {}",
         from_user.full_name(),
-        shortened_link
+        link
     );
     Communication::new(
         CommunicationType::Sms,

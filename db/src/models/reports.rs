@@ -1,17 +1,16 @@
 use chrono::prelude::*;
+use chrono::Duration;
 use chrono_tz::Tz;
 use diesel;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Nullable, Text, Time, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use std::collections::HashMap;
-use time::Duration;
 use utils::errors::*;
 use uuid::Uuid;
 
 sql_function!(fn ticket_sales_per_ticket_pricing(start: Nullable<Timestamp>, end: Nullable<Timestamp>, group_by: Option<Text>) -> Vec<TicketSalesRow>);
-sql_function!(fn ticket_count_per_ticket_type(event_id: Nullable<dUuid>, organization_id: Nullable<dUuid>, group_by: Option<Text>) -> Vec<TicketCountRow>);
 pub struct Report {}
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, QueryableByName)]
@@ -188,6 +187,55 @@ pub struct TicketCountRow {
 pub struct TicketSalesAndCounts {
     pub counts: Vec<TicketCountRow>,
     pub sales: Vec<TicketSalesRow>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct DomainTransactionReportRow {
+    #[serde(skip_serializing)]
+    #[sql_type = "BigInt"]
+    pub total: i64,
+    #[sql_type = "dUuid"]
+    pub order_id: Uuid,
+    #[sql_type = "Nullable<Text>"]
+    pub customer_name_first: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub customer_name_last: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub customer_email_address: Option<String>,
+    #[sql_type = "Text"]
+    pub event_name: String,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub event_date: Option<NaiveDateTime>,
+    #[sql_type = "Text"]
+    pub ticket_type_name: String,
+    #[sql_type = "Timestamp"]
+    pub transaction_date: NaiveDateTime,
+    #[sql_type = "Nullable<Text>"]
+    pub point_of_sale: Option<String>,
+    #[sql_type = "Text"]
+    pub payment_method: String,
+    #[sql_type = "BigInt"]
+    pub qty_tickets_sold: i64,
+    #[sql_type = "BigInt"]
+    pub qty_tickets_refunded: i64,
+    #[sql_type = "BigInt"]
+    pub qty_tickets_sold_net: i64,
+    #[sql_type = "BigInt"]
+    pub face_price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_face_value_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub client_per_ticket_revenue_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub client_per_order_revenue_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub company_per_ticket_revenue_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub company_per_order_revenue_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub credit_card_processing_fees_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub gross: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
@@ -427,6 +475,19 @@ pub struct EventSummaryOtherFees {
     pub client_fee_in_cents: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct ScanCountReportRow {
+    #[serde(skip_serializing)]
+    #[sql_type = "Nullable<BigInt>"]
+    pub total: Option<i64>,
+    #[sql_type = "Text"]
+    pub ticket_type_name: String,
+    #[sql_type = "BigInt"]
+    pub scanned_count: i64,
+    #[sql_type = "BigInt"]
+    pub not_scanned_count: i64,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReconciliationSummaryResult {
     pub payment_method: String,
@@ -569,18 +630,24 @@ impl TicketCountRow {
         group_by_ticket_type: bool,
         conn: &PgConnection,
     ) -> Result<Vec<TicketCountRow>, DatabaseError> {
+        let timezone = "America/Los_Angeles"
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+        let now = Utc::now().naive_utc();
+        let four_am_pacific = timezone
+            .ymd(now.year(), now.month(), now.day())
+            .and_hms(4, 0, 0)
+            .naive_utc()
+            .time();
         let group_by = group_by_string(group_by_ticket_type, false, false, group_by_event);
         let query_ticket_counts = include_str!("../queries/reports/reports_tickets_counts.sql");
-        let q = diesel::sql_query(query_ticket_counts)
+        diesel::sql_query(query_ticket_counts)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
-            .bind::<Nullable<Text>, _>(group_by);
-
-        let rows: Vec<TicketCountRow> = q
+            .bind::<Nullable<Text>, _>(group_by)
+            .bind::<Time, _>(four_am_pacific)
             .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not fetch ticket counts")?;
-
-        Ok(rows)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch ticket counts")
     }
 }
 
@@ -623,11 +690,11 @@ impl Report {
             .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
         let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
         // 4 AM tomorrow PT
+        let tomorrow = now + Duration::days(1);
         Ok(timezone
-            .ymd(now.year(), now.month(), now.day())
+            .ymd(tomorrow.year(), tomorrow.month(), tomorrow.day())
             .and_hms(4, 0, 0)
-            .naive_utc()
-            + Duration::days(1))
+            .naive_utc())
     }
 
     pub fn create_next_automatic_report_domain_action(conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -757,6 +824,36 @@ impl Report {
         })
     }
 
+    pub fn domain_transaction_detail_report(
+        transaction_date_start: Option<NaiveDateTime>,
+        transaction_date_end: Option<NaiveDateTime>,
+        event_date_start: Option<NaiveDateTime>,
+        event_date_end: Option<NaiveDateTime>,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Payload<DomainTransactionReportRow>, DatabaseError> {
+        let query = include_str!("../queries/reports/reports_domain_transaction_details.sql");
+        let q = diesel::sql_query(query)
+            .bind::<Nullable<Timestamp>, _>(transaction_date_start)
+            .bind::<Nullable<Timestamp>, _>(transaction_date_end)
+            .bind::<Nullable<Timestamp>, _>(event_date_start)
+            .bind::<Nullable<Timestamp>, _>(event_date_end)
+            .bind::<BigInt, _>((page * limit) as i64)
+            .bind::<BigInt, _>(limit as i64);
+        let transaction_rows: Vec<DomainTransactionReportRow> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+        let total = if transaction_rows.is_empty() {
+            0
+        } else {
+            transaction_rows[0].total
+        };
+        let mut paging = Paging::new(page, limit);
+        paging.total = total as u64;
+        Ok(Payload::new(transaction_rows, paging))
+    }
+
     pub fn transaction_detail_report(
         query_filter: Option<String>,
         event_id: Option<Uuid>,
@@ -775,7 +872,7 @@ impl Report {
             .bind::<Nullable<Timestamp>, _>(end)
             .bind::<Nullable<Text>, _>(query_filter)
             .bind::<BigInt, _>((page * limit) as i64)
-            .bind::<Nullable<BigInt>, _>(Some(limit as i64));
+            .bind::<BigInt, _>(limit as i64);
         let transaction_rows: Vec<TransactionReportRow> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
@@ -906,6 +1003,29 @@ impl Report {
         conn: &PgConnection,
     ) -> Result<TicketSalesAndCounts, DatabaseError> {
         Report::ticket_sales_and_counts(event_id, organization_id, None, None, true, true, true, false, conn)
+    }
+
+    pub fn scan_count_report(
+        event_id: Uuid,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Payload<ScanCountReportRow>, DatabaseError> {
+        let query = include_str!("../queries/reports/reports_scan_counts.sql");
+        let scan_count_rows: Vec<ScanCountReportRow> = diesel::sql_query(query)
+            .bind::<dUuid, _>(event_id)
+            .bind::<BigInt, _>((page * limit) as i64)
+            .bind::<BigInt, _>(limit as i64)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+        let total = if scan_count_rows.is_empty() {
+            0
+        } else {
+            scan_count_rows[0].total.unwrap_or(0)
+        };
+        let mut paging = Paging::new(page, limit);
+        paging.total = total as u64;
+        Ok(Payload::new(scan_count_rows, paging))
     }
 
     pub fn promo_code_report(

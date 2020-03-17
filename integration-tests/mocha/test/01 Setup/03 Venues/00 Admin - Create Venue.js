@@ -43,11 +43,12 @@ let requestBody = `{
 	"google_place_id": null,
 	"state": "California",
 	"postal_code": "23233",
+	"organization_ids": ["{{last_org_id}}"],
 	"timezone": "America/Los_Angeles"
 }`;
 
 
-describe('Admin - Create Venue - Public', function () {
+describe('Admin - Create Venue', function () {
     before(async function () {
         response = await post(requestBody);
         log(response.request.header);
@@ -73,5 +74,3 @@ describe('Admin - Create Venue - Public', function () {
 
 
 });
-
-            

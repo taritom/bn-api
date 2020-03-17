@@ -4,11 +4,73 @@ use bigneon_db::schema::{orders, refunds};
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
-use chrono::Duration;
+use chrono::{Duration, Timelike};
+use chrono_tz::Tz;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::RunQueryDsl;
+
+#[test]
+fn finalize_settlements() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let settlement = project.create_settlement().finish();
+    let settlement2 = project.create_settlement().finish();
+    Settlement::finalize_settlements(connection).unwrap();
+
+    let settlement = Settlement::find(settlement.id, connection).unwrap();
+    let settlement2 = Settlement::find(settlement2.id, connection).unwrap();
+    assert_eq!(SettlementStatus::FinalizedSettlement, settlement.status);
+    assert_eq!(SettlementStatus::FinalizedSettlement, settlement2.status);
+}
+
+#[test]
+fn create_next_finalize_settlements_domain_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    assert!(
+        DomainAction::upcoming_domain_action(None, None, DomainActionTypes::FinalizeSettlements, connection,)
+            .unwrap()
+            .is_none()
+    );
+
+    Settlement::create_next_finalize_settlements_domain_action(connection).unwrap();
+    let domain_action =
+        DomainAction::upcoming_domain_action(None, None, DomainActionTypes::FinalizeSettlements, connection)
+            .unwrap()
+            .unwrap();
+    assert_eq!(
+        domain_action.scheduled_at,
+        Settlement::next_finalization_date().unwrap()
+    );
+    assert_eq!(domain_action.status, DomainActionStatus::Pending);
+}
+
+#[test]
+fn next_finalization_date() {
+    let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
+    let now = pt_timezone.from_utc_datetime(&Utc::now().naive_utc());
+    let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+    let days_since_monday = pt_today.naive_local().weekday().num_days_from_monday();
+
+    let this_wednesday = now + Duration::days(2 - pt_today.naive_local().weekday().num_days_from_monday() as i64);
+    let next_wednesday = now + Duration::days(7 - pt_today.naive_local().weekday().num_days_from_monday() as i64 + 2);
+
+    let expected_pt = if days_since_monday < 2 || (days_since_monday == 2 && now.naive_local().hour() < 12) {
+        pt_timezone
+            .ymd(this_wednesday.year(), this_wednesday.month(), this_wednesday.day())
+            .and_hms(12, 0, 0)
+            .naive_utc()
+    } else {
+        pt_timezone
+            .ymd(next_wednesday.year(), next_wednesday.month(), next_wednesday.day())
+            .and_hms(12, 0, 0)
+            .naive_utc()
+    };
+
+    assert_eq!(Settlement::next_finalization_date().unwrap(), expected_pt);
+}
 
 #[test]
 fn find_last_settlement_for_organization() {
@@ -238,6 +300,7 @@ fn create_post_event_entries() {
     let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
+    let ticket2 = &tickets[1];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
@@ -360,6 +423,57 @@ fn create_post_event_entries() {
     assert_eq!(event_fee_entry.online_sold_quantity, 0);
     assert_eq!(event_fee_entry.fee_sold_quantity, 5);
     assert_eq!(event_fee_entry.total_sales_in_cents, 750);
+
+    // Refund comes in after post event has been settled, included in next settlement report
+    // even though event has already settled
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket2.id),
+    }];
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
+
+    let settlement = Settlement::create(
+        organization.id,
+        dates::now().add_days(-7).finish(),
+        dates::now().add_minutes(1).finish(),
+        SettlementStatus::PendingSettlement,
+        None,
+        true,
+    )
+    .commit(None, connection)
+    .unwrap();
+    let past_event = Event::find(past_event.id, connection).unwrap();
+    assert!(past_event.settled_at.is_some());
+    let past_event_2 = Event::find(past_event_2.id, connection).unwrap();
+    assert!(past_event_2.settled_at.is_none());
+
+    let display_settlement = settlement.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    assert_eq!(
+        display_settlement.event_entries[0].event,
+        past_event.for_display(connection).unwrap()
+    );
+    let event_entries = &display_settlement.event_entries[0].entries;
+    assert_eq!(event_entries.len(), 1);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::TicketType && e.face_value_in_cents == 150)
+        .unwrap();
+    let ticket_type = &past_event.ticket_types(true, None, connection).unwrap()[0];
+    assert_eq!(ticket_type_entry.settlement_id, settlement.id);
+    assert_eq!(ticket_type_entry.event_id, past_event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 150);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 30);
+    assert_eq!(ticket_type_entry.online_sold_quantity, -1);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, -1);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents
+            + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+    );
 }
 
 #[test]

@@ -8,6 +8,100 @@ use diesel;
 use diesel::prelude::*;
 
 #[test]
+fn scan_count_report() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(2)
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = event.ticket_types(true, None, connection).unwrap();
+    assert_eq!(ticket_types.len(), 2);
+
+    let report_rows = Report::scan_count_report(event.id, 0, 100, connection).unwrap();
+    assert_eq!(report_rows.paging.total, 2);
+    assert_eq!(&report_rows.data[0].ticket_type_name, &ticket_types[0].name);
+    assert_eq!(report_rows.data[0].scanned_count, 0);
+    assert_eq!(report_rows.data[0].not_scanned_count, 0);
+    assert_eq!(&report_rows.data[1].ticket_type_name, &ticket_types[1].name);
+    assert_eq!(report_rows.data[1].scanned_count, 0);
+    assert_eq!(report_rows.data[1].not_scanned_count, 0);
+
+    let mut order = project
+        .create_order()
+        .quantity(10)
+        .for_tickets(ticket_types[0].id)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let _order2 = project
+        .create_order()
+        .quantity(5)
+        .for_tickets(ticket_types[1].id)
+        .is_paid()
+        .finish();
+
+    let report_rows = Report::scan_count_report(event.id, 0, 100, connection).unwrap();
+    assert_eq!(report_rows.paging.total, 2);
+    assert_eq!(&report_rows.data[0].ticket_type_name, &ticket_types[0].name);
+    assert_eq!(report_rows.data[0].scanned_count, 0);
+    assert_eq!(report_rows.data[0].not_scanned_count, 10);
+    assert_eq!(&report_rows.data[1].ticket_type_name, &ticket_types[1].name);
+    assert_eq!(report_rows.data[1].scanned_count, 0);
+    assert_eq!(report_rows.data[1].not_scanned_count, 5);
+
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let ticket2 = &tickets[1];
+    let ticket3 = &tickets[2];
+
+    for t in vec![ticket, ticket2] {
+        TicketInstance::redeem_ticket(
+            t.id,
+            t.redeem_key.clone().unwrap(),
+            user.id,
+            CheckInSource::GuestList,
+            connection,
+        )
+        .unwrap();
+    }
+
+    let report_rows = Report::scan_count_report(event.id, 0, 100, connection).unwrap();
+    assert_eq!(report_rows.paging.total, 2);
+    assert_eq!(&report_rows.data[0].ticket_type_name, &ticket_types[0].name);
+    assert_eq!(report_rows.data[0].scanned_count, 2);
+    assert_eq!(report_rows.data[0].not_scanned_count, 8);
+    assert_eq!(&report_rows.data[1].ticket_type_name, &ticket_types[1].name);
+    assert_eq!(report_rows.data[1].scanned_count, 0);
+    assert_eq!(report_rows.data[1].not_scanned_count, 5);
+
+    // Refund one of the tickets that was previously redeemed
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: ticket.order_item_id.unwrap(),
+        ticket_instance_id: Some(ticket.id),
+    }];
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
+
+    // Also refund one of the tickets not yet used
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: ticket3.order_item_id.unwrap(),
+        ticket_instance_id: Some(ticket3.id),
+    }];
+    order.refund(&refund_items, user.id, None, false, connection).unwrap();
+
+    let report_rows = Report::scan_count_report(event.id, 0, 100, connection).unwrap();
+    assert_eq!(report_rows.paging.total, 2);
+    assert_eq!(&report_rows.data[0].ticket_type_name, &ticket_types[0].name);
+    assert_eq!(report_rows.data[0].scanned_count, 1);
+    assert_eq!(report_rows.data[0].not_scanned_count, 7);
+    assert_eq!(&report_rows.data[1].ticket_type_name, &ticket_types[1].name);
+    assert_eq!(report_rows.data[1].scanned_count, 0);
+    assert_eq!(report_rows.data[1].not_scanned_count, 5);
+}
+
+#[test]
 fn find_event_reports_for_processing() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -142,8 +236,12 @@ fn next_automatic_report_date() {
     let organization = project.create_organization().finish();
     let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
     let now = pt_timezone.from_utc_datetime(&Utc::now().naive_utc());
-    let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(4, 0, 0);
-    let expected = pt_today.naive_utc() + Duration::days(1);
+    let pt_today = pt_timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+    let tomorrow = pt_today.naive_utc() + Duration::days(1);
+    let expected = pt_timezone
+        .ymd(tomorrow.year(), tomorrow.month(), tomorrow.day())
+        .and_hms(4, 0, 0)
+        .naive_utc();
     assert_eq!(Report::next_automatic_report_date().unwrap(), expected);
 
     // Organization timezone has no effect on the date
@@ -1409,6 +1507,105 @@ fn transaction_detail_report() {
     ];
     assert_eq!(result.data, expected_results);
     assert_eq!(result.paging.total, 3);
+}
+
+#[test]
+fn domain_transaction_detail_report() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .with_cc_fee(1.1)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event1".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_event_start(Utc::now().naive_utc() + Duration::days(20))
+        .finish();
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
+
+    let user = project
+        .create_user()
+        .with_first_name("Bob".into())
+        .with_last_name("Bobber".into())
+        .with_email("bobber@tari.com".into())
+        .finish();
+    let user2 = project
+        .create_user()
+        .with_first_name("Bobby".into())
+        .with_last_name("Last".into())
+        .with_email("bobby.last@tari.com".into())
+        .finish();
+
+    let mut order = project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let order_paid_at = Utc::now().naive_utc() - Duration::days(6);
+    order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::paid_at.eq(order_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    let order2 = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user2)
+        .is_paid()
+        .finish();
+    let order2_paid_at = Utc::now().naive_utc() - Duration::days(4);
+    diesel::update(orders::table.filter(orders::id.eq(order2.id)))
+        .set(orders::paid_at.eq(order2_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    // Gets order 1 only, utilizing all code paths
+    let result = Report::domain_transaction_detail_report(
+        Some(order.paid_at.unwrap() - Duration::hours(1)),
+        Some(order.paid_at.unwrap() + Duration::hours(1)),
+        Some(event.event_start.unwrap() - Duration::hours(1)),
+        Some(event.event_start.unwrap() + Duration::hours(1)),
+        0,
+        1,
+        connection,
+    )
+    .unwrap();
+    let expected_results = vec![DomainTransactionReportRow {
+        total: 1,
+        order_id: order.id,
+        customer_name_first: user.first_name.clone(),
+        customer_name_last: user.last_name.clone(),
+        customer_email_address: user.email.clone(),
+        event_name: event.name.clone(),
+        event_date: event.event_start.clone(),
+        ticket_type_name: ticket_type.name.clone(),
+        transaction_date: order.paid_at.unwrap(),
+        point_of_sale: None,
+        payment_method: PaymentMethods::CreditCard.to_string(),
+        qty_tickets_sold: 2,
+        qty_tickets_refunded: 0,
+        qty_tickets_sold_net: 2,
+        face_price_in_cents: 150,
+        total_face_value_in_cents: 300,
+        client_per_ticket_revenue_in_cents: 162,
+        client_per_order_revenue_in_cents: 174,
+        company_per_ticket_revenue_in_cents: 108,
+        company_per_order_revenue_in_cents: 116,
+        credit_card_processing_fees_in_cents: 6,
+        gross: 596,
+    }];
+    assert_eq!(result.data, expected_results);
+    assert_eq!(result.paging.total, 1);
+    assert_eq!(result.paging.limit, 1);
 }
 
 #[test]

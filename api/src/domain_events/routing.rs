@@ -1,10 +1,10 @@
+use crate::config::Config;
+use crate::db::Connection;
+use crate::domain_events::errors::DomainActionError;
+use crate::domain_events::executor_future::ExecutorFuture;
+use crate::domain_events::executors::*;
 use bigneon_db::models::enums::DomainActionTypes;
 use bigneon_db::prelude::*;
-use config::Config;
-use db::Connection;
-use domain_events::errors::DomainActionError;
-use domain_events::executor_future::ExecutorFuture;
-use domain_events::executors::*;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -48,7 +48,7 @@ impl DomainActionRouter {
             match action_type {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
                 BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new(&conf)),
-
+                FinalizeSettlements => Box::new(FinalizeSettlementsExecutor::new()),
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
                 RegenerateDripActions => Box::new(RegenerateDripActionsExecutor::new(conf)),
                 SendPurchaseCompletedCommunication => Box::new(SendOrderCompleteExecutor::new(conf)),
@@ -70,6 +70,9 @@ impl DomainActionRouter {
             .expect("Configuration error");
 
         self.add_executor(BroadcastPushNotification, find_executor(BroadcastPushNotification))
+            .expect("Configuration error");
+
+        self.add_executor(FinalizeSettlements, find_executor(FinalizeSettlements))
             .expect("Configuration error");
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))

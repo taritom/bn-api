@@ -1,15 +1,15 @@
+use crate::functional::base;
+use crate::support;
+use crate::support::database::TestDatabase;
+use crate::support::test_request::TestRequest;
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::TokenResponse;
 use bigneon_api::controllers::users;
 use bigneon_api::extractors::*;
 use bigneon_api::models::{RegisterRequest, RequestInfo, UserProfileAttributes};
 use bigneon_db::prelude::*;
-use functional::base;
 use serde_json;
 use std::collections::HashMap;
-use support;
-use support::database::TestDatabase;
-use support::test_request::TestRequest;
 
 use bigneon_api::errors::BigNeonError;
 
@@ -565,6 +565,7 @@ fn current_user_organization_owner() {
             "org:users",
             "org:write",
             "redeem:ticket",
+            "scan-report:read",
             "settlement:read",
             "transfer:cancel",
             "transfer:cancel-own",
@@ -579,6 +580,7 @@ fn current_user_organization_owner() {
             "ticket-type:write",
             "user:read",
             "venue:write",
+            "websocket:initiate",
         ]
         .into_iter()
         .map(|scope| scope.parse::<Scopes>().unwrap())
@@ -647,6 +649,7 @@ fn current_user_organization_member() {
             "org:read",
             "org:read-events",
             "redeem:ticket",
+            "scan-report:read",
             "transfer:cancel",
             "transfer:cancel-own",
             "transfer:read",
@@ -658,6 +661,7 @@ fn current_user_organization_member() {
             "ticket-type:read",
             "ticket-type:write",
             "venue:write",
+            "websocket:initiate",
         ]
         .into_iter()
         .map(|scope| scope.parse::<Scopes>().unwrap())

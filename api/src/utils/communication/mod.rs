@@ -1,20 +1,20 @@
+use crate::config::{Config, EmailTemplate};
+use crate::errors::*;
+use crate::utils::expo;
+use crate::utils::sendgrid::mail as sendgrid;
+use crate::utils::twilio;
+use crate::utils::webhook;
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
 use bigneon_db::services::CountryLookup;
-use config::{Config, EmailTemplate};
 use customer_io;
 use diesel::PgConnection;
-use errors::*;
 use futures::future::Either;
 use futures::Future;
 use log::Level::Trace;
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::prelude::*;
-use utils::expo;
-use utils::sendgrid::mail as sendgrid;
-use utils::twilio;
-use utils::webhook;
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -52,7 +52,7 @@ pub fn send_async(
         CommunicationType::Push => expo::send_push_notification_async(
             &destination_addresses,
             &communication.body.unwrap_or(communication.title),
-            Some(json!(communication.extra_data.clone())),
+            communication.extra_data.map(|ed| json!(ed.clone())),
         ),
         CommunicationType::Webhook => webhook::send_webhook_async(
             &destination_addresses,

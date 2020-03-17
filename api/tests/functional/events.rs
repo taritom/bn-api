@@ -1,3 +1,7 @@
+use crate::functional::base;
+use crate::support;
+use crate::support::database::TestDatabase;
+use crate::support::test_request::{RequestBuilder, TestRequest};
 use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
@@ -9,14 +13,10 @@ use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use chrono::Duration;
 use diesel::PgConnection;
-use functional::base;
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
-use support;
-use support::database::TestDatabase;
-use support::test_request::{RequestBuilder, TestRequest};
 use uuid::Uuid;
 
 #[test]
@@ -2077,6 +2077,48 @@ mod export_event_data_tests {
     #[test]
     fn export_event_data_event_data_exporter_upcoming() {
         base::events::export_event_data(Roles::PrismIntegration, true, Some(PastOrUpcoming::Upcoming));
+    }
+}
+
+#[cfg(test)]
+mod redeem_ticket {
+    use super::*;
+
+    #[test]
+    fn redeem_ticket_org_member() {
+        base::events::redeem_ticket(Roles::OrgMember, true);
+    }
+    #[test]
+    fn redeem_ticket_admin() {
+        base::events::redeem_ticket(Roles::Admin, true);
+    }
+    #[test]
+    fn redeem_ticket_user() {
+        base::events::redeem_ticket(Roles::User, false);
+    }
+    #[test]
+    fn redeem_ticket_org_owner() {
+        base::events::redeem_ticket(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn redeem_ticket_door_person() {
+        base::events::redeem_ticket(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn redeem_ticket_promoter() {
+        base::events::redeem_ticket(Roles::Promoter, false);
+    }
+    #[test]
+    fn redeem_ticket_promoter_read_only() {
+        base::events::redeem_ticket(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn redeem_ticket_org_admin() {
+        base::events::redeem_ticket(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn redeem_ticket_box_office() {
+        base::events::redeem_ticket(Roles::OrgBoxOffice, true);
     }
 }
 

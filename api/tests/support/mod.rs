@@ -1,6 +1,8 @@
 pub mod database;
 pub mod test_request;
 
+use crate::support::database::TestDatabase;
+use crate::support::test_request::TestRequest;
 use actix_web::{http::StatusCode, Body::Binary, HttpResponse};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_db::models::{Organization, Roles, User};
@@ -8,8 +10,6 @@ use serde::Deserialize;
 use serde_json;
 use std::collections::HashMap;
 use std::str;
-use support::database::TestDatabase;
-use support::test_request::TestRequest;
 use uuid::Uuid;
 use validator::ValidationError;
 
@@ -51,7 +51,7 @@ pub fn create_auth_user_from_user(
     let test_request = TestRequest::create();
     if [Roles::Super, Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, database.connection.get()).unwrap();
-        AuthUser::new(user, &test_request.request).unwrap()
+        AuthUser::new(user, &test_request.request, None).unwrap()
     } else {
         let organization = match organization {
             Some(organization) => (*organization).clone(),
@@ -73,7 +73,7 @@ pub fn create_auth_user_from_user(
             .add_user(user.id, vec![role], event_ids, database.connection.get())
             .unwrap();
 
-        AuthUser::new(user.clone(), &test_request.request).unwrap()
+        AuthUser::new(user.clone(), &test_request.request, None).unwrap()
     }
 }
 

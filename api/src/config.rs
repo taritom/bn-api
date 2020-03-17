@@ -1,7 +1,9 @@
+use crate::errors::{ApplicationError, BigNeonError};
+use auth::default_token_issuer::DefaultTokenIssuer;
 use bigneon_db::models::{EmailProvider, Environment};
 use bigneon_db::utils::errors::EnumParseError;
+use chrono::Duration;
 use dotenv::dotenv;
-use errors::{ApplicationError, BigNeonError};
 use itertools::Itertools;
 use std::env;
 use std::fmt;
@@ -19,7 +21,13 @@ pub struct Config {
     pub app_name: String,
     pub cube_js: CubeJs,
     pub database_url: String,
+    pub redis_connection_string: Option<String>,
+    pub redis_connection_timeout: u64,
+    pub redis_read_timeout: u64,
+    pub redis_write_timeout: u64,
     pub readonly_database_url: String,
+    pub redis_cache_period: u64,
+    pub client_cache_period: u64,
     pub domain: String,
     pub email_templates: EmailTemplates,
     pub environment: Environment,
@@ -34,8 +42,7 @@ pub struct Config {
     pub block_external_comms: bool,
     pub primary_currency: String,
     pub stripe_secret_key: String,
-    pub token_secret: String,
-    pub token_issuer: String,
+    pub token_issuer: Box<DefaultTokenIssuer>,
     pub tari_client: Box<dyn TariClient + Send + Sync>,
     pub communication_default_source_email: String,
     pub communication_default_source_phone: String,
@@ -56,9 +63,10 @@ pub struct Config {
     pub twilio_account_id: String,
     pub twilio_api_key: String,
     pub api_keys_encryption_key: String,
-    pub jwt_expiry_time: u64,
+    pub jwt_expiry_time: Duration,
     pub branch_io_base_url: String,
     pub branch_io_branch_key: String,
+    pub branch_io_timeout: u64,
     pub max_instances_per_ticket_type: i64,
     pub connection_pool: ConnectionPoolConfig,
     pub ssr_trigger_header: String,
@@ -88,6 +96,7 @@ pub struct EmailTemplates {
     pub org_invite: EmailTemplate,
     pub password_reset: EmailTemplate,
     pub ticket_count_report: EmailTemplate,
+    pub resend_download_link: EmailTemplate,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -138,12 +147,19 @@ const APP_NAME: &str = "APP_NAME";
 const API_HOST: &str = "API_HOST";
 const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
+const REDIS_CONNECTION_STRING: &str = "REDIS_CONNECTION_STRING";
+const REDIS_CONNECTION_TIMEOUT_MILLI: &str = "REDIS_CONNECTION_TIMEOUT_MILLI";
+const REDIS_READ_TIMEOUT_MILLI: &str = "REDIS_READ_TIMEOUT_MILLI";
+const REDIS_WRITE_TIMEOUT_MILLI: &str = "REDIS_WRITE_TIMEOUT_MILLI";
+const REDIS_CACHE_PERIOD_MILLI: &str = "REDIS_CACHE_PERIOD_MILLI";
+const CLIENT_CACHE_PERIOD: &str = "CLIENT_CACHE_PERIOD";
 const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const EMAIL_TEMPLATES_CUSTOM_BROADCAST: &str = "EMAIL_TEMPLATES_CUSTOM_BROADCAST";
 const EMAIL_TEMPLATES_ORG_INVITE: &str = "EMAIL_TEMPLATES_ORG_INVITE";
 const EMAIL_TEMPLATES_PASSWORD_RESET: &str = "EMAIL_TEMPLATES_PASSWORD_RESET";
 const EMAIL_TEMPLATES_TICKET_COUNT_REPORT: &str = "EMAIL_TEMPLATES_TICKET_COUNT_REPORT";
+const EMAIL_TEMPLATES_RESEND_DOWNLOAD_LINK: &str = "EMAIL_TEMPLATES_RESEND_DOWNLOAD_LINK";
 const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -198,6 +214,7 @@ const API_KEYS_ENCRYPTION_KEY: &str = "API_KEYS_ENCRYPTION_KEY";
 const JWT_EXPIRY_TIME: &str = "JWT_EXPIRY_TIME";
 const BRANCH_IO_BASE_URL: &str = "BRANCH_IO_BASE_URL";
 const BRANCH_IO_BRANCH_KEY: &str = "BRANCH_IO_BRANCH_KEY";
+const BRANCH_IO_TIMEOUT: &str = "BRANCH_IO_TIMEOUT";
 
 const MAX_INSTANCES_PER_TICKET_TYPE: &str = "MAX_INSTANCES_PER_TICKET_TYPE";
 const CONNECTION_POOL_MIN: &str = "CONNECTION_POOL_MIN";
@@ -224,6 +241,43 @@ impl Config {
 
         let app_name = env::var(&APP_NAME).unwrap_or_else(|_| "Big Neon".to_string());
 
+        let redis_connection_string = match environment {
+            Environment::Test => None,
+            _ => env::var(&REDIS_CONNECTION_STRING).ok(),
+        };
+        let redis_connection_timeout = env::var(&REDIS_CONNECTION_TIMEOUT_MILLI)
+            .ok()
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid value for redis connection timeout in milliseconds")
+            })
+            .unwrap_or(50);
+        let redis_read_timeout = env::var(&REDIS_READ_TIMEOUT_MILLI)
+            .ok()
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid value for redis read timeout in milliseconds")
+            })
+            .unwrap_or(50);
+        let redis_write_timeout = env::var(&REDIS_WRITE_TIMEOUT_MILLI)
+            .ok()
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid value for redis write timeout in milliseconds")
+            })
+            .unwrap_or(50);
+        let redis_cache_period = env::var(&REDIS_CACHE_PERIOD_MILLI)
+            .ok()
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid value for redis cache period in milliseconds")
+            })
+            .unwrap_or(10000);
+        let client_cache_period = env::var(&CLIENT_CACHE_PERIOD)
+            .ok()
+            .map(|s| s.parse().expect("Not a valid value for client cache period in seconds"))
+            .unwrap_or(10);
+
         let database_url = match environment {
             Environment::Test => get_env_var(TEST_DATABASE_URL),
             _ => get_env_var(DATABASE_URL),
@@ -248,9 +302,11 @@ impl Config {
 
         let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or_else(|_| "usd".to_string());
         let stripe_secret_key = env::var(&STRIPE_SECRET_KEY).unwrap_or_else(|_| "<stripe not enabled>".to_string());
-        let token_secret = get_env_var(TOKEN_SECRET);
 
-        let token_issuer = get_env_var(TOKEN_ISSUER);
+        let token_issuer = Box::new(DefaultTokenIssuer::new(
+            get_env_var(TOKEN_SECRET),
+            get_env_var(TOKEN_ISSUER),
+        ));
 
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
 
@@ -279,6 +335,13 @@ impl Config {
 
         let branch_io_base_url = env::var(&BRANCH_IO_BASE_URL).unwrap_or("https://api2.branch.io/v1".to_string());
         let branch_io_branch_key = get_env_var(BRANCH_IO_BRANCH_KEY);
+        let branch_io_timeout = env::var(BRANCH_IO_TIMEOUT)
+            .ok()
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid value for branch.io write timeout in seconds")
+            })
+            .unwrap_or(10);
 
         let api_base_url = get_env_var(API_BASE_URL);
 
@@ -296,6 +359,7 @@ impl Config {
             org_invite: get_env_var(EMAIL_TEMPLATES_ORG_INVITE).parse().unwrap(),
             password_reset: get_env_var(EMAIL_TEMPLATES_PASSWORD_RESET).parse().unwrap(),
             ticket_count_report: get_env_var(EMAIL_TEMPLATES_TICKET_COUNT_REPORT).parse().unwrap(),
+            resend_download_link: get_env_var(EMAIL_TEMPLATES_RESEND_DOWNLOAD_LINK).parse().unwrap(),
         };
 
         let customer_io_base_url = get_env_var(CUSTOMER_IO_BASE_URL);
@@ -354,7 +418,8 @@ impl Config {
 
         let http_keep_alive = env::var(&HTTP_KEEP_ALIVE).unwrap_or("75".to_string()).parse().unwrap();
 
-        let jwt_expiry_time = env::var(&JWT_EXPIRY_TIME).unwrap_or("15".to_string()).parse().unwrap();
+        let jwt_expiry_time =
+            Duration::minutes(env::var(&JWT_EXPIRY_TIME).unwrap_or("15".to_string()).parse().unwrap());
 
         let max_instances_per_ticket_type = env::var(&MAX_INSTANCES_PER_TICKET_TYPE)
             .map(|s| {
@@ -385,6 +450,12 @@ impl Config {
             api_port,
             cube_js,
             database_url,
+            redis_connection_string,
+            redis_connection_timeout,
+            redis_read_timeout,
+            redis_write_timeout,
+            redis_cache_period,
+            client_cache_period,
             readonly_database_url,
             domain,
             email_templates,
@@ -401,7 +472,6 @@ impl Config {
             block_external_comms,
             primary_currency,
             stripe_secret_key,
-            token_secret,
             token_issuer,
             front_end_url,
             tari_client,
@@ -426,6 +496,7 @@ impl Config {
             api_keys_encryption_key,
             jwt_expiry_time,
             branch_io_branch_key,
+            branch_io_timeout,
             max_instances_per_ticket_type,
             connection_pool,
             ssr_trigger_header,

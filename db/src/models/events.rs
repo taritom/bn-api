@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use chrono::Duration;
 use chrono::Utc;
 use chrono_tz::Tz;
 use dev::times;
@@ -23,7 +24,6 @@ use services::*;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use time::Duration;
 use utils::errors::*;
 use utils::pagination::*;
 use utils::text;
@@ -416,6 +416,20 @@ impl Event {
             .set((events::settled_at.eq(dsl::now), events::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not mark event as having been settled")
+    }
+
+    pub fn find_organization_users(event_id: Uuid, conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
+        let mut users: Vec<User> = events::table
+            .inner_join(organization_users::table.on(organization_users::organization_id.eq(events::organization_id)))
+            .inner_join(users::table.on(organization_users::user_id.eq(users::id)))
+            .filter(events::id.eq(event_id))
+            .select(users::all_columns)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve organization users for event")?;
+        let mut admins = User::admins(conn)?;
+        users.append(&mut admins);
+
+        Ok(users)
     }
 
     pub fn get_all_events_with_transactions_between(
@@ -1102,14 +1116,11 @@ impl Event {
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading event",
-            events::table
-                .filter(events::deleted_at.is_null())
-                .find(id)
-                .first::<Event>(conn),
-        )
+        events::table
+            .filter(events::deleted_at.is_null())
+            .find(id)
+            .first::<Event>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event")
     }
 
     pub fn find_incl_org_venue_fees(

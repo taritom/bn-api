@@ -59,6 +59,28 @@ fn is_attending_event() {
 }
 
 #[test]
+fn admins() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let mut user3 = project.create_user().finish();
+    let mut user4 = project.create_user().finish();
+    let _organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .with_member(&user2, Roles::OrgMember)
+        .finish();
+    user3 = user3.add_role(Roles::Admin, connection).unwrap();
+    user4 = user4.add_role(Roles::Super, connection).unwrap();
+    let admins = User::admins(connection).unwrap();
+    assert!(!admins.contains(&user));
+    assert!(!admins.contains(&user2));
+    assert!(admins.contains(&user3));
+    assert!(admins.contains(&user4));
+}
+
+#[test]
 fn new_stub() {
     let first_name = "Penny".to_string();
     let last_name = "Quarter".to_string();
@@ -1977,9 +1999,9 @@ fn get_roles_by_organization() {
         .finish();
     let _organization3 = project.create_organization().with_name("Organization3".into()).finish();
 
-    let mut expected_results = HashMap::new();
-    expected_results.insert(organization.id.clone(), vec![Roles::OrgOwner]);
-    expected_results.insert(organization2.id.clone(), vec![Roles::OrgMember]);
+    let mut expected_results: HashMap<Uuid, (Vec<Roles>, Option<AdditionalOrgMemberScopes>)> = HashMap::new();
+    expected_results.insert(organization.id.clone(), (vec![Roles::OrgOwner], None));
+    expected_results.insert(organization2.id.clone(), (vec![Roles::OrgMember], None));
 
     assert_eq!(user.get_roles_by_organization(connection).unwrap(), expected_results);
 }
@@ -2046,6 +2068,7 @@ fn get_scopes_by_organization() {
             Scopes::OrgUsers,
             Scopes::OrgWrite,
             Scopes::RedeemTicket,
+            Scopes::ScanReportRead,
             Scopes::SettlementRead,
             Scopes::TransferCancel,
             Scopes::TransferCancelOwn,
@@ -2060,6 +2083,7 @@ fn get_scopes_by_organization() {
             Scopes::TicketTypeWrite,
             Scopes::UserRead,
             Scopes::VenueWrite,
+            Scopes::WebSocketInitiate,
         ],
     );
     expected_results.insert(
@@ -2096,6 +2120,7 @@ fn get_scopes_by_organization() {
             Scopes::OrgRead,
             Scopes::OrgReadEvents,
             Scopes::RedeemTicket,
+            Scopes::ScanReportRead,
             Scopes::TransferCancel,
             Scopes::TransferCancelOwn,
             Scopes::TransferRead,
@@ -2107,6 +2132,7 @@ fn get_scopes_by_organization() {
             Scopes::TicketTypeRead,
             Scopes::TicketTypeWrite,
             Scopes::VenueWrite,
+            Scopes::WebSocketInitiate,
         ],
     );
 
@@ -2208,8 +2234,13 @@ fn get_global_scopes() {
             "org:reports",
             "org:users",
             "org:write",
+            "org-venue:delete",
+            "org-venue:read",
+            "org-venue:write",
             "redeem:ticket",
             "region:write",
+            "report:admin",
+            "scan-report:read",
             "settlement-adjustment:delete",
             "settlement-adjustment:write",
             "settlement:read",
@@ -2229,7 +2260,8 @@ fn get_global_scopes() {
             "transfer:read",
             "user:delete",
             "user:read",
-            "venue:write"
+            "venue:write",
+            "websocket:initiate"
         ]
     );
     assert_equiv!(
@@ -2282,8 +2314,13 @@ fn get_global_scopes() {
             "org:reports",
             "org:users",
             "org:write",
+            "org-venue:delete",
+            "org-venue:read",
+            "org-venue:write",
             "redeem:ticket",
             "region:write",
+            "report:admin",
+            "scan-report:read",
             "settlement-adjustment:delete",
             "settlement-adjustment:write",
             "settlement:read",
@@ -2303,7 +2340,8 @@ fn get_global_scopes() {
             "transfer:read",
             "user:delete",
             "user:read",
-            "venue:write"
+            "venue:write",
+            "websocket:initiate"
         ]
     );
 }

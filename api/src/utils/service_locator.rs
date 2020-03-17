@@ -1,13 +1,13 @@
+use crate::config::Config;
+use crate::errors::*;
+use crate::payments::globee::GlobeePaymentProcessor;
+use crate::payments::stripe::StripePaymentProcessor;
+use crate::payments::PaymentProcessor;
+use crate::utils::deep_linker::BranchDeepLinker;
+use crate::utils::deep_linker::DeepLinker;
 use bigneon_db::prelude::*;
 use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::errors::DatabaseError;
-use config::Config;
-use errors::*;
-use payments::globee::GlobeePaymentProcessor;
-use payments::stripe::StripePaymentProcessor;
-use payments::PaymentProcessor;
-use utils::deep_linker::BranchDeepLinker;
-use utils::deep_linker::DeepLinker;
 
 pub struct ServiceLocator {
     stripe_secret_key: String,
@@ -15,8 +15,10 @@ pub struct ServiceLocator {
     globee_base_url: String,
     branch_io_base_url: String,
     branch_io_branch_key: String,
+    branch_io_timeout: u64,
     api_keys_encryption_key: String,
     country_lookup_service: CountryLookup,
+    token_issuer: Box<dyn TokenIssuer>,
 }
 
 impl ServiceLocator {
@@ -34,13 +36,19 @@ impl ServiceLocator {
             globee_base_url: config.globee_base_url.clone(),
             branch_io_base_url: config.branch_io_base_url.clone(),
             branch_io_branch_key: config.branch_io_branch_key.clone(),
+            branch_io_timeout: config.branch_io_timeout,
             api_keys_encryption_key: config.api_keys_encryption_key.clone(),
             country_lookup_service,
+            token_issuer: config.token_issuer.clone(),
         })
     }
 
     pub fn country_lookup_service(&self) -> &CountryLookup {
         &self.country_lookup_service
+    }
+
+    pub fn token_issuer(&self) -> &dyn TokenIssuer {
+        &*self.token_issuer
     }
 
     pub fn create_payment_processor(
@@ -71,6 +79,7 @@ impl ServiceLocator {
         Ok(Box::new(BranchDeepLinker::new(
             self.branch_io_base_url.clone(),
             self.branch_io_branch_key.clone(),
+            self.branch_io_timeout,
         )))
     }
 

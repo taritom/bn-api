@@ -3,11 +3,11 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
+const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/venues/{{last_venue_id}}';
+const apiEndPoint = '/cart';
 
 
 var response;
@@ -19,7 +19,7 @@ const put = async function (request_body) {
         .put(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_owner_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{discount_user_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,22 +28,22 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_owner_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{discount_user_token}}'))
 
         .set('Accept', 'application/json')
         .send();
 };
 
 let requestBody = `{
-    "address": "address",
-    "city":"city",
-    "country" : "the best country",
-    "postal_code" : "2222",
-    "state":"CA"
-}`;
+"items": [{
+"ticket_type_id": "{{vip_ticket_type_id}}",
+"quantity":11,
+"redemption_code": "{{discount_percentage_redemption_code}}"
+}
+]}`;
 
 
-describe('OrgOwner  - Update Venue - Public - 401', function () {
+describe('User - add more than max discount uses to cart', function () {
     before(async function () {
         response = await put(requestBody);
         log(response.request.header);
@@ -62,11 +62,20 @@ describe('OrgOwner  - Update Venue - Public - 401', function () {
 
     });
 
-    it("should be 401", function () {
-        expect(response.status).to.equal(401);
+    it("should be 422", function () {
+        expect(response.status).to.equal(422);
+    })
+
+
+    it("Error code should be max_uses_reached", function () {
+
+
+        let json = JSON.parse(responseBody);
+
+        pm.environment.set("last_cart_id", json.cart_id);
+        expect(json.fields.quantity[0].code).to.equal("max_uses_reached");
+
     });
 
 
 });
-
-            

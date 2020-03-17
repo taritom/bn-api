@@ -1,9 +1,10 @@
-use chrono::{Datelike, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono::{Datelike, Duration, NaiveDateTime, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
-use diesel;
+use dev::times;
 use diesel::dsl::select;
 use diesel::prelude::*;
 use diesel::sql_types::{Nullable, Timestamp, Uuid as dUuid};
+use diesel::{self, dsl};
 use models::*;
 use schema::{settlement_adjustments, settlements};
 use utils::errors::ConvertToDatabaseError;
@@ -113,6 +114,65 @@ impl Settlement {
         }
     }
 
+    pub fn create_next_finalize_settlements_domain_action(conn: &PgConnection) -> Result<(), DatabaseError> {
+        let now = Utc::now().naive_utc();
+        if let Some(upcoming_domain_action) =
+            DomainAction::upcoming_domain_action(None, None, DomainActionTypes::FinalizeSettlements, conn)?
+        {
+            if upcoming_domain_action.scheduled_at > now {
+                return DatabaseError::business_process_error("Finalize settlements domain action is already pending");
+            }
+        }
+
+        let mut action = DomainAction::create(
+            None,
+            DomainActionTypes::FinalizeSettlements,
+            None,
+            json!({}),
+            None,
+            None,
+        );
+        action.schedule_at(Settlement::next_finalization_date()?);
+        action.commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn next_finalization_date() -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = "America/Los_Angeles"
+            .to_string()
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+        let today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+        let days_since_monday = today.naive_local().weekday().num_days_from_monday();
+        if days_since_monday < 2 || (days_since_monday == 2 && now.naive_local().hour() < 12) {
+            let next_period_date = now + Duration::days(2 - days_since_monday as i64);
+            Ok(timezone
+                .ymd(
+                    next_period_date.year(),
+                    next_period_date.month(),
+                    next_period_date.day(),
+                )
+                .and_hms(12, 0, 0)
+                .naive_utc())
+        } else {
+            let next_period_date = now
+                + Duration::days(
+                    // Week - days since Monday + 2 days (Mon -> Wed)
+                    7 - today.naive_local().weekday().num_days_from_monday() as i64 + 2,
+                );
+            Ok(timezone
+                .ymd(
+                    next_period_date.year(),
+                    next_period_date.month(),
+                    next_period_date.day(),
+                )
+                .and_hms(12, 0, 0)
+                .naive_utc())
+        }
+    }
+
     pub fn find_last_settlement_for_organization(
         organization: &Organization,
         conn: &PgConnection,
@@ -205,19 +265,23 @@ impl Settlement {
             EventStatus::Published,
             conn,
         )?;
-        let events = if self.only_finished_events {
-            ending_events.clone()
-        } else {
-            Event::get_all_events_with_transactions_between(self.organization_id, self.start_time, self.end_time, conn)?
-        };
 
-        // Mark ending events as having been settled
         for event in ending_events {
+            if self.only_finished_events {
+                self.create_entries_from_event_transactions(&event, true, conn)?;
+            }
+            // Mark ending events as having been settled
             event.mark_settled(conn)?;
         }
 
-        for event in events {
-            self.create_entries_from_event_transactions(&event, conn)?;
+        // Attempt to record any transactions from this period (ignoring any events that have not ended if applicable)
+        // Transactions already settled above with the post event settlement will be ignored
+        for event in
+            Event::get_all_events_with_transactions_between(self.organization_id, self.start_time, self.end_time, conn)?
+        {
+            if !self.only_finished_events || event.event_end.unwrap_or(times::infinity()) < self.end_time {
+                self.create_entries_from_event_transactions(&event, false, conn)?;
+            }
         }
 
         Ok(())
@@ -226,17 +290,18 @@ impl Settlement {
     pub fn create_entries_from_event_transactions(
         &self,
         event: &Event,
+        include_all_transactions: bool,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         select(process_settlement_for_event(
             self.id,
             event.id,
-            if self.only_finished_events {
+            if include_all_transactions {
                 None
             } else {
                 Some(self.start_time)
             },
-            if self.only_finished_events {
+            if include_all_transactions {
                 None
             } else {
                 Some(self.end_time)
@@ -248,31 +313,16 @@ impl Settlement {
         Ok(())
     }
 
-    pub fn current_week_visible_date() -> Result<NaiveDateTime, DatabaseError> {
-        let timezone = "America/Los_Angeles"
-            .to_string()
-            .parse::<Tz>()
-            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+    pub fn finalize_settlements(conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::update(settlements::table.filter(settlements::status.eq(SettlementStatus::PendingSettlement)))
+            .set((
+                settlements::status.eq(SettlementStatus::FinalizedSettlement),
+                settlements::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not finalize settlements")?;
 
-        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
-        let noon_today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(12, 0, 0);
-
-        // A settlement becomes visible once it has passed Wednesday Noon PT
-        Ok(noon_today.naive_utc()
-            + Duration::days(-(noon_today.naive_local().weekday().num_days_from_monday() as i64) + 2))
-    }
-
-    pub fn current_week_cutoff_date(organization: &Organization) -> Result<NaiveDateTime, DatabaseError> {
-        let timezone = organization.timezone()?;
-        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
-
-        let today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
-        Ok(today.naive_utc() - Duration::days(today.naive_local().weekday().num_days_from_monday() as i64))
-    }
-
-    pub fn visible(&self, organization: &Organization) -> Result<bool, DatabaseError> {
-        Ok(Utc::now().naive_utc() >= Settlement::current_week_visible_date()?
-            || self.created_at < Settlement::current_week_cutoff_date(&organization)?)
+        Ok(())
     }
 
     pub fn find_for_organization(
@@ -290,11 +340,7 @@ impl Settlement {
             .into_boxed();
 
         if hide_early_settlements {
-            // If the visible date has not been reached, filter out any settlements from prior to Monday
-            if Settlement::current_week_visible_date()? > Utc::now().naive_utc() {
-                let organization = Organization::find(organization_id, conn)?;
-                query = query.filter(settlements::created_at.lt(Settlement::current_week_cutoff_date(&organization)?));
-            }
+            query = query.filter(settlements::status.eq(SettlementStatus::FinalizedSettlement));
         }
 
         let (settlements, record_count): (Vec<Settlement>, i64) = query

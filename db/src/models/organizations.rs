@@ -10,7 +10,7 @@ use models::scopes;
 use models::*;
 use schema::{
     assets, event_users, events, fee_schedules, order_items, orders, organization_users, organizations, ticket_types,
-    users, venues,
+    users,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -321,20 +321,23 @@ impl Organization {
         // Else set as number of days from today
         if let Some(settlement_period) = settlement_period_in_days {
             let next_period = today.naive_local() + Duration::days(settlement_period as i64);
-            let next_date = timezone
+            Ok(timezone
                 .ymd(next_period.year(), next_period.month(), next_period.day())
                 .and_hms(start_hour, 0, 0)
-                .naive_utc();
-
-            Ok(next_date)
+                .naive_utc())
         } else {
-            let next_date = today.naive_utc()
+            let next_period_date = now
                 + Duration::days(
                     DEFAULT_SETTLEMENT_PERIOD_IN_DAYS - today.naive_local().weekday().num_days_from_monday() as i64,
+                );
+            Ok(timezone
+                .ymd(
+                    next_period_date.year(),
+                    next_period_date.month(),
+                    next_period_date.day(),
                 )
-                + Duration::hours(start_hour as i64);
-
-            Ok(next_date)
+                .and_hms(start_hour, 0, 0)
+                .naive_utc())
         }
     }
 
@@ -528,11 +531,7 @@ impl Organization {
     }
 
     pub fn venues(&self, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
-        venues::table
-            .filter(venues::organization_id.eq(self.id))
-            .order_by(venues::name)
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
+        OrganizationVenue::find_venues_by_organization(self.id, conn)
     }
 
     pub fn has_fan(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -548,21 +547,33 @@ impl Organization {
     }
 
     pub fn get_scopes_for_user(&self, user: &User, conn: &PgConnection) -> Result<Vec<Scopes>, DatabaseError> {
-        Ok(scopes::get_scopes(self.get_roles_for_user(user, conn)?))
+        let (roles, additional_scopes) = self.get_roles_for_user(user, conn)?;
+        let user_scopes = scopes::get_scopes(roles, additional_scopes);
+
+        Ok(user_scopes)
     }
 
-    pub fn get_roles_for_user(&self, user: &User, conn: &PgConnection) -> Result<Vec<Roles>, DatabaseError> {
+    pub fn get_roles_for_user(
+        &self,
+        user: &User,
+        conn: &PgConnection,
+    ) -> Result<(Vec<Roles>, Option<AdditionalOrgMemberScopes>), DatabaseError> {
         if user.is_admin() {
             let mut roles = Vec::new();
 
             roles.push(Roles::OrgOwner);
 
-            Ok(roles)
+            Ok((roles, None))
         } else {
             let org_member = OrganizationUser::find_by_user_id(user.id, self.id, conn).optional()?;
+
             match org_member {
-                Some(member) => Ok(member.role),
-                None => Ok(vec![]),
+                Some(member) => {
+                    let additional_scopes: Option<AdditionalOrgMemberScopes> =
+                        member.additional_scopes.map(|a| a.into());
+                    Ok((member.role, additional_scopes))
+                }
+                None => Ok((vec![], None)),
             }
         }
     }
