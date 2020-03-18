@@ -2,7 +2,11 @@ use crate::functional::base;
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    FromRequest, HttpResponse,
+};
 use bigneon_api::controllers::artists;
 use bigneon_api::extractors::*;
 use bigneon_api::models::{CreateArtistRequest, PathParameters, UpdateArtistRequest};
@@ -11,8 +15,8 @@ use serde_json;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[test]
-fn index() {
+#[actix_rt::test]
+async fn index() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let artist = database.create_artist().with_name("Artist1".to_string()).finish();
@@ -23,9 +27,11 @@ fn index() {
         artist2.for_display(connection).unwrap(),
     ];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse =
-        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None))).into();
+        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None)))
+            .await
+            .into();
 
     let wrapped_expected_artists = Payload {
         data: expected_artists,
@@ -44,8 +50,8 @@ fn index() {
     assert_eq!(body, expected_json);
 }
 
-#[test]
-fn index_with_org_linked_and_private_venues() {
+#[actix_rt::test]
+async fn index_with_org_linked_and_private_venues() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let artist = database.create_artist().with_name("Artist1".to_string()).finish();
@@ -66,10 +72,12 @@ fn index_with_org_linked_and_private_venues() {
         .finish();
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     //first try with no user
     let response: HttpResponse =
-        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None))).into();
+        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None)))
+            .await
+            .into();
 
     let mut expected_artists = vec![
         artist.for_display(connection).unwrap(),
@@ -95,12 +103,13 @@ fn index_with_org_linked_and_private_venues() {
     //now try with user that does not belong to org
     let user = support::create_auth_user(Roles::User, None, &database);
     let user_id = user.id();
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
         OptionalUser(Some(user.clone())),
     ))
+    .await
     .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -114,12 +123,13 @@ fn index_with_org_linked_and_private_venues() {
         database.connection.clone().get(),
     );
     expected_artists.push(artist4.for_display(connection).unwrap());
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
         OptionalUser(Some(user)),
     ))
+    .await
     .into();
     let wrapped_expected_artists = Payload {
         data: expected_artists.clone(),
@@ -138,12 +148,13 @@ fn index_with_org_linked_and_private_venues() {
 
     //now with an admin user
     let admin = support::create_auth_user(Roles::Admin, None, &database);
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
         OptionalUser(Some(admin)),
     ))
+    .await
     .into();
     let wrapped_expected_artists = Payload {
         data: expected_artists,
@@ -161,15 +172,17 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 }
 
-#[test]
-pub fn search_no_spotify() {
+#[actix_rt::test]
+pub async fn search_no_spotify() {
     let database = TestDatabase::new();
     let artist = database.create_artist().with_name("Artist1".to_string()).finish();
 
     let expected_artists = vec![artist.id];
     let test_request = TestRequest::create_with_uri(&format!("/?q=Artist&spotify=1"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None))).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
+    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None)))
+        .await
+        .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     let collected_ids = response
@@ -182,14 +195,16 @@ pub fn search_no_spotify() {
     assert_eq!(expected_artists, collected_ids);
 }
 
-#[test]
-pub fn search_with_spotify() {
+#[actix_rt::test]
+pub async fn search_with_spotify() {
     let database = TestDatabase::new();
     let _artist = database.create_artist().with_name("Artist1".to_string()).finish();
 
     let test_request = TestRequest::create_with_uri(&format!("/?q=Powerwolf&spotify=1"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None))).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
+    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None)))
+        .await
+        .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -199,32 +214,32 @@ pub fn search_with_spotify() {
         .iter()
         .filter(|i| i.spotify_id.is_some())
         .count();
-    if test_request.extract_state().config.spotify_auth_token.is_some() {
+    if test_request.extract_state().await.config.spotify_auth_token.is_some() {
         assert_ne!(spotify_results, 0);
     } else {
         assert_eq!(spotify_results, 0);
     }
 }
 
-#[test]
-pub fn show() {
+#[actix_rt::test]
+pub async fn show() {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
     let artist_expected_json =
         serde_json::to_string(&artist.clone().for_display(database.connection.get()).unwrap()).unwrap();
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = artist.id;
 
-    let response: HttpResponse = artists::show((database.connection.into(), path)).into();
+    let response: HttpResponse = artists::show((database.connection.into(), path)).await.into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, artist_expected_json);
 }
 
-#[test]
-pub fn show_from_organizations_private_artist_same_org() {
+#[actix_rt::test]
+pub async fn show_from_organizations_private_artist_same_org() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -264,19 +279,20 @@ pub fn show_from_organizations_private_artist_same_org() {
     let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
     let test_request = TestRequest::create();
 
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = organization.id;
 
     let user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse = artists::show_from_organizations((
         database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(user)),
     ))
+    .await
     .into();
 
     assert_eq!(response.status(), StatusCode::OK);
@@ -287,82 +303,82 @@ pub fn show_from_organizations_private_artist_same_org() {
 #[cfg(test)]
 mod create_tests {
     use super::*;
-    #[test]
-    fn create_org_member() {
-        base::artists::create(Roles::OrgMember, false);
+    #[actix_rt::test]
+    async fn create_org_member() {
+        base::artists::create(Roles::OrgMember, false).await;
     }
-    #[test]
-    fn create_admin() {
-        base::artists::create(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_admin() {
+        base::artists::create(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_user() {
-        base::artists::create(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_user() {
+        base::artists::create(Roles::User, false).await;
     }
-    #[test]
-    fn create_org_owner() {
-        base::artists::create(Roles::OrgOwner, false);
+    #[actix_rt::test]
+    async fn create_org_owner() {
+        base::artists::create(Roles::OrgOwner, false).await;
     }
-    #[test]
-    fn create_door_person() {
-        base::artists::create(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn create_door_person() {
+        base::artists::create(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn create_promoter() {
-        base::artists::create(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn create_promoter() {
+        base::artists::create(Roles::Promoter, false).await;
     }
-    #[test]
-    fn create_promoter_read_only() {
-        base::artists::create(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_promoter_read_only() {
+        base::artists::create(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_org_admin() {
-        base::artists::create(Roles::OrgAdmin, false);
+    #[actix_rt::test]
+    async fn create_org_admin() {
+        base::artists::create(Roles::OrgAdmin, false).await;
     }
-    #[test]
-    fn create_box_office() {
-        base::artists::create(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn create_box_office() {
+        base::artists::create(Roles::OrgBoxOffice, false).await;
     }
-    #[test]
-    fn create_with_organization_org_member() {
-        base::artists::create_with_organization(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn create_with_organization_org_member() {
+        base::artists::create_with_organization(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn create_with_organization_admin() {
-        base::artists::create_with_organization(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_with_organization_admin() {
+        base::artists::create_with_organization(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_with_organization_user() {
-        base::artists::create_with_organization(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_with_organization_user() {
+        base::artists::create_with_organization(Roles::User, false).await;
     }
-    #[test]
-    fn create_with_organization_org_owner() {
-        base::artists::create_with_organization(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn create_with_organization_org_owner() {
+        base::artists::create_with_organization(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn create_with_organization_door_person() {
-        base::artists::create_with_organization(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn create_with_organization_door_person() {
+        base::artists::create_with_organization(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn create_with_organization_promoter() {
-        base::artists::create_with_organization(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn create_with_organization_promoter() {
+        base::artists::create_with_organization(Roles::Promoter, false).await;
     }
-    #[test]
-    fn create_with_organization_promoter_read_only() {
-        base::artists::create_with_organization(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_with_organization_promoter_read_only() {
+        base::artists::create_with_organization(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_with_organization_org_admin() {
-        base::artists::create_with_organization(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn create_with_organization_org_admin() {
+        base::artists::create_with_organization(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn create_with_organization_box_office() {
-        base::artists::create_with_organization(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn create_with_organization_box_office() {
+        base::artists::create_with_organization(Roles::OrgBoxOffice, false).await;
     }
 }
 
-#[test]
-pub fn create_with_validation_errors() {
+#[actix_rt::test]
+pub async fn create_with_validation_errors() {
     let database = TestDatabase::new();
 
     let name = "Artist Example";
@@ -376,7 +392,7 @@ pub fn create_with_validation_errors() {
         ..Default::default()
     });
     let user = support::create_auth_user(Roles::Admin, None, &database);
-    let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
+    let response: HttpResponse = artists::create((database.connection.into(), json, user)).await.into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -398,169 +414,169 @@ pub fn create_with_validation_errors() {
 #[cfg(test)]
 mod toggle_privacy_tests {
     use super::*;
-    #[test]
-    fn toggle_privacy_org_member() {
-        base::artists::toggle_privacy(Roles::OrgMember, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_org_member() {
+        base::artists::toggle_privacy(Roles::OrgMember, false).await;
     }
-    #[test]
-    fn toggle_privacy_admin() {
-        base::artists::toggle_privacy(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn toggle_privacy_admin() {
+        base::artists::toggle_privacy(Roles::Admin, true).await;
     }
-    #[test]
-    fn toggle_privacy_user() {
-        base::artists::toggle_privacy(Roles::User, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_user() {
+        base::artists::toggle_privacy(Roles::User, false).await;
     }
-    #[test]
-    fn toggle_privacy_org_owner() {
-        base::artists::toggle_privacy(Roles::OrgOwner, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_org_owner() {
+        base::artists::toggle_privacy(Roles::OrgOwner, false).await;
     }
-    #[test]
-    fn toggle_privacy_door_person() {
-        base::artists::toggle_privacy(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_door_person() {
+        base::artists::toggle_privacy(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn toggle_privacy_promoter() {
-        base::artists::toggle_privacy(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_promoter() {
+        base::artists::toggle_privacy(Roles::Promoter, false).await;
     }
-    #[test]
-    fn toggle_privacy_promoter_read_only() {
-        base::artists::toggle_privacy(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_promoter_read_only() {
+        base::artists::toggle_privacy(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn toggle_privacy_org_admin() {
-        base::artists::toggle_privacy(Roles::OrgAdmin, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_org_admin() {
+        base::artists::toggle_privacy(Roles::OrgAdmin, false).await;
     }
-    #[test]
-    fn toggle_privacy_box_office() {
-        base::artists::toggle_privacy(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn toggle_privacy_box_office() {
+        base::artists::toggle_privacy(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod update_tests {
     use super::*;
-    #[test]
-    fn update_org_member() {
-        base::artists::update(Roles::OrgMember, false);
+    #[actix_rt::test]
+    async fn update_org_member() {
+        base::artists::update(Roles::OrgMember, false).await;
     }
-    #[test]
-    fn update_admin() {
-        base::artists::update(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn update_admin() {
+        base::artists::update(Roles::Admin, true).await;
     }
-    #[test]
-    fn update_user() {
-        base::artists::update(Roles::User, false);
+    #[actix_rt::test]
+    async fn update_user() {
+        base::artists::update(Roles::User, false).await;
     }
-    #[test]
-    fn update_org_owner() {
-        base::artists::update(Roles::OrgOwner, false);
+    #[actix_rt::test]
+    async fn update_org_owner() {
+        base::artists::update(Roles::OrgOwner, false).await;
     }
-    #[test]
-    fn update_door_person() {
-        base::artists::update(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn update_door_person() {
+        base::artists::update(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn update_promoter() {
-        base::artists::update(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn update_promoter() {
+        base::artists::update(Roles::Promoter, false).await;
     }
-    #[test]
-    fn update_promoter_read_only() {
-        base::artists::update(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn update_promoter_read_only() {
+        base::artists::update(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn update_org_admin() {
-        base::artists::update(Roles::OrgAdmin, false);
+    #[actix_rt::test]
+    async fn update_org_admin() {
+        base::artists::update(Roles::OrgAdmin, false).await;
     }
-    #[test]
-    fn update_box_office() {
-        base::artists::update(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn update_box_office() {
+        base::artists::update(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod update_with_organization_tests {
     use super::*;
-    #[test]
-    fn update_with_organization_org_member() {
-        base::artists::update_with_organization(Roles::OrgMember, true, true);
+    #[actix_rt::test]
+    async fn update_with_organization_org_member() {
+        base::artists::update_with_organization(Roles::OrgMember, true, true).await;
     }
-    #[test]
-    fn update_with_organization_admin() {
-        base::artists::update_with_organization(Roles::Admin, true, true);
+    #[actix_rt::test]
+    async fn update_with_organization_admin() {
+        base::artists::update_with_organization(Roles::Admin, true, true).await;
     }
-    #[test]
-    fn update_with_organization_user() {
-        base::artists::update_with_organization(Roles::User, false, true);
+    #[actix_rt::test]
+    async fn update_with_organization_user() {
+        base::artists::update_with_organization(Roles::User, false, true).await;
     }
-    #[test]
-    fn update_with_organization_org_owner() {
-        base::artists::update_with_organization(Roles::OrgOwner, true, true);
+    #[actix_rt::test]
+    async fn update_with_organization_org_owner() {
+        base::artists::update_with_organization(Roles::OrgOwner, true, true).await;
     }
-    #[test]
-    fn update_with_organization_door_person() {
-        base::artists::update_with_organization(Roles::DoorPerson, false, true);
+    #[actix_rt::test]
+    async fn update_with_organization_door_person() {
+        base::artists::update_with_organization(Roles::DoorPerson, false, true).await;
     }
-    #[test]
-    fn update_with_organization_promoter() {
-        base::artists::update_with_organization(Roles::Promoter, false, true);
+    #[actix_rt::test]
+    async fn update_with_organization_promoter() {
+        base::artists::update_with_organization(Roles::Promoter, false, true).await;
     }
-    #[test]
-    fn update_with_organization_promoter_read_only() {
-        base::artists::update_with_organization(Roles::PromoterReadOnly, false, true);
+    #[actix_rt::test]
+    async fn update_with_organization_promoter_read_only() {
+        base::artists::update_with_organization(Roles::PromoterReadOnly, false, true).await;
     }
-    #[test]
-    fn update_with_organization_org_admin() {
-        base::artists::update_with_organization(Roles::OrgAdmin, true, true);
+    #[actix_rt::test]
+    async fn update_with_organization_org_admin() {
+        base::artists::update_with_organization(Roles::OrgAdmin, true, true).await;
     }
-    #[test]
-    fn update_with_organization_box_office() {
-        base::artists::update_with_organization(Roles::OrgBoxOffice, false, true);
+    #[actix_rt::test]
+    async fn update_with_organization_box_office() {
+        base::artists::update_with_organization(Roles::OrgBoxOffice, false, true).await;
     }
 }
 
 #[cfg(test)]
 mod update_public_artist_with_organization_tests {
     use super::*;
-    #[test]
-    fn update_public_artist_with_organization_org_member() {
-        base::artists::update_with_organization(Roles::OrgMember, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_org_member() {
+        base::artists::update_with_organization(Roles::OrgMember, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_admin() {
-        base::artists::update_with_organization(Roles::Admin, true, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_admin() {
+        base::artists::update_with_organization(Roles::Admin, true, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_user() {
-        base::artists::update_with_organization(Roles::User, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_user() {
+        base::artists::update_with_organization(Roles::User, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_org_owner() {
-        base::artists::update_with_organization(Roles::OrgOwner, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_org_owner() {
+        base::artists::update_with_organization(Roles::OrgOwner, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_door_person() {
-        base::artists::update_with_organization(Roles::DoorPerson, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_door_person() {
+        base::artists::update_with_organization(Roles::DoorPerson, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_promoter() {
-        base::artists::update_with_organization(Roles::Promoter, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_promoter() {
+        base::artists::update_with_organization(Roles::Promoter, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_promoter_read_only() {
-        base::artists::update_with_organization(Roles::PromoterReadOnly, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_promoter_read_only() {
+        base::artists::update_with_organization(Roles::PromoterReadOnly, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_org_admin() {
-        base::artists::update_with_organization(Roles::OrgAdmin, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_org_admin() {
+        base::artists::update_with_organization(Roles::OrgAdmin, false, false).await;
     }
-    #[test]
-    fn update_public_artist_with_organization_box_office() {
-        base::artists::update_with_organization(Roles::OrgBoxOffice, false, false);
+    #[actix_rt::test]
+    async fn update_public_artist_with_organization_box_office() {
+        base::artists::update_with_organization(Roles::OrgBoxOffice, false, false).await;
     }
 }
 
-#[test]
-pub fn update_with_validation_errors() {
+#[actix_rt::test]
+pub async fn update_with_validation_errors() {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
     let name = "New Name";
@@ -569,7 +585,7 @@ pub fn update_with_validation_errors() {
 
     let user = support::create_auth_user(Roles::Admin, None, &database);
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = artist.id;
 
     let mut attributes: UpdateArtistRequest = Default::default();
@@ -579,7 +595,9 @@ pub fn update_with_validation_errors() {
     attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
     let json = Json(attributes);
 
-    let response: HttpResponse = artists::update((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = artists::update((database.connection.into(), path, json, user))
+        .await
+        .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());

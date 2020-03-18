@@ -4,7 +4,10 @@ use crate::db::Connection;
 use crate::errors::*;
 use crate::helpers::application;
 use crate::server::AppState;
-use actix_web::{HttpResponse, Json, State};
+use actix_web::{
+    web::{Data, Json},
+    HttpResponse,
+};
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
 use bigneon_db::models::User;
 use bigneon_db::utils::errors::Optional;
@@ -17,8 +20,8 @@ pub struct UserInviteRequest {
     pub email: String,
 }
 
-pub fn create(
-    (state, connection, parameters, auth_user): (State<AppState>, Connection, Json<UserInviteRequest>, AuthUser),
+pub async fn create(
+    (state, connection, parameters, auth_user): (Data<AppState>, Connection, Json<UserInviteRequest>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let email = parameters.email.trim().to_lowercase();

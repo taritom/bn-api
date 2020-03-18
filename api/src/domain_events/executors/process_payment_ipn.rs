@@ -22,10 +22,10 @@ pub struct ProcessPaymentIPNExecutor {
 impl DomainActionExecutor for ProcessPaymentIPNExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
         match self.perform_job(&action, &conn) {
-            Ok(_) => ExecutorFuture::new(action, conn, Box::new(future::ok(()))),
+            Ok(_) => ExecutorFuture::new(action, conn, Box::pin(future::ok(()))),
             Err(e) => {
                 jlog!(Error, "Payment IPN processor failed", {"action_id": action.id, "main_table_id":action.main_table_id,  "error": e.to_string()});
-                ExecutorFuture::new(action, conn, Box::new(future::err(e)))
+                ExecutorFuture::new(action, conn, Box::pin(future::err(e)))
             }
         }
     }
@@ -97,7 +97,9 @@ impl ProcessPaymentIPNExecutor {
         if order.is_expired() && (order.status == OrderStatus::PendingPayment || order.status == OrderStatus::Draft) {
             match order.try_refresh_expired_cart(None, connection) {
                 Ok(_) => jlog!(Debug, "IPN: refreshed expired cart", {"ipn_id": ipn.id, "order_id": order.id}),
-                Err(_) => jlog!(Debug, "IPN: Attempted to refresh expired cart but failed", {"ipn_id": ipn.id, "order_id": order.id}),
+                Err(_) => {
+                    jlog!(Debug, "IPN: Attempted to refresh expired cart but failed", {"ipn_id": ipn.id, "order_id": order.id})
+                }
             }
         }
 

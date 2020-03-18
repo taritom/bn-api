@@ -1,7 +1,7 @@
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, web::Path, FromRequest, HttpResponse};
 use bigneon_api::controllers::orders::{self, *};
 use bigneon_api::errors::BigNeonError;
 use bigneon_api::extractors::Json;
@@ -10,7 +10,7 @@ use bigneon_db::models::*;
 use serde_json;
 use std::collections::HashMap;
 
-pub fn resend_confirmation(role: Roles, should_succeed: bool) {
+pub async fn resend_confirmation(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -38,15 +38,16 @@ pub fn resend_confirmation(role: Roles, should_succeed: bool) {
     assert_eq!(order.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = order.id;
 
     let response: HttpResponse = orders::resend_confirmation((
         database.connection.clone(),
         path,
         auth_user,
-        test_request.extract_state(),
+        test_request.extract_state().await,
     ))
+    .await
     .into();
 
     if should_succeed {
@@ -56,7 +57,7 @@ pub fn resend_confirmation(role: Roles, should_succeed: bool) {
     }
 }
 
-pub fn show_other_user_order(role: Roles, should_succeed: bool) {
+pub async fn show_other_user_order(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -86,11 +87,13 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
     assert_eq!(order.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = order.id;
 
-    let state = test_request.extract_state();
-    let response: HttpResponse = orders::show((state, database.connection.clone(), path, auth_user)).into();
+    let state = test_request.extract_state().await;
+    let response: HttpResponse = orders::show((state, database.connection.clone(), path, auth_user))
+        .await
+        .into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -102,7 +105,7 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
     }
 }
 
-pub fn activity(role: Roles, should_test_true: bool) {
+pub async fn activity(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -143,10 +146,10 @@ pub fn activity(role: Roles, should_test_true: bool) {
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = order.id;
     let response: Result<WebPayload<ActivityItem>, BigNeonError> =
-        orders::activity((database.connection.clone().into(), path, auth_user.clone()));
+        orders::activity((database.connection.clone().into(), path, auth_user.clone())).await;
 
     if should_test_true {
         let response = response.unwrap();
@@ -177,7 +180,7 @@ pub fn activity(role: Roles, should_test_true: bool) {
     }
 }
 
-pub fn show_other_user_order_not_matching_users_organization(role: Roles, should_succeed: bool) {
+pub async fn show_other_user_order_not_matching_users_organization(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
     let user = database.create_user().finish();
@@ -199,10 +202,12 @@ pub fn show_other_user_order_not_matching_users_organization(role: Roles, should
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = order.id;
-    let state = test_request.extract_state();
-    let response: HttpResponse = orders::show((state, database.connection.clone(), path, auth_user)).into();
+    let state = test_request.extract_state().await;
+    let response: HttpResponse = orders::show((state, database.connection.clone(), path, auth_user))
+        .await
+        .into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -214,7 +219,7 @@ pub fn show_other_user_order_not_matching_users_organization(role: Roles, should
     }
 }
 
-pub fn details(role: Roles, should_succeed: bool) {
+pub async fn details(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -348,10 +353,12 @@ pub fn details(role: Roles, should_succeed: bool) {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = cart.id;
 
-    let response: HttpResponse = orders::details((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::details((database.connection.clone(), path, auth_user))
+        .await
+        .into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -364,7 +371,7 @@ pub fn details(role: Roles, should_succeed: bool) {
     }
 }
 
-pub fn refund(role: Roles, manual_override: bool, should_succeed: bool) {
+pub async fn refund(role: Roles, manual_override: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let organization = database.create_organization().with_event_fee().with_fees().finish();
@@ -428,15 +435,16 @@ pub fn refund(role: Roles, manual_override: bool, should_succeed: bool) {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = cart.id;
     let response: HttpResponse = orders::refund((
         database.connection.clone(),
         path,
         json,
         auth_user,
-        test_request.extract_state(),
+        test_request.extract_state().await,
     ))
+    .await
     .into();
 
     if should_succeed {

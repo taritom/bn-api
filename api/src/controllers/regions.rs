@@ -4,10 +4,14 @@ use crate::errors::*;
 use crate::extractors::*;
 use crate::models::PathParameters;
 use crate::models::WebPayload;
-use actix_web::{http::StatusCode, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::*;
 
-pub fn index(
+pub async fn index(
     (connection, query_parameters): (Connection, Query<PagingParameters>),
 ) -> Result<WebPayload<Region>, BigNeonError> {
     //TODO refactor query using paging parameters
@@ -19,12 +23,12 @@ pub fn index(
     ))
 }
 
-pub fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
+pub async fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     let region = Region::find(parameters.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&region))
 }
 
-pub fn create(
+pub async fn create(
     (connection, new_region, user): (Connection, Json<NewRegion>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::RegionWrite)?;
@@ -33,7 +37,7 @@ pub fn create(
     Ok(HttpResponse::Created().json(&region))
 }
 
-pub fn update(
+pub async fn update(
     (connection, parameters, region_parameters, user): (
         Connection,
         Path<PathParameters>,

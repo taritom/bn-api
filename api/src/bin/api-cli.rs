@@ -1,18 +1,4 @@
 #![deny(unused_extern_crates)]
-extern crate bigneon_api;
-extern crate bigneon_db;
-extern crate dotenv;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate logging;
-#[macro_use]
-extern crate clap;
-extern crate diesel;
-extern crate uuid;
-#[macro_use]
-extern crate serde_json;
-
 use bigneon_api::config::Config;
 use bigneon_api::db::Database;
 use bigneon_api::utils::spotify;
@@ -22,7 +8,9 @@ use bigneon_db::schema::transfers;
 use clap::*;
 use diesel::prelude::*;
 use dotenv::dotenv;
-use log::Level::*;
+use log::{error, info, Level::*};
+use logging::jlog;
+use serde_json::json;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::{thread, time};
@@ -204,7 +192,9 @@ fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
     let connection = connection.get();
 
     let organizations = match org_id {
-        Some(organization_id) => vec![Organization::find(Uuid::from_str(organization_id).unwrap(), connection).unwrap()],
+        Some(organization_id) => {
+            vec![Organization::find(Uuid::from_str(organization_id).unwrap(), connection).unwrap()]
+        }
 
         None => Organization::all(connection).unwrap(),
     };

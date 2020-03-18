@@ -5,6 +5,7 @@ use actix_web::HttpResponse;
 use actix_web::Responder;
 use bigneon_db::models::{Scopes, TokenIssuer, User};
 use chrono::Duration;
+use futures::future::{err, ok, Ready};
 use serde_json;
 use uuid::Uuid;
 
@@ -15,12 +16,14 @@ pub struct TokenResponse {
 }
 
 impl Responder for TokenResponse {
-    type Item = HttpResponse;
+    type Future = Ready<Result<HttpResponse, Error>>;
     type Error = Error;
 
-    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
-        let body = serde_json::to_string(&self)?;
-        Ok(HttpResponse::Ok().content_type("application/json").body(body))
+    fn respond_to(self, _req: &HttpRequest) -> Self::Future {
+        match serde_json::to_string(&self) {
+            Ok(body) => ok(HttpResponse::Ok().content_type("application/json").body(body)),
+            Err(e) => err(e.into()),
+        }
     }
 }
 

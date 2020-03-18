@@ -2,7 +2,7 @@ use crate::functional::base;
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, web::Path, FromRequest, HttpResponse};
 use bigneon_api::controllers::codes::{self, *};
 use bigneon_api::extractors::*;
 use bigneon_api::models::PathParameters;
@@ -14,169 +14,169 @@ use chrono::NaiveDateTime;
 #[cfg(test)]
 mod show_tests {
     use super::*;
-    #[test]
-    fn show_org_member() {
-        base::codes::show(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn show_org_member() {
+        base::codes::show(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn show_admin() {
-        base::codes::show(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn show_admin() {
+        base::codes::show(Roles::Admin, true).await;
     }
-    #[test]
-    fn show_user() {
-        base::codes::show(Roles::User, false);
+    #[actix_rt::test]
+    async fn show_user() {
+        base::codes::show(Roles::User, false).await;
     }
-    #[test]
-    fn show_org_owner() {
-        base::codes::show(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn show_org_owner() {
+        base::codes::show(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn show_door_person() {
-        base::codes::show(Roles::DoorPerson, true);
+    #[actix_rt::test]
+    async fn show_door_person() {
+        base::codes::show(Roles::DoorPerson, true).await;
     }
-    #[test]
-    fn show_promoter() {
-        base::codes::show(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn show_promoter() {
+        base::codes::show(Roles::Promoter, true).await;
     }
-    #[test]
-    fn show_promoter_read_only() {
-        base::codes::show(Roles::PromoterReadOnly, true);
+    #[actix_rt::test]
+    async fn show_promoter_read_only() {
+        base::codes::show(Roles::PromoterReadOnly, true).await;
     }
-    #[test]
-    fn show_org_admin() {
-        base::codes::show(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn show_org_admin() {
+        base::codes::show(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn show_box_office() {
-        base::codes::show(Roles::OrgBoxOffice, true);
+    #[actix_rt::test]
+    async fn show_box_office() {
+        base::codes::show(Roles::OrgBoxOffice, true).await;
     }
 }
 
 #[cfg(test)]
 mod create_tests {
     use super::*;
-    #[test]
-    fn create_org_member() {
-        base::codes::create(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn create_org_member() {
+        base::codes::create(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn create_admin() {
-        base::codes::create(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_admin() {
+        base::codes::create(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_user() {
-        base::codes::create(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_user() {
+        base::codes::create(Roles::User, false).await;
     }
-    #[test]
-    fn create_org_owner() {
-        base::codes::create(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn create_org_owner() {
+        base::codes::create(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn create_door_person() {
-        base::codes::create(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn create_door_person() {
+        base::codes::create(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn create_promoter() {
-        base::codes::create(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn create_promoter() {
+        base::codes::create(Roles::Promoter, true).await;
     }
-    #[test]
-    fn create_promoter_read_only() {
-        base::codes::create(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_promoter_read_only() {
+        base::codes::create(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_org_admin() {
-        base::codes::create(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn create_org_admin() {
+        base::codes::create(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn create_box_office() {
-        base::codes::create(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn create_box_office() {
+        base::codes::create(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod update_tests {
     use super::*;
-    #[test]
-    fn update_org_member() {
-        base::codes::update(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn update_org_member() {
+        base::codes::update(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn update_admin() {
-        base::codes::update(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn update_admin() {
+        base::codes::update(Roles::Admin, true).await;
     }
-    #[test]
-    fn update_user() {
-        base::codes::update(Roles::User, false);
+    #[actix_rt::test]
+    async fn update_user() {
+        base::codes::update(Roles::User, false).await;
     }
-    #[test]
-    fn update_org_owner() {
-        base::codes::update(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn update_org_owner() {
+        base::codes::update(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn update_door_person() {
-        base::codes::update(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn update_door_person() {
+        base::codes::update(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn update_promoter() {
-        base::codes::update(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn update_promoter() {
+        base::codes::update(Roles::Promoter, true).await;
     }
-    #[test]
-    fn update_promoter_read_only() {
-        base::codes::update(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn update_promoter_read_only() {
+        base::codes::update(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn update_org_admin() {
-        base::codes::update(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn update_org_admin() {
+        base::codes::update(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn update_box_office() {
-        base::codes::update(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn update_box_office() {
+        base::codes::update(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod destroy_tests {
     use super::*;
-    #[test]
-    fn destroy_org_member() {
-        base::codes::destroy(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn destroy_org_member() {
+        base::codes::destroy(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn destroy_admin() {
-        base::codes::destroy(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn destroy_admin() {
+        base::codes::destroy(Roles::Admin, true).await;
     }
-    #[test]
-    fn destroy_user() {
-        base::codes::destroy(Roles::User, false);
+    #[actix_rt::test]
+    async fn destroy_user() {
+        base::codes::destroy(Roles::User, false).await;
     }
-    #[test]
-    fn destroy_org_owner() {
-        base::codes::destroy(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn destroy_org_owner() {
+        base::codes::destroy(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn destroy_door_person() {
-        base::codes::destroy(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn destroy_door_person() {
+        base::codes::destroy(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn destroy_promoter() {
-        base::codes::destroy(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn destroy_promoter() {
+        base::codes::destroy(Roles::Promoter, true).await;
     }
-    #[test]
-    fn destroy_promoter_read_only() {
-        base::codes::destroy(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn destroy_promoter_read_only() {
+        base::codes::destroy(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn destroy_org_admin() {
-        base::codes::destroy(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn destroy_org_admin() {
+        base::codes::destroy(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn destroy_box_office() {
-        base::codes::destroy(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn destroy_box_office() {
+        base::codes::destroy(Roles::OrgBoxOffice, false).await;
     }
 }
 
-#[test]
-fn create_with_validation_errors() {
+#[actix_rt::test]
+async fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -201,11 +201,12 @@ fn create_with_validation_errors() {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        codes::create((database.connection.clone().into(), json, path, auth_user.clone())).into();
+    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user.clone()))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -231,11 +232,12 @@ fn create_with_validation_errors() {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        codes::create((database.connection.clone().into(), json, path, auth_user.clone())).into();
+    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user.clone()))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -257,10 +259,12 @@ fn create_with_validation_errors() {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -269,8 +273,8 @@ fn create_with_validation_errors() {
     assert_eq!(discount_err[0].code, "only_single_discount_type_allowed");
 }
 
-#[test]
-fn create_fails_adding_ticket_type_id_from_other_event() {
+#[actix_rt::test]
+async fn create_fails_adding_ticket_type_id_from_other_event() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -296,10 +300,12 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
     });
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = codes::create((database.connection.clone().into(), json, path, auth_user))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -312,8 +318,8 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
     );
 }
 
-#[test]
-fn update_with_validation_errors() {
+#[actix_rt::test]
+async fn update_with_validation_errors() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -323,7 +329,7 @@ fn update_with_validation_errors() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = code.id;
 
     let start_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
@@ -335,7 +341,9 @@ fn update_with_validation_errors() {
         ..Default::default()
     });
 
-    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -348,8 +356,8 @@ fn update_with_validation_errors() {
     );
 }
 
-#[test]
-fn update_fails_adding_ticket_type_id_from_other_event() {
+#[actix_rt::test]
+async fn update_fails_adding_ticket_type_id_from_other_event() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -361,7 +369,7 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = code.id;
 
     let json = Json(UpdateCodeRequest {
@@ -369,7 +377,9 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
         ..Default::default()
     });
 
-    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -382,8 +392,8 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
     );
 }
 
-#[test]
-pub fn update_adding_keeping_and_removing_ticket_types() {
+#[actix_rt::test]
+pub async fn update_adding_keeping_and_removing_ticket_types() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -412,7 +422,7 @@ pub fn update_adding_keeping_and_removing_ticket_types() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = code.id;
 
     // Keep ticket_type, remove ticket_type2, add ticket_type3
@@ -421,7 +431,9 @@ pub fn update_adding_keeping_and_removing_ticket_types() {
         ..Default::default()
     });
 
-    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = codes::update((database.connection.clone().into(), json, path, auth_user))
+        .await
+        .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);

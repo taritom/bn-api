@@ -4,8 +4,8 @@ use bigneon_db::dev::HoldBuilder;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
 
-#[test]
-pub fn ticket_counts_report() {
+#[actix_rt::test]
+pub async fn ticket_counts_report() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -378,14 +378,14 @@ pub fn ticket_counts_report() {
     //    });
     //
     //    let test_request = TestRequest::create();
-    //    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    //    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     //    path.id = cart.id;
     //    let response: HttpResponse = orders::refund((
     //        database.connection.clone(),
     //        path,
     //        json,
     //        auth_user,
-    //        test_request.extract_state(),
+    //        test_request.extract_state().await,
     //    ))
     //        .into();
 }
@@ -393,167 +393,167 @@ pub fn ticket_counts_report() {
 #[cfg(test)]
 mod scan_counts_tests {
     use super::*;
-    #[test]
-    fn scan_counts_org_member() {
-        base::reports::scan_counts(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn scan_counts_org_member() {
+        base::reports::scan_counts(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn scan_counts_admin() {
-        base::reports::scan_counts(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn scan_counts_admin() {
+        base::reports::scan_counts(Roles::Admin, true).await;
     }
-    #[test]
-    fn scan_counts_super() {
-        base::reports::scan_counts(Roles::Super, true);
+    #[actix_rt::test]
+    async fn scan_counts_super() {
+        base::reports::scan_counts(Roles::Super, true).await;
     }
-    #[test]
-    fn scan_counts_user() {
-        base::reports::scan_counts(Roles::User, false);
+    #[actix_rt::test]
+    async fn scan_counts_user() {
+        base::reports::scan_counts(Roles::User, false).await;
     }
-    #[test]
-    fn scan_counts_org_owner() {
-        base::reports::scan_counts(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn scan_counts_org_owner() {
+        base::reports::scan_counts(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn scan_counts_door_person() {
-        base::reports::scan_counts(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn scan_counts_door_person() {
+        base::reports::scan_counts(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn scan_counts_promoter() {
-        base::reports::scan_counts(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn scan_counts_promoter() {
+        base::reports::scan_counts(Roles::Promoter, true).await;
     }
-    #[test]
-    fn scan_counts_promoter_read_only() {
-        base::reports::scan_counts(Roles::PromoterReadOnly, true);
+    #[actix_rt::test]
+    async fn scan_counts_promoter_read_only() {
+        base::reports::scan_counts(Roles::PromoterReadOnly, true).await;
     }
-    #[test]
-    fn scan_counts_org_admin() {
-        base::reports::scan_counts(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn scan_counts_org_admin() {
+        base::reports::scan_counts(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn scan_counts_box_office() {
-        base::reports::scan_counts(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn scan_counts_box_office() {
+        base::reports::scan_counts(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod box_office_sales_summary_tests {
     use super::*;
-    #[test]
-    fn box_office_sales_summary_org_member() {
-        base::reports::box_office_sales_summary(Roles::OrgMember, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_org_member() {
+        base::reports::box_office_sales_summary(Roles::OrgMember, false).await;
     }
-    #[test]
-    fn box_office_sales_summary_admin() {
-        base::reports::box_office_sales_summary(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_admin() {
+        base::reports::box_office_sales_summary(Roles::Admin, true).await;
     }
-    #[test]
-    fn box_office_sales_summary_user() {
-        base::reports::box_office_sales_summary(Roles::User, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_user() {
+        base::reports::box_office_sales_summary(Roles::User, false).await;
     }
-    #[test]
-    fn box_office_sales_summary_org_owner() {
-        base::reports::box_office_sales_summary(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_org_owner() {
+        base::reports::box_office_sales_summary(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn box_office_sales_summary_door_person() {
-        base::reports::box_office_sales_summary(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_door_person() {
+        base::reports::box_office_sales_summary(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn box_office_sales_summary_promoter() {
-        base::reports::box_office_sales_summary(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_promoter() {
+        base::reports::box_office_sales_summary(Roles::Promoter, false).await;
     }
-    #[test]
-    fn box_office_sales_summary_promoter_read_only() {
-        base::reports::box_office_sales_summary(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_promoter_read_only() {
+        base::reports::box_office_sales_summary(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn box_office_sales_summary_org_admin() {
-        base::reports::box_office_sales_summary(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_org_admin() {
+        base::reports::box_office_sales_summary(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn box_office_sales_summary_box_office() {
-        base::reports::box_office_sales_summary(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn box_office_sales_summary_box_office() {
+        base::reports::box_office_sales_summary(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod transaction_detail_report_tests {
     use super::*;
-    #[test]
-    fn transaction_detail_report_org_member() {
-        base::reports::transaction_detail_report(Roles::OrgMember, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_org_member() {
+        base::reports::transaction_detail_report(Roles::OrgMember, false, false).await;
     }
-    #[test]
-    fn transaction_detail_report_admin() {
-        base::reports::transaction_detail_report(Roles::Admin, true, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_admin() {
+        base::reports::transaction_detail_report(Roles::Admin, true, false).await;
     }
-    #[test]
-    fn transaction_detail_report_user() {
-        base::reports::transaction_detail_report(Roles::User, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_user() {
+        base::reports::transaction_detail_report(Roles::User, false, false).await;
     }
-    #[test]
-    fn transaction_detail_report_org_owner() {
-        base::reports::transaction_detail_report(Roles::OrgOwner, true, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_org_owner() {
+        base::reports::transaction_detail_report(Roles::OrgOwner, true, false).await;
     }
-    #[test]
-    fn transaction_detail_report_door_person() {
-        base::reports::transaction_detail_report(Roles::DoorPerson, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_door_person() {
+        base::reports::transaction_detail_report(Roles::DoorPerson, false, false).await;
     }
-    #[test]
-    fn transaction_detail_report_promoter() {
-        base::reports::transaction_detail_report(Roles::Promoter, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_promoter() {
+        base::reports::transaction_detail_report(Roles::Promoter, false, false).await;
     }
-    #[test]
-    fn transaction_detail_report_promoter_read_only() {
-        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_promoter_read_only() {
+        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, false).await;
     }
-    #[test]
-    fn transaction_detail_report_org_admin() {
-        base::reports::transaction_detail_report(Roles::OrgAdmin, true, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_org_admin() {
+        base::reports::transaction_detail_report(Roles::OrgAdmin, true, false).await;
     }
-    #[test]
-    fn transaction_detail_report_box_office() {
-        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, false);
+    #[actix_rt::test]
+    async fn transaction_detail_report_box_office() {
+        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, false).await;
     }
 }
 
 #[cfg(test)]
 mod transaction_detail_report_with_event_tests {
     use super::*;
-    #[test]
-    fn transaction_detail_report_with_event_org_member() {
-        base::reports::transaction_detail_report(Roles::OrgMember, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_org_member() {
+        base::reports::transaction_detail_report(Roles::OrgMember, false, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_admin() {
-        base::reports::transaction_detail_report(Roles::Admin, true, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_admin() {
+        base::reports::transaction_detail_report(Roles::Admin, true, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_user() {
-        base::reports::transaction_detail_report(Roles::User, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_user() {
+        base::reports::transaction_detail_report(Roles::User, false, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_org_owner() {
-        base::reports::transaction_detail_report(Roles::OrgOwner, true, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_org_owner() {
+        base::reports::transaction_detail_report(Roles::OrgOwner, true, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_door_person() {
-        base::reports::transaction_detail_report(Roles::DoorPerson, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_door_person() {
+        base::reports::transaction_detail_report(Roles::DoorPerson, false, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_promoter() {
-        base::reports::transaction_detail_report(Roles::Promoter, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_promoter() {
+        base::reports::transaction_detail_report(Roles::Promoter, false, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_promoter_read_only() {
-        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_promoter_read_only() {
+        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_org_admin() {
-        base::reports::transaction_detail_report(Roles::OrgAdmin, true, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_org_admin() {
+        base::reports::transaction_detail_report(Roles::OrgAdmin, true, true).await;
     }
-    #[test]
-    fn transaction_detail_report_with_event_box_office() {
-        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, true);
+    #[actix_rt::test]
+    async fn transaction_detail_report_with_event_box_office() {
+        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, true).await;
     }
 }

@@ -1,4 +1,8 @@
-use actix_web::{test, FromRequest, HttpRequest, Path, Query, State};
+use actix_web::{
+    test,
+    web::{Data, Path, Query},
+    FromRequest, HttpRequest,
+};
 use bigneon_api::auth::default_token_issuer::DefaultTokenIssuer;
 use bigneon_api::config::Config;
 use bigneon_api::db::Database;
@@ -9,8 +13,13 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+lazy_static::lazy_static! {
+    static ref DB: Arc<Mutex<Option<Database>>> = Arc::new(Mutex::new(None));
+    static ref RO_DB: Arc<Mutex<Option<Database>>> = Arc::new(Mutex::new(None));
+}
+
 pub struct TestRequest {
-    pub request: HttpRequest<AppState>,
+    pub request: HttpRequest,
     pub config: Config,
 }
 
@@ -33,14 +42,9 @@ impl TestRequest {
         }
 
         let clients = Arc::new(Mutex::new(HashMap::new()));
-        let test_request = test::TestRequest::with_state(
-            AppState::new(
-                config.clone(),
-                Database::from_config(&config),
-                Database::readonly_from_config(&config),
-                clients,
-            )
-            .expect("Failed to generate app state for testing"),
+        let dbs = get_dbs(&config);
+        let test_request = test::TestRequest::get().data(
+            AppState::new(config.clone(), dbs.0, dbs.1, clients).expect("Failed to generate app state for testing"),
         );
 
         // TODO: actix-web test requests do not allow router customization except
@@ -55,13 +59,13 @@ impl TestRequest {
         }
 
         TestRequest {
-            request: request.finish(),
+            request: request.to_http_request(),
             config,
         }
     }
 
-    pub fn extract_state(&self) -> State<AppState> {
-        State::<AppState>::extract(&self.request)
+    pub async fn extract_state(&self) -> Data<AppState> {
+        Data::extract(&self.request).await.unwrap()
     }
 }
 
@@ -75,21 +79,33 @@ impl RequestBuilder {
         RequestBuilder { request }
     }
 
-    pub fn state(&self) -> State<AppState> {
-        self.request.extract_state()
+    pub async fn state(&self) -> Data<AppState> {
+        self.request.extract_state().await
     }
 
-    pub fn path<P>(&self) -> Path<P>
+    pub async fn path<P>(&self) -> Path<P>
     where
         P: DeserializeOwned,
     {
-        Path::<P>::extract(&self.request.request).unwrap()
+        Path::<P>::extract(&self.request.request).await.unwrap()
     }
 
-    pub fn query<Q>(&self) -> Query<Q>
+    pub async fn query<Q>(&self) -> Query<Q>
     where
         Q: DeserializeOwned,
     {
-        Query::<Q>::extract(&self.request.request).unwrap()
+        Query::<Q>::extract(&self.request.request).await.unwrap()
     }
+}
+
+fn get_dbs(config: &Config) -> (Database, Database) {
+    let get_db = |db: Arc<Mutex<Option<Database>>>| {
+        let mut db_guard = db.lock().unwrap();
+        if let Some(ref db) = *db_guard {
+            return db.clone();
+        };
+        *db_guard = Some(Database::from_config(config));
+        db_guard.as_ref().unwrap().clone()
+    };
+    (get_db(DB.clone()), get_db(RO_DB.clone()))
 }

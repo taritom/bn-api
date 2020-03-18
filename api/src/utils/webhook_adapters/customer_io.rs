@@ -7,6 +7,7 @@ use serde_json::Value;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 
+// TODO: good candidate for conversion to async
 pub struct CustomerIoWebhookAdapter {
     site_id: String,
     api_key: String,
@@ -30,7 +31,7 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
     }
 
     fn send(&self, _webhook_urls: &[String], payload: HashMap<String, Value, RandomState>) -> Result<(), BigNeonError> {
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
         let mut payload = payload;
         payload.insert("environment".to_string(), json!(self.environment));
 
@@ -67,7 +68,7 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
 impl CustomerIoWebhookAdapter {
     fn send_request(
         &self,
-        client: reqwest::RequestBuilder,
+        client: reqwest::blocking::RequestBuilder,
         payload: &HashMap<String, Value, RandomState>,
     ) -> Result<(), BigNeonError> {
         jlog!(
@@ -76,15 +77,17 @@ impl CustomerIoWebhookAdapter {
             "Sending event/customer to customer.io",
             { "payload": &payload }
         );
-        let mut resp = client
+        let resp = client
             .basic_auth(&self.site_id, Some(&self.api_key))
             .send()
             .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
+        let status = resp.status();
+        let error_for_status = resp.error_for_status_ref().map(|_| ());
         let text = resp
             .text()
             .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
-        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"text": text, "status": resp.status().to_string()});
-        resp.error_for_status()?;
+        jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"text": text, "status": status.to_string()});
+        error_for_status?;
         Ok(())
     }
 
@@ -93,7 +96,7 @@ impl CustomerIoWebhookAdapter {
         payload: &HashMap<String, Value, RandomState>,
         user_id: &str,
     ) -> Result<(), BigNeonError> {
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
         let client = client
             .put(&format!("https://track.customer.io/api/v1/customers/{}", user_id))
             .json(&payload);

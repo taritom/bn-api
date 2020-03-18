@@ -59,7 +59,7 @@ steps:
     -   name: rust-fmt-check
         depends_on:
             - clone
-        image: rust:1.38.0
+        image: rust:1.41.1
         commands:
             - rustup component add rustfmt
             - cargo fmt --all -- --check
@@ -88,7 +88,7 @@ steps:
     -   name: compile
         depends_on:
             - clone
-        image: rust:1.38.0
+        image: rust:1.41.1
         environment:
             <<: *env
             GH_USER_EMAIL: 'travis@travis-ci.org'
@@ -152,7 +152,7 @@ steps:
     -   name: other-tests
         depends_on:
             - compile
-        image: rust:1.38.0
+        image: rust:1.41.1
         environment:
             <<: *env
             DATABASE_URL: postgres://app:password@database/other_tests
@@ -317,6 +317,6 @@ services:
 
 ---
 kind: signature
-hmac: e634538f203338f780d9c88a1ba8c2c0f8a54c2de71844adc9984f9f3d83a3db
+hmac: ab821eedf8160cb233427bce04f702fd594a430bd21cb411f6bd40bd3af5c17a
 
 ...

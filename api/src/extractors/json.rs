@@ -1,13 +1,14 @@
 // Extractor based on Actix-Web's JSON extractor with a default error handler
 // https://github.com/actix/actix-web/blob/master/src/json.rs
 
-use crate::server::AppState;
 use actix_web::dev::JsonBody;
 use actix_web::error::{Error, InternalError, JsonPayloadError};
-use actix_web::{FromRequest, HttpRequest, HttpResponse};
-use futures::Future;
+use actix_web::{dev::Payload, FromRequest, HttpRequest, HttpResponse};
+use futures::future::TryFutureExt;
 use serde::de::DeserializeOwned;
+use std::future::Future;
 use std::ops::Deref;
+use std::pin::Pin;
 
 const LIMIT_DEFAULT: usize = 262_144; // 256Kb
 
@@ -27,22 +28,21 @@ impl<T> Deref for Json<T> {
     }
 }
 
-impl<T> FromRequest<AppState> for Json<T>
+impl<T> FromRequest for Json<T>
 where
     T: DeserializeOwned + 'static,
 {
     type Config = JsonConfig;
-    type Result = Box<dyn Future<Item = Self, Error = Error>>;
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
 
     #[inline]
-    fn from_request(req: &HttpRequest<AppState>, cfg: &Self::Config) -> Self::Result {
-        let req2 = req.clone();
-        Box::new(
-            JsonBody::new::<()>(req, None)
-                .limit(cfg.limit)
-                .map_err(move |e| json_error(e, &req2))
-                .map(Json),
-        )
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let mut json_body = JsonBody::new(req, payload, None);
+        if let Some(cfg) = req.app_data::<JsonConfig>() {
+            json_body = json_body.limit(cfg.limit);
+        }
+        Box::pin(json_body.map_err(json_error).map_ok(Json))
     }
 }
 
@@ -63,7 +63,7 @@ impl Default for JsonConfig {
     }
 }
 
-fn json_error(err: JsonPayloadError, _req: &HttpRequest<AppState>) -> Error {
+fn json_error(err: JsonPayloadError) -> Error {
     let response = match err {
         JsonPayloadError::Deserialize(ref json_error) => {
             HttpResponse::BadRequest().json(json!({ "error": json_error.to_string() }))

@@ -3,7 +3,7 @@ use crate::db::Connection;
 use crate::errors::BigNeonError;
 use crate::extractors::*;
 use crate::models::{PathParameters, WebPayload, WebResult};
-use actix_web::{http::StatusCode, HttpResponse, Path};
+use actix_web::{http::StatusCode, web::Path, HttpResponse};
 use bigneon_db::models::*;
 
 #[derive(Deserialize, Serialize)]
@@ -12,7 +12,7 @@ pub struct NewEventReportSubscriberRequest {
     pub report_type: ReportTypes,
 }
 
-pub fn index(
+pub async fn index(
     (conn, path, user): (Connection, Path<PathParameters>, User),
 ) -> Result<WebPayload<EventReportSubscriber>, BigNeonError> {
     let conn = conn.get();
@@ -29,7 +29,7 @@ pub fn index(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn create(
+pub async fn create(
     (conn, subscriber_request, path, user): (
         Connection,
         Json<NewEventReportSubscriberRequest>,
@@ -55,7 +55,9 @@ pub fn create(
     Ok(WebResult::new(StatusCode::CREATED, event_subscriber))
 }
 
-pub fn destroy((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub async fn destroy(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event_report_subscriber = EventReportSubscriber::find(path.id, conn)?;
     let event = Event::find(event_report_subscriber.event_id, conn)?;

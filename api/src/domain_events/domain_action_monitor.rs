@@ -1,24 +1,20 @@
-use std::{cmp, thread};
-
-use log::Level::*;
-use tokio::prelude::*;
-use tokio::runtime::current_thread;
-use tokio::runtime::Runtime;
-use tokio::timer::Timeout;
-
-use bigneon_db::prelude::*;
-use domain_events::webhook_publisher::WebhookPublisher;
-use logging::*;
-use utils::ServiceLocator;
-
 use crate::config::Config;
 use crate::db::*;
 use crate::domain_events::errors::DomainActionError;
 use crate::domain_events::routing::{DomainActionExecutor, DomainActionRouter};
+use crate::domain_events::webhook_publisher::WebhookPublisher;
+use crate::utils::ServiceLocator;
+use bigneon_db::prelude::*;
+use futures::future::TryFutureExt;
+use log::Level::*;
+use logging::*;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::JoinHandle;
 use std::time::Duration;
+use std::{cmp, thread};
+use tokio::runtime::Runtime;
+use tokio::time::timeout;
 
 pub struct DomainActionMonitor {
     config: Config,
@@ -37,7 +33,7 @@ impl DomainActionMonitor {
         }
     }
 
-    pub fn run_til_empty(&self) -> Result<(), DomainActionError> {
+    pub async fn run_til_empty(&self) -> Result<(), DomainActionError> {
         let router = DomainActionMonitor::create_router(&self.config);
 
         loop {
@@ -49,17 +45,10 @@ impl DomainActionMonitor {
                 cmp::max(1, self.config.connection_pool.max / 2) as usize,
             )?;
 
-            let mut runtime = current_thread::Runtime::new().unwrap();
-
             for (executor, domain_action, connection) in futures {
-                let timeout = Timeout::new(executor.execute(domain_action, connection), Duration::from_secs(55));
-
-                runtime
-                    .block_on(timeout.or_else(|err| {
-                        jlog! {Error,"bigneon::domain_actions", "Action: failed", {"error": err.to_string()}};
-                        Err(())
-                    }))
-                    .unwrap();
+                if let Err(err) = timeout(Duration::from_secs(55), executor.execute(domain_action, connection)).await {
+                    jlog! {Error,"bigneon::domain_actions", "Action: failed", {"error": err.to_string()}};
+                }
                 num_processed += 1;
             }
 
@@ -240,7 +229,7 @@ impl DomainActionMonitor {
     ) -> Result<(), DomainActionError> {
         let router = DomainActionMonitor::create_router(&conf);
 
-        let mut runtime = Runtime::new()?;
+        let runtime = Runtime::new()?;
 
         loop {
             if rx.try_recv().is_ok() {
@@ -259,9 +248,9 @@ impl DomainActionMonitor {
                 thread::sleep(Duration::from_secs(interval));
             } else {
                 for (command, action, connection) in actions {
-                    let timeout = Timeout::new(command.execute(action, connection), Duration::from_secs(55));
+                    let timeout = timeout(Duration::from_secs(55), command.execute(action, connection));
 
-                    runtime.spawn(timeout.or_else(|err| {
+                    runtime.spawn(timeout.or_else(|err| async move {
                         jlog! {Error,"bigneon::domain_actions", "Action:  failed", {"error": err.to_string()}};
                         Err(())
                     }));

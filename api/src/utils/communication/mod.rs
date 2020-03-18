@@ -9,74 +9,79 @@ use bigneon_db::models::*;
 use bigneon_db::services::CountryLookup;
 use customer_io;
 use diesel::PgConnection;
-use futures::future::Either;
-use futures::Future;
 use log::Level::Trace;
 use serde_json::Value;
 use std::collections::HashMap;
-use tokio::prelude::*;
 
-pub fn send_async(
+pub async fn send_async(
     domain_action: &DomainAction,
     config: &Config,
     conn: &PgConnection,
-) -> impl Future<Item = (), Error = BigNeonError> {
+) -> Result<(), BigNeonError> {
     let communication: Communication = match serde_json::from_value(domain_action.payload.clone()) {
         Ok(v) => v,
-        Err(e) => return Either::A(future::err(e.into())),
+        Err(e) => return Err(e.into()),
     };
 
     if config.environment == Environment::Test {
-        return Either::A(future::ok(()));
+        return Ok(());
     }
 
     if config.block_external_comms {
         jlog!(Trace, "Blocked communication", { "communication": communication });
 
-        return Either::A(future::ok(()));
+        return Ok(());
     };
 
     let destination_addresses = communication.destinations.get();
 
-    let future = match communication.comm_type {
+    match communication.comm_type {
         CommunicationType::EmailTemplate => {
-            send_email_template(domain_action, &config, conn, communication, &destination_addresses)
+            send_email_template(domain_action, &config, conn, communication, &destination_addresses).await
         }
-        CommunicationType::Sms => twilio::send_sms_async(
-            &config.twilio_account_id,
-            &config.twilio_api_key,
-            communication.source.as_ref().unwrap().get_first().unwrap(),
-            destination_addresses,
-            &communication.body.unwrap_or(communication.title),
-        ),
-        CommunicationType::Push => expo::send_push_notification_async(
-            &destination_addresses,
-            &communication.body.unwrap_or(communication.title),
-            communication.extra_data.map(|ed| json!(ed.clone())),
-        ),
-        CommunicationType::Webhook => webhook::send_webhook_async(
-            &destination_addresses,
-            &communication.body.unwrap_or(communication.title),
-            domain_action.main_table_id,
-            conn,
-            &config,
-        ),
-    };
-    Either::B(future)
+        CommunicationType::Sms => {
+            twilio::send_sms_async(
+                &config.twilio_account_id,
+                &config.twilio_api_key,
+                communication.source.as_ref().unwrap().get_first().unwrap(),
+                destination_addresses,
+                &communication.body.unwrap_or(communication.title),
+            )
+            .await
+        }
+        CommunicationType::Push => {
+            expo::send_push_notification_async(
+                &destination_addresses,
+                &communication.body.unwrap_or(communication.title),
+                communication.extra_data.map(|ed| json!(ed.clone())),
+            )
+            .await
+        }
+        CommunicationType::Webhook => {
+            webhook::send_webhook_async(
+                &destination_addresses,
+                &communication.body.unwrap_or(communication.title),
+                domain_action.main_table_id,
+                conn,
+                &config,
+            )
+            .await
+        }
+    }
 }
 
-fn send_email_template(
+async fn send_email_template(
     domain_action: &DomainAction,
     config: &Config,
     conn: &PgConnection,
     communication: Communication,
     destination_addresses: &Vec<String>,
-) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
+) -> Result<(), BigNeonError> {
     if communication.template_id.is_none() {
-        return Box::new(future::err(
-            ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string())
-                .into(),
-        ));
+        return Err(ApplicationError::new(
+            "Template ID must be specified when communication type is EmailTemplate".to_string(),
+        )
+        .into());
     }
     let template_id = communication.template_id.as_ref().unwrap();
 
@@ -85,7 +90,7 @@ fn send_email_template(
         jlog!(Trace, "Blocked communication, blank template ID", {
             "communication": communication
         });
-        return Box::new(future::ok(()));
+        return Ok(());
     }
     let extra_data = communication.extra_data;
     // Check for provider. Sendgrid templates start with "d-".
@@ -98,7 +103,7 @@ fn send_email_template(
     } else {
         match template_id.parse() {
             Ok(t) => t,
-            Err(e) => return Box::new(future::err(BigNeonError::from(e))),
+            Err(e) => return Err(BigNeonError::from(e)),
         }
     };
 
@@ -127,8 +132,8 @@ fn send_email_template(
                 domain_action,
                 conn,
             ) {
-                Ok(_t) => Box::new(future::ok(())),
-                Err(e) => return Box::new(future::err(e.into())),
+                Ok(_t) => Ok(()),
+                Err(e) => return Err(e.into()),
             }
         }
         EmailProvider::Sendgrid => {
@@ -149,6 +154,7 @@ fn send_email_template(
                 communication.categories.clone(),
                 Some(sendgrid_extra_data),
             )
+            .await
         } // Customer IO
     }
 }

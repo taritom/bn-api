@@ -2,7 +2,7 @@ use crate::functional::base;
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, web::Path, FromRequest, HttpResponse};
 use bigneon_api::controllers::ticket_types;
 use bigneon_api::controllers::ticket_types::*;
 use bigneon_api::extractors::*;
@@ -15,210 +15,210 @@ use uuid::Uuid;
 #[cfg(test)]
 mod create_tests {
     use super::*;
-    #[test]
-    fn create_org_member() {
-        base::ticket_types::create(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn create_org_member() {
+        base::ticket_types::create(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn create_admin() {
-        base::ticket_types::create(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_admin() {
+        base::ticket_types::create(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_user() {
-        base::ticket_types::create(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_user() {
+        base::ticket_types::create(Roles::User, false).await;
     }
-    #[test]
-    fn create_org_owner() {
-        base::ticket_types::create(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn create_org_owner() {
+        base::ticket_types::create(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn create_door_person() {
-        base::ticket_types::create(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn create_door_person() {
+        base::ticket_types::create(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn create_promoter() {
-        base::ticket_types::create(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn create_promoter() {
+        base::ticket_types::create(Roles::Promoter, true).await;
     }
-    #[test]
-    fn create_promoter_read_only() {
-        base::ticket_types::create(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_promoter_read_only() {
+        base::ticket_types::create(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_org_admin() {
-        base::ticket_types::create(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn create_org_admin() {
+        base::ticket_types::create(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn create_box_office() {
-        base::ticket_types::create(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn create_box_office() {
+        base::ticket_types::create(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod create_multiple_tests {
     use super::*;
-    #[test]
-    fn create_multiple_org_member() {
-        base::ticket_types::create_multiple(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn create_multiple_org_member() {
+        base::ticket_types::create_multiple(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn create_multiple_admin() {
-        base::ticket_types::create_multiple(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_multiple_admin() {
+        base::ticket_types::create_multiple(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_multiple_user() {
-        base::ticket_types::create_multiple(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_multiple_user() {
+        base::ticket_types::create_multiple(Roles::User, false).await;
     }
-    #[test]
-    fn create_multiple_org_owner() {
-        base::ticket_types::create_multiple(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn create_multiple_org_owner() {
+        base::ticket_types::create_multiple(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn create_multiple_door_person() {
-        base::ticket_types::create_multiple(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn create_multiple_door_person() {
+        base::ticket_types::create_multiple(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn create_multiple_promoter() {
-        base::ticket_types::create_multiple(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn create_multiple_promoter() {
+        base::ticket_types::create_multiple(Roles::Promoter, true).await;
     }
-    #[test]
-    fn create_multiple_promoter_read_only() {
-        base::ticket_types::create_multiple(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_multiple_promoter_read_only() {
+        base::ticket_types::create_multiple(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_multiple_org_admin() {
-        base::ticket_types::create_multiple(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn create_multiple_org_admin() {
+        base::ticket_types::create_multiple(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn create_multiple_box_office() {
-        base::ticket_types::create_multiple(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn create_multiple_box_office() {
+        base::ticket_types::create_multiple(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod update_tests {
     use super::*;
-    #[test]
-    fn update_org_member() {
-        base::ticket_types::update(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn update_org_member() {
+        base::ticket_types::update(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn update_admin() {
-        base::ticket_types::update(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn update_admin() {
+        base::ticket_types::update(Roles::Admin, true).await;
     }
-    #[test]
-    fn update_user() {
-        base::ticket_types::update(Roles::User, false);
+    #[actix_rt::test]
+    async fn update_user() {
+        base::ticket_types::update(Roles::User, false).await;
     }
-    #[test]
-    fn update_org_owner() {
-        base::ticket_types::update(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn update_org_owner() {
+        base::ticket_types::update(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn update_door_person() {
-        base::ticket_types::update(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn update_door_person() {
+        base::ticket_types::update(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn update_promoter() {
-        base::ticket_types::update(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn update_promoter() {
+        base::ticket_types::update(Roles::Promoter, true).await;
     }
-    #[test]
-    fn update_promoter_read_only() {
-        base::ticket_types::update(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn update_promoter_read_only() {
+        base::ticket_types::update(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn update_org_admin() {
-        base::ticket_types::update(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn update_org_admin() {
+        base::ticket_types::update(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn update_box_office() {
-        base::ticket_types::update(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn update_box_office() {
+        base::ticket_types::update(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod cancel_tests {
     use super::*;
-    #[test]
-    fn cancel_org_member() {
-        base::ticket_types::cancel(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn cancel_org_member() {
+        base::ticket_types::cancel(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn cancel_admin() {
-        base::ticket_types::cancel(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn cancel_admin() {
+        base::ticket_types::cancel(Roles::Admin, true).await;
     }
-    #[test]
-    fn cancel_user() {
-        base::ticket_types::cancel(Roles::User, false);
+    #[actix_rt::test]
+    async fn cancel_user() {
+        base::ticket_types::cancel(Roles::User, false).await;
     }
-    #[test]
-    fn cancel_org_owner() {
-        base::ticket_types::cancel(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn cancel_org_owner() {
+        base::ticket_types::cancel(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn cancel_door_person() {
-        base::ticket_types::cancel(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn cancel_door_person() {
+        base::ticket_types::cancel(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn cancel_promoter() {
-        base::ticket_types::cancel(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn cancel_promoter() {
+        base::ticket_types::cancel(Roles::Promoter, true).await;
     }
-    #[test]
-    fn cancel_promoter_read_only() {
-        base::ticket_types::cancel(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn cancel_promoter_read_only() {
+        base::ticket_types::cancel(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn cancel_org_admin() {
-        base::ticket_types::cancel(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn cancel_org_admin() {
+        base::ticket_types::cancel(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn cancel_box_office() {
-        base::ticket_types::cancel(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn cancel_box_office() {
+        base::ticket_types::cancel(Roles::OrgBoxOffice, false).await;
     }
 }
 
 #[cfg(test)]
 mod index_tests {
     use super::*;
-    #[test]
-    fn index_org_member() {
-        base::ticket_types::index(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn index_org_member() {
+        base::ticket_types::index(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn index_admin() {
-        base::ticket_types::index(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn index_admin() {
+        base::ticket_types::index(Roles::Admin, true).await;
     }
-    #[test]
-    fn index_user() {
-        base::ticket_types::index(Roles::User, false);
+    #[actix_rt::test]
+    async fn index_user() {
+        base::ticket_types::index(Roles::User, false).await;
     }
-    #[test]
-    fn index_org_owner() {
-        base::ticket_types::index(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn index_org_owner() {
+        base::ticket_types::index(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn index_door_person() {
-        base::ticket_types::index(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn index_door_person() {
+        base::ticket_types::index(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn index_promoter() {
-        base::ticket_types::index(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn index_promoter() {
+        base::ticket_types::index(Roles::Promoter, true).await;
     }
-    #[test]
-    fn index_promoter_read_only() {
-        base::ticket_types::index(Roles::PromoterReadOnly, true);
+    #[actix_rt::test]
+    async fn index_promoter_read_only() {
+        base::ticket_types::index(Roles::PromoterReadOnly, true).await;
     }
-    #[test]
-    fn index_org_admin() {
-        base::ticket_types::index(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn index_org_admin() {
+        base::ticket_types::index(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn index_box_office() {
-        base::ticket_types::index(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn index_box_office() {
+        base::ticket_types::index(Roles::OrgBoxOffice, false).await;
     }
 }
 
-#[test]
-pub fn create_with_validation_errors() {
+#[actix_rt::test]
+pub async fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -226,8 +226,8 @@ pub fn create_with_validation_errors() {
     let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
     let start_date = NaiveDate::from_ymd(2018, 8, 1).and_hms(6, 20, 21);
@@ -257,7 +257,9 @@ pub fn create_with_validation_errors() {
         ..Default::default()
     };
     let response: HttpResponse =
-        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state))
+            .await
+            .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -271,8 +273,8 @@ pub fn create_with_validation_errors() {
     );
 }
 
-#[test]
-pub fn create_with_validation_errors_on_ticket_pricing() {
+#[actix_rt::test]
+pub async fn create_with_validation_errors_on_ticket_pricing() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -280,8 +282,8 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
     let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
     let start_date = NaiveDate::from_ymd(2018, 7, 1).and_hms(6, 20, 21);
@@ -311,7 +313,9 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         ..Default::default()
     };
     let response: HttpResponse =
-        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state))
+            .await
+            .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -325,8 +329,8 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
     );
 }
 
-#[test]
-pub fn create_with_overlapping_periods() {
+#[actix_rt::test]
+pub async fn create_with_overlapping_periods() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -334,8 +338,8 @@ pub fn create_with_overlapping_periods() {
     let event = database.create_event().with_organization(&organization).finish();
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
     let start_date = NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21);
@@ -371,7 +375,9 @@ pub fn create_with_overlapping_periods() {
         ..Default::default()
     };
     let response: HttpResponse =
-        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state))
+            .await
+            .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -390,8 +396,8 @@ pub fn create_with_overlapping_periods() {
     );
 }
 
-#[test]
-pub fn create_with_out_of_bounds_ticket_capacity() {
+#[actix_rt::test]
+pub async fn create_with_out_of_bounds_ticket_capacity() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -400,8 +406,8 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
 
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
     let start_date = NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21);
@@ -437,14 +443,16 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         ..Default::default()
     };
     let response: HttpResponse =
-        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state))
+            .await
+            .into();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(response.error().is_some());
 }
 
-#[test]
-pub fn update_with_invalid_id() {
+#[actix_rt::test]
+pub async fn update_with_invalid_id() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
     let user = database.create_user().finish();
@@ -465,7 +473,9 @@ pub fn update_with_invalid_id() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
@@ -501,16 +511,17 @@ pub fn update_with_invalid_id() {
         path,
         Json(request_data),
         auth_user,
-        request.extract_state(),
+        request.extract_state().await,
     ))
+    .await
     .into();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(response.error().is_some());
 }
 
-#[test]
-pub fn update_with_validation_errors() {
+#[actix_rt::test]
+pub async fn update_with_validation_errors() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
     let user = database.create_user().finish();
@@ -531,7 +542,9 @@ pub fn update_with_validation_errors() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
@@ -569,8 +582,9 @@ pub fn update_with_validation_errors() {
         path,
         Json(request_data),
         auth_user,
-        request.extract_state(),
+        request.extract_state().await,
     ))
+    .await
     .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -585,8 +599,8 @@ pub fn update_with_validation_errors() {
     );
 }
 
-#[test]
-pub fn update_with_validation_errors_on_ticket_pricing() {
+#[actix_rt::test]
+pub async fn update_with_validation_errors_on_ticket_pricing() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
     let user = database.create_user().finish();
@@ -607,7 +621,9 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
@@ -645,8 +661,9 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         path,
         Json(request_data),
         auth_user,
-        request.extract_state(),
+        request.extract_state().await,
     ))
+    .await
     .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -661,8 +678,8 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
     );
 }
 
-#[test]
-pub fn update_with_overlapping_periods() {
+#[actix_rt::test]
+pub async fn update_with_overlapping_periods() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
     let user = database.create_user().finish();
@@ -683,7 +700,9 @@ pub fn update_with_overlapping_periods() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
@@ -730,8 +749,9 @@ pub fn update_with_overlapping_periods() {
         path,
         Json(request_data),
         auth_user,
-        request.extract_state(),
+        request.extract_state().await,
     ))
+    .await
     .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -746,8 +766,8 @@ pub fn update_with_overlapping_periods() {
     assert_eq!(deserialized_response.error, "Validation error");
 }
 
-#[test]
-pub fn cancel_with_sold_tickets_and_hold() {
+#[actix_rt::test]
+pub async fn cancel_with_sold_tickets_and_hold() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -810,14 +830,17 @@ pub fn cancel_with_sold_tickets_and_hold() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let state = test_request.extract_state();
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
     //Send update request
-    let response: HttpResponse =
-        ticket_types::cancel((database.connection.clone().into(), path, auth_user, state)).into();
+    let response: HttpResponse = ticket_types::cancel((database.connection.clone().into(), path, auth_user, state))
+        .await
+        .into();
 
     let updated_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
 
@@ -831,8 +854,8 @@ pub fn cancel_with_sold_tickets_and_hold() {
     assert_eq!(15, valid_ticket_count);
 }
 
-#[test]
-pub fn cancel_with_no_sold_tickets_or_hold() {
+#[actix_rt::test]
+pub async fn cancel_with_no_sold_tickets_or_hold() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -853,14 +876,17 @@ pub fn cancel_with_no_sold_tickets_or_hold() {
 
     //Construct update request
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
-    let state = test_request.extract_state();
-    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    let state = test_request.extract_state().await;
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
     //Send update request
-    let response: HttpResponse =
-        ticket_types::cancel((database.connection.clone().into(), path, auth_user, state)).into();
+    let response: HttpResponse = ticket_types::cancel((database.connection.clone().into(), path, auth_user, state))
+        .await
+        .into();
 
     let updated_ticket_types = &event.ticket_types(true, None, conn).unwrap();
 

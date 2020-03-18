@@ -1,7 +1,11 @@
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    FromRequest, HttpResponse,
+};
 use bigneon_api::controllers::transfers::{self, *};
 use bigneon_api::errors::BigNeonError;
 use bigneon_api::models::*;
@@ -11,7 +15,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
+pub async fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -96,9 +100,11 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
         support::create_auth_user(role, Some(&organization), &database)
     };
     let test_request = TestRequest::create_with_uri("/transfers?source_or_destination=source");
-    let paging_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let filter_parameters = Query::<TransferFilters>::extract(&test_request.request).unwrap();
-    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
+    let paging_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
+    let filter_parameters = Query::<TransferFilters>::extract(&test_request.request).await.unwrap();
+    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.id = Some(order.id);
     let response: Result<WebPayload<DisplayTransfer>, BigNeonError> = transfers::index((
         database.connection.clone().into(),
@@ -106,7 +112,8 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
         filter_parameters,
         path,
         auth_user.clone(),
-    ));
+    ))
+    .await;
 
     if should_succeed {
         let response = response.unwrap();
@@ -134,7 +141,7 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     }
 }
 
-pub fn cancel_completed_transfer(role: Roles, should_succeed: bool) {
+pub async fn cancel_completed_transfer(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -179,14 +186,15 @@ pub fn cancel_completed_transfer(role: Roles, should_succeed: bool) {
 
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = transfer.id;
     let response: HttpResponse = transfers::cancel((
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-        test_request.extract_state(),
+        test_request.extract_state().await,
     ))
+    .await
     .into();
 
     if should_succeed {
@@ -211,7 +219,7 @@ pub fn cancel_completed_transfer(role: Roles, should_succeed: bool) {
     }
 }
 
-pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
+pub async fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -251,14 +259,15 @@ pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
         support::create_auth_user(role, Some(&organization), &database)
     };
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = transfer.id;
     let response: HttpResponse = transfers::cancel((
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-        test_request.extract_state(),
+        test_request.extract_state().await,
     ))
+    .await
     .into();
 
     if should_succeed {

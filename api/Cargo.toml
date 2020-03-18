@@ -6,14 +6,22 @@ license = "BSD-3"
 repository = "https://github.com/big-neon/bn-api/"
 description = "Big Neon unified API server"
 documentation = "https://github.com/big-neon/docs"
+edition = "2018"
 
 [dependencies]
-actix = "0.7"
-actix-web = "=0.7.18"
+actix-rt = "1.0"
+actix = "0.9"
+actix-web = "2.0"
+actix-cors = "0.2"
+actix-web-actors = "2.0"
+actix-service = "1.0"
+actix-files = "0.2"
+actix-http = "1.0.1"
 bigneon_db = { path = "../db" }
 bigneon_http = { path = "../http" }
 bigneon_caching_derive = { path = "../http/caching_derive" }
 branch_rs = {path="../branch_rs"}
+bytes = "0.5"
 chrono = {version = "0.4", features = ["serde"]}
 clap = "2.32"
 customer_io= {path="../customer_io"}
@@ -23,7 +31,7 @@ dotenv = "0.13"
 # Pulling from github as dependency fix merged into master has yet to be released
 expo-server-sdk = { git = "https://github.com/expo/expo-server-sdk-rust", rev="a4334d2d7243ac5e0ecb77478bb42774bbd9af54" }
 facebook = { path="../facebook"}
-futures = "0.1"
+futures = "0.3"
 globee={path="../globee"}
 itertools = "0.7"
 jsonwebtoken = "5"
@@ -35,14 +43,14 @@ phonenumber = "0.2.3"
 r2d2 = "0.8"
 redis = "0.13"
 regex = "1"
-reqwest="0.9.22"
+reqwest = { version = "0.10.4", features = ["blocking", "json"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 serde_with = "0.2"
 stripe = {path="../stripe"}
 tari-client= {path="../tari-client"}
-tokio = "0.1"
+tokio = { version = "0.2", features = ["rt-core", "rt-threaded", "time"] }
 # TODO move this to the bigneon org? Currently just testing this lib, so if we
 # are still using it in a few months, fork it into /bigneon
 twilio= { git = "https://github.com/mikethetike/twilio-rs", rev="8a746caed756c3cfe57e082084fda8be3170721a"}

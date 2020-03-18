@@ -8,12 +8,15 @@ use crate::utils::redis::*;
 use crate::utils::spotify;
 use crate::utils::ServiceLocator;
 use actix::Addr;
-use actix_web::http;
-use actix_web::middleware::cors::Cors;
-use actix_web::{fs::StaticFiles, server, App};
+use actix_cors::Cors;
+use actix_files as fs;
+use actix_web::middleware::Logger;
+use actix_web::{dev::ServiceRequest, http, HttpRequest, HttpResponse};
+use actix_web::{web, web::Data, App, HttpServer};
 use bigneon_db::utils::errors::DatabaseError;
-use log::Level::Debug;
+use log::Level::{Debug, Warn};
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -45,12 +48,29 @@ impl AppState {
     }
 }
 
+// actix:0.7 back compatibility
+pub(crate) trait GetAppState {
+    fn state(&self) -> Data<AppState>;
+}
+impl GetAppState for HttpRequest {
+    fn state(&self) -> Data<AppState> {
+        let data: &Data<AppState> = self.app_data().expect("critical: AppState not configured for App");
+        data.clone()
+    }
+}
+impl GetAppState for ServiceRequest {
+    fn state(&self) -> Data<AppState> {
+        let data: Data<AppState> = self.app_data().expect("critical: AppState not configured for App");
+        data
+    }
+}
+
 pub struct Server {
     pub config: Config,
 }
 
 impl Server {
-    pub fn start(
+    pub async fn start(
         config: Config,
         process_actions: bool,
         process_events: bool,
@@ -66,7 +86,7 @@ impl Server {
 
         let mut domain_action_monitor = DomainActionMonitor::new(config.clone(), database.clone(), 1);
         if process_actions_til_empty {
-            domain_action_monitor.run_til_empty().unwrap();
+            domain_action_monitor.run_til_empty().await.unwrap();
             return;
         }
 
@@ -94,24 +114,16 @@ impl Server {
             }
 
             //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
-            let mut server = server::new({
+            let mut server = HttpServer::new({
                 move || {
-                    App::with_state(
-                        AppState::new(conf.clone(), database.clone(), database_ro.clone(), clients.clone())
-                            .expect("Expected to generate app state"),
-                    )
-                        .middleware(BigNeonLogger::new(LOGGER_FORMAT))
-                        .middleware(DatabaseTransaction::new())
-                        .middleware(AppVersionHeader::new())
-                        .middleware(Metatags::new(
-                            conf.ssr_trigger_header.clone(),
-                            conf.ssr_trigger_value.clone(),
-                            conf.front_end_url.clone(),
-                            conf.app_name.clone(),
-                        ))
-                        .configure(|a| {
-                            let mut cors_config = Cors::for_app(a);
-                            match conf.allowed_origins.as_ref() {
+                    App::new()
+                        .data(
+                            AppState::new(conf.clone(), database.clone(), database_ro.clone(), clients.clone())
+                                .expect("Expected to generate app state"),
+                        )
+                        .wrap({
+                            let mut cors_config = Cors::new();
+                            cors_config = match conf.allowed_origins.as_ref() {
                                 "*" => cors_config.send_wildcard(),
                                 _ => cors_config.allowed_origin(&conf.allowed_origins),
                             };
@@ -126,16 +138,23 @@ impl Server {
                                 ])
                                 .allowed_header(http::header::CONTENT_TYPE)
                                 .expose_headers(vec!["x-app-version", "x-cached-response"])
-                                .max_age(3600);
-
-                            routing::routes(&mut cors_config)
+                                .max_age(3600)
+                                .finish()
                         })
-                        .configure(|a| {
-                            match &static_file_conf.static_file_path {
-                                Some(static_file_path) => a.handler("/", StaticFiles::new(static_file_path).unwrap()),
-                                None => a
+                        .wrap(Logger::new(LOGGER_FORMAT))
+                        .wrap(BigNeonLogger::new())
+                        .wrap(DatabaseTransaction::new())
+                        .wrap(AppVersionHeader::new())
+                        .wrap(Metatags::new(&conf))
+                        .configure( routing::routes )
+                        .configure( |conf| {
+                            if let Some(static_file_path) = &static_file_conf.static_file_path {
+                                conf.service(fs::Files::new("/", static_file_path));
                             }
                         })
+                        .default_service(
+                            web::get().to(|| HttpResponse::NotFound().json(json!({"error": "Not found"})))
+                        )
                 }
             })
                 //            .keep_alive(keep_alive)
@@ -145,7 +164,10 @@ impl Server {
             if let Some(workers) = config.actix.workers {
                 server = server.workers(workers);
             }
-            server.run();
+            match server.run().await {
+                Ok(_) => {}
+                Err(e) => jlog!(Warn, "bigneon_api::server", "Server exit with error", {"error": e.description()}),
+            };
 
             if process_actions || process_events {
                 domain_action_monitor.stop();

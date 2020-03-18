@@ -3,8 +3,10 @@ use crate::errors::BigNeonError;
 use crate::extractors::*;
 use crate::helpers::application;
 use crate::models::*;
-use actix_web::Path;
-use actix_web::{HttpResponse, Query};
+use actix_web::{
+    web::{Path, Query},
+    HttpResponse,
+};
 use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use uuid::Uuid;
@@ -45,7 +47,7 @@ pub struct EventParameter {
     pub event_id: Option<Uuid>,
 }
 
-pub fn show(
+pub async fn show(
     connection: Connection,
     query: Query<EventParameter>,
     path: Path<PathParameters>,

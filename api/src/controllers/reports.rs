@@ -3,7 +3,11 @@ use crate::db::Connection;
 use crate::errors::*;
 use crate::helpers::application;
 use crate::models::{PathParameters, WebPayload};
-use actix_web::{http::StatusCode, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json::Value;
@@ -51,7 +55,7 @@ impl From<ReportQueryParameters> for Paging {
     }
 }
 
-pub fn get_report(
+pub async fn get_report(
     (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     match query.report.trim() {

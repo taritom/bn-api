@@ -8,7 +8,11 @@ use crate::helpers::application;
 use crate::models::*;
 use crate::server::AppState;
 use crate::utils::serializers::default_as_false;
-use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
+use actix_web::{
+    http::StatusCode,
+    web::{Data, Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
 use chrono::Duration;
@@ -20,7 +24,7 @@ use std::cmp;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn index(
+pub async fn index(
     (conn, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     //@TODO Implement proper paging on db
@@ -31,7 +35,7 @@ pub fn index(
     Ok(HttpResponse::Ok().json(&Payload::new(orders, query_parameters.into_inner().into())))
 }
 
-pub fn activity(
+pub async fn activity(
     (conn, path, user): (Connection, Path<PathParameters>, User),
 ) -> Result<WebPayload<ActivityItem>, BigNeonError> {
     let connection = conn.get();
@@ -43,8 +47,8 @@ pub fn activity(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn show(
-    (state, conn, path, auth_user): (State<AppState>, Connection, Path<PathParameters>, User),
+pub async fn show(
+    (state, conn, path, auth_user): (Data<AppState>, Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
@@ -101,8 +105,8 @@ pub fn show(
     Ok(HttpResponse::Ok().json(json!(result)))
 }
 
-pub fn resend_confirmation(
-    (conn, path, auth_user, state): (Connection, Path<PathParameters>, User, State<AppState>),
+pub async fn resend_confirmation(
+    (conn, path, auth_user, state): (Connection, Path<PathParameters>, User, Data<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
@@ -134,7 +138,9 @@ pub struct DetailsResponse {
     pub order_contains_other_tickets: bool,
 }
 
-pub fn details((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub async fn details(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
 
@@ -171,13 +177,13 @@ pub struct RefundResponse {
     pub refund_breakdown: HashMap<PaymentMethods, i64>,
 }
 
-pub fn refund(
+pub async fn refund(
     (conn, path, json, user, state): (
         Connection,
         Path<PathParameters>,
         Json<RefundAttributes>,
         User,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let refund_attributes = json.into_inner();
@@ -448,7 +454,9 @@ fn is_authorized_to_refund(
     Ok(authorized_to_refund_items)
 }
 
-pub fn tickets((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub async fn tickets(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let order = Order::find(path.id, conn)?;
     // TODO: Only show the redeem key for orgs that the user has access to redeem
@@ -477,13 +485,13 @@ pub struct SendBoxOfficeInstructionsRequest {
     pub phone: String,
 }
 
-pub fn send_box_office_instructions(
+pub async fn send_box_office_instructions(
     (conn, path, data, user, state): (
         Connection,
         Path<PathParameters>,
         Json<SendBoxOfficeInstructionsRequest>,
         User,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();

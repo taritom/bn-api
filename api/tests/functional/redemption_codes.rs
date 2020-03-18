@@ -1,28 +1,34 @@
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    FromRequest, HttpResponse,
+};
 use bigneon_api::controllers::redemption_codes::{self, *};
 use bigneon_api::extractors::*;
 use bigneon_api::models::UserDisplayTicketType;
 use bigneon_db::prelude::*;
 use serde_json;
 
-#[test]
-fn show_hold() {
+#[actix_rt::test]
+async fn show_hold() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
 
     let hold = database.create_hold().with_hold_type(HoldTypes::Discount).finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.code = hold.redemption_code.clone().unwrap();
 
     let test_request = TestRequest::create_with_uri("/");
-    let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
+    let parameters = Query::<EventParameter>::extract(&test_request.request).await.unwrap();
 
     let response: HttpResponse =
-        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None)).into();
+        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None))
+            .await
+            .into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -61,19 +67,21 @@ fn show_hold() {
     }
 }
 
-#[test]
-fn show_comp() {
+#[actix_rt::test]
+async fn show_comp() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
 
     let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     let test_request = TestRequest::create_with_uri("/");
-    let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
+    let parameters = Query::<EventParameter>::extract(&test_request.request).await.unwrap();
     path.code = hold.redemption_code.clone().unwrap();
     let response: HttpResponse =
-        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None)).into();
+        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None))
+            .await
+            .into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -116,8 +124,8 @@ fn show_comp() {
     }
 }
 
-#[test]
-fn show_hold_for_user() {
+#[actix_rt::test]
+async fn show_hold_for_user() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -125,7 +133,7 @@ fn show_hold_for_user() {
 
     let hold = database.create_hold().with_hold_type(HoldTypes::Discount).finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.code = hold.redemption_code.clone().unwrap();
 
     let event = Event::find(hold.event_id, connection).unwrap();
@@ -139,7 +147,7 @@ fn show_hold_for_user() {
         .finish();
 
     let test_request = TestRequest::create_with_uri("/");
-    let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
+    let parameters = Query::<EventParameter>::extract(&test_request.request).await.unwrap();
 
     let response: HttpResponse = redemption_codes::show(
         database.connection.clone().into(),
@@ -147,6 +155,7 @@ fn show_hold_for_user() {
         path,
         OptionalUser(Some(auth_user.clone())),
     )
+    .await
     .into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -186,8 +195,8 @@ fn show_hold_for_user() {
     }
 }
 
-#[test]
-fn show_code() {
+#[actix_rt::test]
+async fn show_code() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let organization = database.create_organization().with_fees().finish();
@@ -206,12 +215,14 @@ fn show_code() {
         .with_discount_in_cents(Some(10))
         .finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.code = code.redemption_code.clone();
     let test_request = TestRequest::create_with_uri("/");
-    let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
+    let parameters = Query::<EventParameter>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse =
-        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None)).into();
+        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None))
+            .await
+            .into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -254,16 +265,18 @@ fn show_code() {
     }
 }
 
-#[test]
-fn show_invalid() {
+#[actix_rt::test]
+async fn show_invalid() {
     let database = TestDatabase::new();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.code = "invalid".to_string();
     let test_request = TestRequest::create_with_uri("/");
-    let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
+    let parameters = Query::<EventParameter>::extract(&test_request.request).await.unwrap();
     let response: HttpResponse =
-        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None)).into();
+        redemption_codes::show(database.connection.clone().into(), parameters, path, OptionalUser(None))
+            .await
+            .into();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

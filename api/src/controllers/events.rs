@@ -13,7 +13,11 @@ use crate::server::AppState;
 use crate::utils::cloudinary::optimize_cloudinary;
 use crate::utils::redis::*;
 use crate::utils::ServiceLocator;
-use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
+use actix_web::{
+    http::StatusCode,
+    web::{Data, Path, Query},
+    HttpResponse,
+};
 use bigneon_db::dev::times;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
@@ -188,7 +192,7 @@ impl From<EventSummaryResultTicketType> for EventExportTicketType {
     }
 }
 
-pub fn export_event_data(
+pub async fn export_event_data(
     (connection, path, paging, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
 ) -> Result<WebPayload<EventExportData>, BigNeonError> {
     let conn = connection.get();
@@ -217,8 +221,8 @@ pub fn export_event_data(
 /**
  * What events does this user have authority to check in
 **/
-pub fn checkins(
-    (conn, query, auth_user, state): (Connection, Query<SearchParameters>, AuthUser, State<AppState>),
+pub async fn checkins(
+    (conn, query, auth_user, state): (Connection, Query<SearchParameters>, AuthUser, Data<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = auth_user.user.find_events_with_access_to_scan(conn.get())?;
     let mut payload = Payload::new(
@@ -230,9 +234,9 @@ pub fn checkins(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn index(
+pub async fn index(
     (state, connection, query, auth_user): (
-        State<AppState>,
+        Data<AppState>,
         ReadonlyConnection,
         Query<SearchParameters>,
         OptionalUser,
@@ -304,9 +308,9 @@ pub struct EventParameters {
     pub private_access_code: Option<String>,
 }
 
-pub fn show(
+pub async fn show(
     (state, connection, parameters, query, user, request): (
-        State<AppState>,
+        Data<AppState>,
         ReadonlyConnection,
         Path<StringPathParameters>,
         Query<EventParameters>,
@@ -554,13 +558,13 @@ pub fn show(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn clone(
+pub async fn clone(
     (connection, clone_fields, path, user, state): (
         Connection,
         Json<CloneFields>,
         Path<PathParameters>,
         AuthUser,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -587,7 +591,7 @@ pub fn clone(
     Ok(HttpResponse::Created().json(event))
 }
 
-pub fn publish(
+pub async fn publish(
     (connection, path, user, cache_database): (Connection, Path<PathParameters>, AuthUser, CacheDatabase),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
@@ -603,7 +607,7 @@ pub fn publish(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn unpublish(
+pub async fn unpublish(
     (connection, path, user, cache_database): (Connection, Path<PathParameters>, AuthUser, CacheDatabase),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
@@ -619,7 +623,7 @@ pub fn unpublish(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn ticket_holder_count(
+pub async fn ticket_holder_count(
     (connection, path, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
@@ -635,13 +639,13 @@ pub struct TicketRedeemRequest {
     pub check_in_source: Option<CheckInSource>,
 }
 
-pub fn redeem_ticket(
+pub async fn redeem_ticket(
     (connection, parameters, redeem_parameters, auth_user, state, cache_database): (
         Connection,
         Path<PathParameters>,
         Json<TicketRedeemRequest>,
         AuthUser,
-        State<AppState>,
+        Data<AppState>,
         CacheDatabase,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -706,7 +710,7 @@ pub fn redeem_ticket(
     }
 }
 
-pub fn show_from_organizations(
+pub async fn show_from_organizations(
     (connection, path, paging, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
 ) -> Result<WebPayload<EventSummaryResult>, BigNeonError> {
     let conn = connection.get();
@@ -769,9 +773,9 @@ pub struct DashboardResult {
     pub cube_js_token: String,
 }
 
-pub fn dashboard(
+pub async fn dashboard(
     (state, connection, path, query, user): (
-        State<AppState>,
+        Data<AppState>,
         Connection,
         Path<PathParameters>,
         Query<DashboardParameters>,
@@ -834,7 +838,7 @@ pub struct AddArtistRequest {
     pub stage_id: Option<Uuid>,
 }
 
-pub fn create(
+pub async fn create(
     (connection, new_event, user): (Connection, Json<NewEvent>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -849,7 +853,7 @@ pub fn create(
     Ok(HttpResponse::Created().json(event))
 }
 
-pub fn update(
+pub async fn update(
     (connection, parameters, event_parameters, user): (
         Connection,
         Path<PathParameters>,
@@ -887,7 +891,7 @@ fn create_domain_action_event(event_id: Uuid, conn: &PgConnection) {
     domain_action.commit(conn).unwrap();
 }
 
-pub fn delete(
+pub async fn delete(
     (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -899,7 +903,7 @@ pub fn delete(
     Ok(HttpResponse::Ok().json({}))
 }
 
-pub fn cancel(
+pub async fn cancel(
     (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -913,7 +917,7 @@ pub fn cancel(
     Ok(HttpResponse::Ok().json(&updated_event))
 }
 
-pub fn list_interested_users(
+pub async fn list_interested_users(
     (connection, path_parameters, query, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::EventInterest)?;
@@ -931,7 +935,7 @@ pub fn list_interested_users(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn add_interest(
+pub async fn add_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::EventInterest)?;
@@ -941,7 +945,7 @@ pub fn add_interest(
     Ok(HttpResponse::Created().json(&event_interest))
 }
 
-pub fn remove_interest(
+pub async fn remove_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::EventInterest)?;
@@ -951,7 +955,7 @@ pub fn remove_interest(
     Ok(HttpResponse::Ok().json(&event_interest))
 }
 
-pub fn add_artist(
+pub async fn add_artist(
     (connection, parameters, event_artist, user): (Connection, Path<PathParameters>, Json<AddArtistRequest>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -996,7 +1000,7 @@ pub struct UpdateArtistsRequestList {
     pub artists: Vec<UpdateArtistsRequest>,
 }
 
-pub fn update_artists(
+pub async fn update_artists(
     (connection, parameters, artists, user): (
         Connection,
         Path<PathParameters>,
@@ -1073,7 +1077,7 @@ impl From<GuestListQueryParameters> for Paging {
     }
 }
 
-pub fn guest_list(
+pub async fn guest_list(
     (connection, query, path, user): (
         Connection,
         Query<GuestListQueryParameters>,
@@ -1127,7 +1131,7 @@ pub fn guest_list(
     Ok(HttpResponse::Ok().json(payload))
 }
 
-pub fn codes(
+pub async fn codes(
     (conn, query, path, user): (Connection, Query<PagingParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
@@ -1147,7 +1151,7 @@ pub fn codes(
     Ok(HttpResponse::Ok().json(payload))
 }
 
-pub fn holds(
+pub async fn holds(
     (conn, query, path, user): (Connection, Query<PagingParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
@@ -1222,7 +1226,7 @@ pub fn holds(
     Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit(), None)))
 }
 
-pub fn users(
+pub async fn users(
     (connection, path_parameters, query_parameters, user): (
         Connection,
         Path<PathParameters>,
@@ -1271,7 +1275,7 @@ pub struct EventUserPathParams {
     user_id: Uuid,
 }
 
-pub fn remove_user(
+pub async fn remove_user(
     (connection, path, user): (Connection, Path<EventUserPathParams>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -1304,11 +1308,11 @@ pub struct LinkResult {
     pub long_link: String,
 }
 
-pub fn create_link(
+pub async fn create_link(
     (path, query, state, user, conn): (
         Path<PathParameters>,
         Json<LinkQueryParameters>,
-        State<AppState>,
+        Data<AppState>,
         AuthUser,
         Connection,
     ),

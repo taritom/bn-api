@@ -5,7 +5,7 @@ use crate::errors::BigNeonError;
 use bigneon_db::prelude::*;
 use futures::future;
 use log::Level;
-use reqwest::Client;
+use reqwest::blocking::Client;
 
 pub struct SubmitSitemapToSearchEnginesExecutor {
     api_url: String,
@@ -15,10 +15,10 @@ pub struct SubmitSitemapToSearchEnginesExecutor {
 impl DomainActionExecutor for SubmitSitemapToSearchEnginesExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
         match self.perform_job(&action, &conn) {
-            Ok(_) => ExecutorFuture::new(action, conn, Box::new(future::ok(()))),
+            Ok(_) => ExecutorFuture::new(action, conn, Box::pin(future::ok(()))),
             Err(e) => {
                 jlog!(Level::Trace, "Process submit to search engines failed", {"action_id": action.id, "main_table_id": action.main_table_id, "error": e.to_string()});
-                ExecutorFuture::new(action, conn, Box::new(future::err(e)))
+                ExecutorFuture::new(action, conn, Box::pin(future::err(e)))
             }
         }
     }

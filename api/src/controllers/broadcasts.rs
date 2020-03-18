@@ -3,8 +3,10 @@ use crate::db::Connection;
 use crate::errors::BigNeonError;
 use crate::extractors::Json;
 use crate::models::{PathParameters, WebPayload};
-use actix_web::Path;
-use actix_web::{HttpResponse, Query};
+use actix_web::{
+    web::{Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use bigneon_db::models::scopes::Scopes;
 use bigneon_db::models::{Broadcast, BroadcastEditableAttributes, Organization, PagingParameters};
@@ -25,7 +27,7 @@ pub struct NewBroadcastData {
     pub preview_email: Option<String>,
 }
 
-pub fn create(
+pub async fn create(
     (conn, path, json, user): (Connection, Path<PathParameters>, Json<NewBroadcastData>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
@@ -50,7 +52,7 @@ pub fn create(
     Ok(HttpResponse::Created().json(json!(broadcast)))
 }
 
-pub fn index(
+pub async fn index(
     (conn, path, query, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<Broadcast>, BigNeonError> {
     let connection = conn.get();
@@ -76,7 +78,7 @@ pub fn index(
     Ok(WebPayload::new(StatusCode::OK, push_notifications))
 }
 
-pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub async fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let push_notification = Broadcast::find(path.id, connection)?;
     let organization = Organization::find_for_event(push_notification.event_id, connection)?;
@@ -86,7 +88,7 @@ pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Res
     Ok(HttpResponse::Ok().json(push_notification))
 }
 
-pub fn update(
+pub async fn update(
     (conn, path, json, user): (
         Connection,
         Path<PathParameters>,
@@ -106,7 +108,9 @@ pub fn update(
     Ok(HttpResponse::Ok().json(broadcast))
 }
 
-pub fn delete((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
+pub async fn delete(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let broadcast = Broadcast::find(path.id, connection)?;
     let organization = Organization::find_for_event(broadcast.event_id, connection)?;
@@ -117,7 +121,7 @@ pub fn delete((conn, path, user): (Connection, Path<PathParameters>, User)) -> R
     Ok(HttpResponse::Ok().json(broadcast))
 }
 
-pub fn tracking_count(
+pub async fn tracking_count(
     (conn, path, _user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();

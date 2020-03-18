@@ -2,7 +2,7 @@ use crate::functional::base;
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, web::Path, FromRequest, HttpResponse};
 use bigneon_api::controllers::notes::{self, *};
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
@@ -11,164 +11,164 @@ use bigneon_db::prelude::*;
 #[cfg(test)]
 mod index_tests {
     use super::*;
-    #[test]
-    fn index_org_member() {
-        base::notes::index(Roles::OrgMember, false, true);
+    #[actix_rt::test]
+    async fn index_org_member() {
+        base::notes::index(Roles::OrgMember, false, true).await;
     }
-    #[test]
-    fn index_admin() {
-        base::notes::index(Roles::Admin, false, true);
+    #[actix_rt::test]
+    async fn index_admin() {
+        base::notes::index(Roles::Admin, false, true).await;
     }
-    #[test]
-    fn index_user() {
-        base::notes::index(Roles::User, false, false);
+    #[actix_rt::test]
+    async fn index_user() {
+        base::notes::index(Roles::User, false, false).await;
     }
-    #[test]
-    fn index_org_owner() {
-        base::notes::index(Roles::OrgOwner, false, true);
+    #[actix_rt::test]
+    async fn index_org_owner() {
+        base::notes::index(Roles::OrgOwner, false, true).await;
     }
-    #[test]
-    fn index_door_person() {
-        base::notes::index(Roles::DoorPerson, false, true);
+    #[actix_rt::test]
+    async fn index_door_person() {
+        base::notes::index(Roles::DoorPerson, false, true).await;
     }
-    #[test]
-    fn index_promoter() {
-        base::notes::index(Roles::Promoter, false, true);
+    #[actix_rt::test]
+    async fn index_promoter() {
+        base::notes::index(Roles::Promoter, false, true).await;
     }
-    #[test]
-    fn index_promoter_read_only() {
-        base::notes::index(Roles::PromoterReadOnly, false, true);
+    #[actix_rt::test]
+    async fn index_promoter_read_only() {
+        base::notes::index(Roles::PromoterReadOnly, false, true).await;
     }
-    #[test]
-    fn index_org_admin() {
-        base::notes::index(Roles::OrgAdmin, false, true);
+    #[actix_rt::test]
+    async fn index_org_admin() {
+        base::notes::index(Roles::OrgAdmin, false, true).await;
     }
-    #[test]
-    fn index_box_office() {
-        base::notes::index(Roles::OrgBoxOffice, false, true);
+    #[actix_rt::test]
+    async fn index_box_office() {
+        base::notes::index(Roles::OrgBoxOffice, false, true).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_org_member() {
-        base::notes::index(Roles::OrgMember, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_org_member() {
+        base::notes::index(Roles::OrgMember, true, false).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_admin() {
-        base::notes::index(Roles::Admin, true, true);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_admin() {
+        base::notes::index(Roles::Admin, true, true).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_user() {
-        base::notes::index(Roles::User, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_user() {
+        base::notes::index(Roles::User, true, false).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_org_owner() {
-        base::notes::index(Roles::OrgOwner, true, true);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_org_owner() {
+        base::notes::index(Roles::OrgOwner, true, true).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_door_person() {
-        base::notes::index(Roles::DoorPerson, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_door_person() {
+        base::notes::index(Roles::DoorPerson, true, false).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_promoter() {
-        base::notes::index(Roles::Promoter, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_promoter() {
+        base::notes::index(Roles::Promoter, true, false).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_promoter_read_only() {
-        base::notes::index(Roles::PromoterReadOnly, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_promoter_read_only() {
+        base::notes::index(Roles::PromoterReadOnly, true, false).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_org_admin() {
-        base::notes::index(Roles::OrgAdmin, true, true);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_org_admin() {
+        base::notes::index(Roles::OrgAdmin, true, true).await;
     }
-    #[test]
-    fn index_filter_deleted_disabled_box_office() {
-        base::notes::index(Roles::OrgBoxOffice, true, false);
+    #[actix_rt::test]
+    async fn index_filter_deleted_disabled_box_office() {
+        base::notes::index(Roles::OrgBoxOffice, true, false).await;
     }
 }
 
 #[cfg(test)]
 mod create_tests {
     use super::*;
-    #[test]
-    fn create_org_member() {
-        base::notes::create(Roles::OrgMember, true);
+    #[actix_rt::test]
+    async fn create_org_member() {
+        base::notes::create(Roles::OrgMember, true).await;
     }
-    #[test]
-    fn create_admin() {
-        base::notes::create(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn create_admin() {
+        base::notes::create(Roles::Admin, true).await;
     }
-    #[test]
-    fn create_user() {
-        base::notes::create(Roles::User, false);
+    #[actix_rt::test]
+    async fn create_user() {
+        base::notes::create(Roles::User, false).await;
     }
-    #[test]
-    fn create_org_owner() {
-        base::notes::create(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn create_org_owner() {
+        base::notes::create(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn create_door_person() {
-        base::notes::create(Roles::DoorPerson, true);
+    #[actix_rt::test]
+    async fn create_door_person() {
+        base::notes::create(Roles::DoorPerson, true).await;
     }
-    #[test]
-    fn create_promoter() {
-        base::notes::create(Roles::Promoter, true);
+    #[actix_rt::test]
+    async fn create_promoter() {
+        base::notes::create(Roles::Promoter, true).await;
     }
-    #[test]
-    fn create_promoter_read_only() {
-        base::notes::create(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn create_promoter_read_only() {
+        base::notes::create(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn create_org_admin() {
-        base::notes::create(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn create_org_admin() {
+        base::notes::create(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn create_box_office() {
-        base::notes::create(Roles::OrgBoxOffice, true);
+    #[actix_rt::test]
+    async fn create_box_office() {
+        base::notes::create(Roles::OrgBoxOffice, true).await;
     }
 }
 
 #[cfg(test)]
 mod destroy_tests {
     use super::*;
-    #[test]
-    fn destroy_org_member() {
-        base::notes::destroy(Roles::OrgMember, false);
+    #[actix_rt::test]
+    async fn destroy_org_member() {
+        base::notes::destroy(Roles::OrgMember, false).await;
     }
-    #[test]
-    fn destroy_admin() {
-        base::notes::destroy(Roles::Admin, true);
+    #[actix_rt::test]
+    async fn destroy_admin() {
+        base::notes::destroy(Roles::Admin, true).await;
     }
-    #[test]
-    fn destroy_user() {
-        base::notes::destroy(Roles::User, false);
+    #[actix_rt::test]
+    async fn destroy_user() {
+        base::notes::destroy(Roles::User, false).await;
     }
-    #[test]
-    fn destroy_org_owner() {
-        base::notes::destroy(Roles::OrgOwner, true);
+    #[actix_rt::test]
+    async fn destroy_org_owner() {
+        base::notes::destroy(Roles::OrgOwner, true).await;
     }
-    #[test]
-    fn destroy_door_person() {
-        base::notes::destroy(Roles::DoorPerson, false);
+    #[actix_rt::test]
+    async fn destroy_door_person() {
+        base::notes::destroy(Roles::DoorPerson, false).await;
     }
-    #[test]
-    fn destroy_promoter() {
-        base::notes::destroy(Roles::Promoter, false);
+    #[actix_rt::test]
+    async fn destroy_promoter() {
+        base::notes::destroy(Roles::Promoter, false).await;
     }
-    #[test]
-    fn destroy_promoter_read_only() {
-        base::notes::destroy(Roles::PromoterReadOnly, false);
+    #[actix_rt::test]
+    async fn destroy_promoter_read_only() {
+        base::notes::destroy(Roles::PromoterReadOnly, false).await;
     }
-    #[test]
-    fn destroy_org_admin() {
-        base::notes::destroy(Roles::OrgAdmin, true);
+    #[actix_rt::test]
+    async fn destroy_org_admin() {
+        base::notes::destroy(Roles::OrgAdmin, true).await;
     }
-    #[test]
-    fn destroy_box_office() {
-        base::notes::destroy(Roles::OrgBoxOffice, false);
+    #[actix_rt::test]
+    async fn destroy_box_office() {
+        base::notes::destroy(Roles::OrgBoxOffice, false).await;
     }
 }
 
-#[test]
-fn create_with_validation_errors() {
+#[actix_rt::test]
+async fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().with_event_fee().with_fees().finish();
@@ -185,11 +185,15 @@ fn create_with_validation_errors() {
     let json = Json(NewNoteRequest { note: "".to_string() });
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["main_table", "id"]);
-    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.id = order.id;
     path.main_table = Tables::Orders.to_string();
 
-    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user)).into();
+    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user))
+        .await
+        .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();

@@ -6,7 +6,10 @@ use crate::helpers::application;
 use crate::models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
 use crate::server::AppState;
 use crate::utils::serializers::default_as_true;
-use actix_web::{HttpResponse, Path, Query, State};
+use actix_web::{
+    web::{Data, Path, Query},
+    HttpResponse,
+};
 use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -126,13 +129,13 @@ pub struct DisplayCreatedTicket {
     pub id: Uuid,
 }
 
-pub fn create(
+pub async fn create(
     (connection, path, data, user, state): (
         Connection,
         Path<PathParameters>,
         Json<CreateTicketTypeRequest>,
         User,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -151,13 +154,13 @@ pub fn create(
     Ok(HttpResponse::Created().json(&created_ticket_types[0]))
 }
 
-pub fn create_multiple(
+pub async fn create_multiple(
     (connection, path, data, user, state): (
         Connection,
         Path<PathParameters>,
         Json<CreateMultipleTicketTypeRequest>,
         User,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -176,7 +179,7 @@ pub struct TicketTypesResponse {
     pub ticket_types: Vec<AdminDisplayTicketType>,
 }
 
-pub fn index(
+pub async fn index(
     (connection, path, query_parameters, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -200,8 +203,8 @@ pub fn index(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
-pub fn cancel(
-    (connection, path, user, state): (Connection, Path<EventTicketPathParameters>, User, State<AppState>),
+pub async fn cancel(
+    (connection, path, user, state): (Connection, Path<EventTicketPathParameters>, User, Data<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.event_id, connection)?;
@@ -240,13 +243,13 @@ pub fn cancel(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn update(
+pub async fn update(
     (connection, path, data, user, state): (
         Connection,
         Path<EventTicketPathParameters>,
         Json<UpdateTicketTypeRequest>,
         User,
-        State<AppState>,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -404,7 +407,7 @@ pub fn update(
 }
 
 fn nullify_tickets(
-    state: State<AppState>,
+    state: Data<AppState>,
     organization: Organization,
     ticket_type: &TicketType,
     quantity: u32,
@@ -448,7 +451,7 @@ fn nullify_tickets(
 pub(crate) fn create_ticket_type_blockchain_assets(
     event: &Event,
     ticket_types: &[TicketType],
-    state: &State<AppState>,
+    state: &Data<AppState>,
     connection: &PgConnection,
 ) -> Result<(), BigNeonError> {
     //Retrieve default wallet
@@ -480,7 +483,7 @@ fn create_ticket_types(
     organization: &Organization,
     user: &User,
     data: Vec<CreateTicketTypeRequest>,
-    state: &State<AppState>,
+    state: &Data<AppState>,
     connection: &PgConnection,
 ) -> Result<Vec<DisplayCreatedTicket>, BigNeonError> {
     //Check that any requested ticket capacity is less than max_instances_per_ticket_type

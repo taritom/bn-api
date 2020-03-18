@@ -6,7 +6,11 @@ use crate::errors::*;
 use crate::helpers::application;
 use crate::models::*;
 use crate::server::AppState;
-use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
+use actix_web::{
+    http::StatusCode,
+    web::{Data, Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::{User as DbUser, *};
 use chrono::prelude::*;
 use diesel::PgConnection;
@@ -19,7 +23,7 @@ pub struct TransferFilters {
     end_utc: Option<NaiveDateTime>,
 }
 
-pub fn show_by_transfer_key(
+pub async fn show_by_transfer_key(
     (connection, path): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -28,7 +32,7 @@ pub fn show_by_transfer_key(
     Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
 }
 
-pub fn index(
+pub async fn index(
     (connection, paging_query, filter_query, path, auth_user): (
         Connection,
         Query<PagingParameters>,
@@ -92,7 +96,7 @@ pub fn index(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn activity(
+pub async fn activity(
     (connection, paging_query, past_or_upcoming_query, auth_user): (
         Connection,
         Query<PagingParameters>,
@@ -116,8 +120,8 @@ pub fn activity(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn cancel(
-    (connection, path, auth_user, state): (Connection, Path<PathParameters>, User, State<AppState>),
+pub async fn cancel(
+    (connection, path, auth_user, state): (Connection, Path<PathParameters>, User, Data<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let transfer = Transfer::find(path.id, connection)?;

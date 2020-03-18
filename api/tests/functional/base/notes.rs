@@ -1,7 +1,11 @@
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    FromRequest, HttpResponse,
+};
 use bigneon_api::controllers::notes::{self, *};
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
@@ -13,7 +17,7 @@ use diesel::RunQueryDsl;
 use serde_json::Value;
 use std::collections::HashMap;
 
-pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bool) {
+pub async fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -58,9 +62,13 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
     } else {
         TestRequest::create_with_uri_custom_params("/", vec!["main_table", "id"])
     };
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let filter_parameters = Query::<NoteFilterParameters>::extract(&test_request.request).unwrap();
-    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).await.unwrap();
+    let filter_parameters = Query::<NoteFilterParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
+    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.id = order.id;
     path.main_table = Tables::Orders.to_string();
 
@@ -70,7 +78,8 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
         query_parameters,
         filter_parameters,
         auth_user,
-    ));
+    ))
+    .await;
 
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
     expected_tags.insert("filter_deleted".to_string(), json!(!filter_deleted_disabled));
@@ -98,7 +107,7 @@ pub fn index(role: Roles, filter_deleted_disabled: bool, should_test_succeed: bo
     }
 }
 
-pub fn create(role: Roles, should_test_succeed: bool) {
+pub async fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().with_event_fee().with_fees().finish();
@@ -119,11 +128,15 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     });
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["main_table", "id"]);
-    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<MainTablePathParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     path.id = order.id;
     path.main_table = Tables::Orders.to_string();
 
-    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user)).into();
+    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user))
+        .await
+        .into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -137,7 +150,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn destroy(role: Roles, should_succeed: bool) {
+pub async fn destroy(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
@@ -154,10 +167,12 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = note.id;
 
-    let response: HttpResponse = notes::destroy((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = notes::destroy((database.connection.clone().into(), path, auth_user))
+        .await
+        .into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);

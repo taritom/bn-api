@@ -16,8 +16,8 @@ use diesel::prelude::*;
 use serde_json;
 use uuid::Uuid;
 
-#[test]
-fn create() {
+#[actix_rt::test]
+async fn create() {
     let database = TestDatabase::new();
     let email = "joe@tari.com";
 
@@ -28,19 +28,21 @@ fn create() {
     .to_string();
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
+    let state = test_request.extract_state().await;
     let json = Json(CreatePasswordResetParameters {
         email: email.to_string(),
     });
-    let response: HttpResponse = password_resets::create((state, database.connection.clone(), json)).into();
+    let response: HttpResponse = password_resets::create((state, database.connection.clone(), json))
+        .await
+        .into();
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
 }
 
-#[test]
-fn create_fake_email() {
+#[actix_rt::test]
+async fn create_fake_email() {
     let database = TestDatabase::new();
     let email = "joe@tari.com";
 
@@ -50,19 +52,19 @@ fn create_fake_email() {
     .to_string();
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
+    let state = test_request.extract_state().await;
     let json = Json(CreatePasswordResetParameters {
         email: email.to_string(),
     });
-    let response: HttpResponse = password_resets::create((state, database.connection, json)).into();
+    let response: HttpResponse = password_resets::create((state, database.connection, json)).await.into();
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
 }
 
-#[test]
-fn update() {
+#[actix_rt::test]
+async fn update() {
     let database = TestDatabase::new();
     let connection_object: BigNeonConnection = database.connection.clone().into();
 
@@ -72,7 +74,7 @@ fn update() {
     assert!(!user.check_password(&new_password));
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
+    let state = test_request.extract_state().await;
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: user.password_reset_token.unwrap(),
         password: new_password.to_string(),
@@ -80,7 +82,7 @@ fn update() {
 
     let token_issuer = state.config.token_issuer.clone();
 
-    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).await.into();
 
     let user = User::find(user.id, database.connection.get()).unwrap();
     assert!(user.password_reset_token.is_none());
@@ -100,8 +102,8 @@ fn update() {
     assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
-#[test]
-fn update_expired_token() {
+#[actix_rt::test]
+async fn update_expired_token() {
     use bigneon_db::schema::users::dsl::*;
     let database = TestDatabase::new();
     let connection_object: BigNeonConnection = database.connection.clone().into();
@@ -119,12 +121,12 @@ fn update_expired_token() {
     assert!(!user.check_password(&new_password));
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
+    let state = test_request.extract_state().await;
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: token,
         password: new_password.to_string(),
     });
-    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).await.into();
 
     let user = User::find(user.id, database.connection.get()).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
@@ -134,8 +136,8 @@ fn update_expired_token() {
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
-#[test]
-fn update_incorrect_token() {
+#[actix_rt::test]
+async fn update_incorrect_token() {
     let database = TestDatabase::new();
     let connection_object: BigNeonConnection = database.connection.clone().into();
     let user = database.create_user().finish();
@@ -145,12 +147,12 @@ fn update_incorrect_token() {
     assert!(!user.check_password(&new_password));
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
+    let state = test_request.extract_state().await;
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: Uuid::new_v4(),
         password: new_password.to_string(),
     });
-    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).await.into();
 
     let user = User::find(user.id, database.connection.get()).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);

@@ -1,9 +1,11 @@
 // Websocket based on actix example https://github.com/actix/examples/blob/0.7/websocket/src/main.rs
 
 use crate::models::*;
-use crate::server::AppState;
 use actix::prelude::*;
-use actix_web::ws;
+use actix_http::ws::Item;
+use actix_web_actors::ws;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
@@ -13,10 +15,11 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct EventWebSocket {
     pub heartbeat: Instant,
     pub event_id: Uuid,
+    clients: Arc<Mutex<HashMap<Uuid, Vec<Addr<EventWebSocket>>>>>,
 }
 
 impl Actor for EventWebSocket {
-    type Context = ws::WebsocketContext<Self, AppState>;
+    type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, context: &mut Self::Context) {
         self.heartbeat(context);
@@ -34,16 +37,17 @@ impl EventWebSocket {
         }
     }
 
-    pub fn new(event_id: Uuid) -> Self {
+    pub fn new(event_id: Uuid, clients: Arc<Mutex<HashMap<Uuid, Vec<Addr<EventWebSocket>>>>>) -> Self {
         Self {
             heartbeat: Instant::now(),
             event_id,
+            clients,
         }
     }
 
     fn heartbeat(&self, context: &mut <Self as Actor>::Context) {
         context.run_interval(HEARTBEAT_INTERVAL, |act, context| {
-            context.ping("");
+            context.ping(b"");
             if Instant::now().duration_since(act.heartbeat) > CLIENT_TIMEOUT {
                 act.close(context);
             }
@@ -53,7 +57,7 @@ impl EventWebSocket {
     pub fn close(&mut self, context: &mut <Self as Actor>::Context) {
         context.stop();
 
-        let client_mutex = context.state().clients.clone();
+        let client_mutex = self.clients.clone();
         let mut clients = client_mutex.lock().unwrap();
         clients
             .entry(self.event_id)
@@ -61,27 +65,36 @@ impl EventWebSocket {
     }
 }
 
-impl StreamHandler<ws::Message, ws::ProtocolError> for EventWebSocket {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for EventWebSocket {
     fn started(&mut self, context: &mut Self::Context) {
-        let mut clients = context.state().clients.lock().unwrap();
+        let mut clients = self.clients.lock().unwrap();
         clients
             .entry(self.event_id)
             .or_insert(Vec::new())
             .push(context.address());
     }
 
-    fn handle(&mut self, message: ws::Message, context: &mut Self::Context) {
+    fn handle(&mut self, message: Result<ws::Message, ws::ProtocolError>, context: &mut Self::Context) {
         match message {
-            ws::Message::Ping(message) => {
+            Ok(ws::Message::Ping(message)) => {
                 self.heartbeat = Instant::now();
                 context.pong(&message);
             }
-            ws::Message::Pong(_) => {
+            Ok(ws::Message::Pong(_)) => {
                 self.heartbeat = Instant::now();
             }
-            ws::Message::Text(text) => context.text(text),
-            ws::Message::Binary(bin) => context.binary(bin),
-            ws::Message::Close(_) => {
+            Ok(ws::Message::Text(text)) => context.text(text),
+            Ok(ws::Message::Binary(bin)) => context.binary(bin),
+            Ok(ws::Message::Close(_)) => {
+                self.close(context);
+            }
+            Ok(ws::Message::Nop) => {}
+            // probably continuation text should be recognized too
+            Ok(ws::Message::Continuation(Item::FirstText(bin))) => context.binary(bin),
+            Ok(ws::Message::Continuation(Item::FirstBinary(bin))) => context.binary(bin),
+            Ok(ws::Message::Continuation(Item::Continue(bin))) => context.binary(bin),
+            Ok(ws::Message::Continuation(Item::Last(bin))) => context.binary(bin),
+            Err(_) => {
                 self.close(context);
             }
         }

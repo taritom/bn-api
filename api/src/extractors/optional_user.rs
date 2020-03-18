@@ -1,22 +1,28 @@
 use crate::auth::user::User;
-use crate::server::AppState;
+use crate::errors::BigNeonError;
 use actix_web::error::*;
-use actix_web::{FromRequest, HttpRequest};
+use actix_web::{dev, FromRequest, HttpRequest};
+use futures::future::{err, ok, Ready};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct OptionalUser(pub Option<User>);
 
-impl FromRequest<AppState> for OptionalUser {
+impl FromRequest for OptionalUser {
     type Config = ();
-    type Result = Result<OptionalUser, Error>;
+    type Error = BigNeonError;
+    type Future = Ready<Result<OptionalUser, Self::Error>>;
 
-    fn from_request(req: &HttpRequest<AppState>, cfg: &Self::Config) -> Self::Result {
+    fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
         // If auth header exists pass authorization errors back to client
         if let Some(_auth_header) = req.headers().get("Authorization") {
-            return User::from_request(req, cfg).map(|u| OptionalUser(Some(u)));
+            let user = match User::from_request(req, payload).into_inner() {
+                Ok(user) => user,
+                Err(e) => return err(e),
+            };
+            return ok(OptionalUser(Some(user)));
         }
-        Ok(OptionalUser(None))
+        ok(OptionalUser(None))
     }
 }
 

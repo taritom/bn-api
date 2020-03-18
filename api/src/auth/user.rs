@@ -1,6 +1,5 @@
 use crate::errors::*;
 use crate::extractors::OptionalUser;
-use crate::server::AppState;
 use actix_web::{HttpRequest, Result};
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::{scopes, Event, EventUser, Order, Organization, Roles, Scopes};
@@ -28,7 +27,7 @@ pub struct User {
 impl User {
     pub fn new(
         user: DbUser,
-        request: &HttpRequest<AppState>,
+        request: &HttpRequest,
         limited_scopes: Option<Vec<String>>,
     ) -> Result<User, EnumParseError> {
         let mut result = User {

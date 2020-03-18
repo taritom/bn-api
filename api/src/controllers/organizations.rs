@@ -6,7 +6,11 @@ use crate::helpers::application;
 use crate::models::WebPayload;
 use crate::models::{OrganizationUserPathParameters, PathParameters};
 use crate::server::AppState;
-use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
+use actix_web::{
+    http::StatusCode,
+    web::{Data, Path, Query},
+    HttpResponse,
+};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use uuid::Uuid;
@@ -66,11 +70,11 @@ pub struct NewFeeScheduleRequest {
     pub ranges: Vec<NewFeeScheduleRange>,
 }
 
-pub fn index(
+pub async fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if user.has_scope(Scopes::OrgAdmin)? {
-        return index_for_all_orgs((connection, query_parameters, user));
+        return index_for_all_orgs((connection, query_parameters, user)).await;
     }
 
     //TODO remap query to use paging info
@@ -84,7 +88,7 @@ pub fn index(
     )))
 }
 
-pub fn index_for_all_orgs(
+pub async fn index_for_all_orgs(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
@@ -99,8 +103,8 @@ pub fn index_for_all_orgs(
     )))
 }
 
-pub fn show(
-    (state, connection, parameters, user): (State<AppState>, Connection, Path<PathParameters>, User),
+pub async fn show(
+    (state, connection, parameters, user): (Data<AppState>, Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let mut organization = Organization::find(parameters.id, connection)?;
@@ -111,8 +115,8 @@ pub fn show(
     Ok(HttpResponse::Ok().json(&organization))
 }
 
-pub fn create(
-    (state, connection, new_organization, user): (State<AppState>, Connection, Json<NewOrganizationRequest>, User),
+pub async fn create(
+    (state, connection, new_organization, user): (Data<AppState>, Connection, Json<NewOrganizationRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
@@ -167,9 +171,9 @@ pub fn create(
     Ok(HttpResponse::Created().json(&organization))
 }
 
-pub fn update(
+pub async fn update(
     (state, connection, parameters, organization_parameters, user): (
-        State<AppState>,
+        Data<AppState>,
         Connection,
         Path<PathParameters>,
         Json<OrganizationEditableAttributes>,
@@ -201,7 +205,7 @@ pub fn update(
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
-pub fn add_artist(
+pub async fn add_artist(
     (connection, parameters, new_artist, user): (Connection, Path<PathParameters>, Json<NewArtist>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -215,7 +219,7 @@ pub fn add_artist(
     Ok(HttpResponse::Created().json(&artist))
 }
 
-pub fn add_or_replace_user(
+pub async fn add_or_replace_user(
     (connection, path, json, user): (Connection, Path<PathParameters>, Json<AddUserRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -248,7 +252,7 @@ pub fn add_or_replace_user(
     Ok(HttpResponse::Created().finish())
 }
 
-pub fn remove_user(
+pub async fn remove_user(
     (connection, parameters, user): (Connection, Path<OrganizationUserPathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -259,7 +263,7 @@ pub fn remove_user(
     Ok(HttpResponse::Ok().json(&organization))
 }
 
-pub fn list_organization_members(
+pub async fn list_organization_members(
     (connection, path_parameters, query_parameters, user): (
         Connection,
         Path<PathParameters>,
@@ -313,7 +317,7 @@ pub struct DisplayOrganizationUser {
     pub invite_id: Option<Uuid>,
 }
 
-pub fn show_fee_schedule(
+pub async fn show_fee_schedule(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -333,7 +337,7 @@ pub fn show_fee_schedule(
     }))
 }
 
-pub fn add_fee_schedule(
+pub async fn add_fee_schedule(
     (connection, parameters, json, user): (Connection, Path<PathParameters>, Json<NewFeeScheduleRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
@@ -358,7 +362,7 @@ pub fn add_fee_schedule(
     }))
 }
 
-pub fn search_fans(
+pub async fn search_fans(
     (connection, path, query, user): (ReadonlyConnection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<DisplayFan>, BigNeonError> {
     let connection = connection.get();

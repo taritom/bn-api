@@ -7,13 +7,18 @@ use crate::errors::*;
 use crate::extractors::*;
 use crate::helpers::application;
 use crate::models::*;
-use crate::server::AppState;
+use crate::server::GetAppState;
 use crate::utils::google_recaptcha;
 use actix_web;
 use actix_web::Responder;
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    HttpRequest, HttpResponse,
+};
 use bigneon_db::prelude::*;
 use diesel::PgConnection;
+use futures::future::{err, ok, Ready};
 use std::collections::HashMap;
 use std::str;
 use uuid::Uuid;
@@ -36,15 +41,14 @@ pub struct CurrentUser {
 }
 
 impl Responder for CurrentUser {
-    type Item = HttpResponse;
+    type Future = Ready<Result<HttpResponse, actix_web::Error>>;
     type Error = actix_web::Error;
 
-    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, actix_web::Error> {
-        let body = serde_json::to_string(&self)?;
-        Ok(HttpResponse::new(StatusCode::OK)
-            .into_builder()
-            .content_type("application/json")
-            .body(body))
+    fn respond_to(self, _req: &HttpRequest) -> Self::Future {
+        match serde_json::to_string(&self) {
+            Ok(body) => ok(HttpResponse::Ok().content_type("application/json").body(body)),
+            Err(e) => err(e.into()),
+        }
     }
 }
 
@@ -60,12 +64,12 @@ pub struct InputPushNotificationTokens {
     pub token: String,
 }
 
-pub fn current_user((connection, auth_user): (Connection, AuthUser)) -> Result<CurrentUser, BigNeonError> {
+pub async fn current_user((connection, auth_user): (Connection, AuthUser)) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
     current_user_from_user(&auth_user.user, connection)
 }
 
-pub fn activity(
+pub async fn activity(
     (connection, path, query, activity_query, auth_user): (
         Connection,
         Path<OrganizationFanPathParameters>,
@@ -109,7 +113,7 @@ pub fn activity(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn profile(
+pub async fn profile(
     (connection, path, auth_user): (Connection, Path<OrganizationFanPathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -126,7 +130,7 @@ pub fn profile(
     Ok(HttpResponse::Ok().json(&user.get_profile_for_organization(&organization, connection)?))
 }
 
-pub fn history(
+pub async fn history(
     (connection, path, query, auth_user): (
         Connection,
         Path<OrganizationFanPathParameters>,
@@ -156,7 +160,7 @@ pub fn history(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn update_current_user(
+pub async fn update_current_user(
     (connection, user_parameters, auth_user): (Connection, Json<UserProfileAttributes>, AuthUser),
 ) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
@@ -168,7 +172,7 @@ pub fn update_current_user(
     Ok(current_user)
 }
 
-pub fn show(
+pub async fn show(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -180,7 +184,7 @@ pub fn show(
     Ok(HttpResponse::Ok().json(&user.for_display()?))
 }
 
-pub fn list_organizations(
+pub async fn list_organizations(
     (connection, parameters, query_parameters, auth_user): (
         Connection,
         Path<PathParameters>,
@@ -204,7 +208,7 @@ pub fn list_organizations(
     )))
 }
 
-pub fn show_push_notification_tokens_for_user_id(
+pub async fn show_push_notification_tokens_for_user_id(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -222,7 +226,7 @@ pub fn show_push_notification_tokens_for_user_id(
     Ok(HttpResponse::Ok().json(&push_notification_tokens))
 }
 
-pub fn show_push_notification_tokens(
+pub async fn show_push_notification_tokens(
     (connection, auth_user): (Connection, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -236,7 +240,7 @@ pub fn show_push_notification_tokens(
     Ok(HttpResponse::Ok().json(&push_notification_tokens))
 }
 
-pub fn add_push_notification_token(
+pub async fn add_push_notification_token(
     (connection, add_request, auth_user): (Connection, Json<InputPushNotificationTokens>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -252,7 +256,7 @@ pub fn add_push_notification_token(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn remove_push_notification_token(
+pub async fn remove_push_notification_token(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -262,8 +266,8 @@ pub fn remove_push_notification_token(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn register(
-    (http_request, connection, parameters): (HttpRequest<AppState>, Connection, Json<RegisterRequest>),
+pub async fn register(
+    (http_request, connection, parameters): (HttpRequest, Connection, Json<RegisterRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
     let state = http_request.state();
     let connection_info = http_request.connection_info();
@@ -295,13 +299,8 @@ pub fn register(
     Ok(HttpResponse::Created().finish())
 }
 
-pub fn register_and_login(
-    (http_request, connection, parameters, request_info): (
-        HttpRequest<AppState>,
-        Connection,
-        Json<RegisterRequest>,
-        RequestInfo,
-    ),
+pub async fn register_and_login(
+    (http_request, connection, parameters, request_info): (HttpRequest, Connection, Json<RegisterRequest>, RequestInfo),
 ) -> Result<HttpResponse, BigNeonError> {
     let state = http_request.state();
     let connection_info = http_request.connection_info();
@@ -328,7 +327,7 @@ pub fn register_and_login(
         },
     };
     let json = Json(LoginRequest::new(&email, &password));
-    let token_response = auth::token((http_request.clone(), connection.clone(), json, request_info))?;
+    let token_response = auth::token((http_request.clone(), connection.clone(), json, request_info)).await?;
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
         mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
@@ -387,7 +386,9 @@ fn verify_recaptcha(
     }
 }
 
-pub fn delete((conn, path, user): (Connection, Path<PathParameters>, AuthUser)) -> Result<HttpResponse, BigNeonError> {
+pub async fn delete(
+    (conn, path, user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     if user.id() != path.id {
         user.requires_scope(Scopes::UserDelete)?

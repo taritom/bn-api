@@ -1,9 +1,7 @@
 use crate::errors::*;
-use reqwest::r#async::Client as AsyncClient;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde_json;
 use std::convert::From;
-use tokio::prelude::*;
 
 const SENDGRID_API_URL: &'static str = "https://api.sendgrid.com/v3";
 const LOG_TARGET: &'static str = "bigneon::utils::sendgrid";
@@ -80,22 +78,18 @@ impl SGContactList {
         Self { name }
     }
 
-    pub fn get_async(
-        &self,
-        api_key: &str,
-        id: String,
-    ) -> impl Future<Item = SGContactListResponse, Error = BigNeonError> {
-        let client = AsyncClient::new();
-
-        client
+    pub async fn get_async(&self, api_key: &str, id: String) -> Result<SGContactListResponse, BigNeonError> {
+        reqwest::Client::new()
             .get(Self::api_url(Some(id)).as_str())
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .header("user-agent", "sendgrid-rs")
             .send()
-            .and_then(|r| future::result(r.error_for_status()))
-            .and_then(|mut res| res.json::<SGContactListResponse>())
-            .map_err(|err| ApplicationError::new(err.to_string()).into())
+            .await?
+            .error_for_status()?
+            .json()
+            .await
+            .map_err(|err| err.into())
     }
 
     pub fn create(&self, api_key: &str) -> Result<SGContactListResponse, BigNeonError> {
@@ -111,24 +105,25 @@ impl SGContactList {
 
         send_request(api_key, req)
             .and_then(|r| r.error_for_status())
-            .and_then(|mut r| r.json())
+            .and_then(|r| r.json())
             .map(|json: serde_json::Value| json.into())
             .or_else(|err| {
-                if err.is_client_error() {
-                    // 4XX error
-                    // Possible duplicate error being returned from sendgrid
-                    // Fetch all lists and if there's a matching name, return the list object
-                    let lists =
-                        Self::fetch_all(api_key).map_err(|err| ApplicationError::new(format!("{}", err).into()))?;
+                match err.status() {
+                    Some(status) if status.is_client_error() => {
+                        // 4XX error
+                        // Possible duplicate error being returned from sendgrid
+                        // Fetch all lists and if there's a matching name, return the list object
+                        let lists =
+                            Self::fetch_all(api_key).map_err(|err| ApplicationError::new(format!("{}", err).into()))?;
 
-                    let found_list = lists.iter().find(|l| l.name == self.name);
-                    if let Some(list) = found_list {
-                        Ok(list.clone())
-                    } else {
-                        Err(BigNeonError::new(Box::new(err)))
+                        let found_list = lists.iter().find(|l| l.name == self.name);
+                        if let Some(list) = found_list {
+                            Ok(list.clone())
+                        } else {
+                            Err(BigNeonError::new(Box::new(err)))
+                        }
                     }
-                } else {
-                    Err(BigNeonError::new(Box::new(err)))
+                    _ => Err(BigNeonError::new(Box::new(err))),
                 }
             })
     }
@@ -197,14 +192,14 @@ impl SGContactListResponse {
     }
 }
 
-fn send_request_json(api_key: &str, req: reqwest::RequestBuilder) -> Result<serde_json::Value, BigNeonError> {
+fn send_request_json(api_key: &str, req: reqwest::blocking::RequestBuilder) -> Result<serde_json::Value, BigNeonError> {
     send_request(api_key, req)
         .and_then(|r| r.error_for_status())
-        .and_then(|mut r| r.json())
+        .and_then(|r| r.json())
         .map_err(|err| ApplicationError::new(err.to_string()).into())
 }
 
-fn send_request(api_key: &str, req: reqwest::RequestBuilder) -> reqwest::Result<reqwest::Response> {
+fn send_request(api_key: &str, req: reqwest::blocking::RequestBuilder) -> reqwest::Result<reqwest::blocking::Response> {
     req.header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .header("user-agent", "sendgrid-rs")

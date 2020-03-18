@@ -1,11 +1,11 @@
-use actix_web::{http::StatusCode, HttpResponse, Query};
-use auth::user::User as AuthUser;
+use crate::auth::user::User as AuthUser;
+use crate::db::Connection;
+use crate::errors::*;
+use crate::helpers::application;
+use crate::models::WebPayload;
+use actix_web::{http::StatusCode, web::Query, HttpResponse};
 use bigneon_db::models::*;
 use chrono::prelude::*;
-use db::Connection;
-use errors::*;
-use helpers::application;
-use models::WebPayload;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str;
@@ -54,7 +54,7 @@ impl From<ReportQueryParameters> for Paging {
     }
 }
 
-pub fn get_report(
+pub async fn get_report(
     (connection, query, user): (Connection, Query<ReportQueryParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     match query.name.trim() {

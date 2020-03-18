@@ -1,7 +1,11 @@
 use crate::support;
 use crate::support::database::TestDatabase;
 use crate::support::test_request::TestRequest;
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{
+    http::StatusCode,
+    web::{Path, Query},
+    FromRequest, HttpResponse,
+};
 use bigneon_api::controllers::reports::{self, *};
 use bigneon_api::errors::BigNeonError;
 use bigneon_api::models::{PathParameters, WebPayload};
@@ -13,7 +17,7 @@ use diesel;
 use diesel::prelude::*;
 use serde_json;
 
-pub fn scan_counts(role: Roles, should_succeed: bool) {
+pub async fn scan_counts(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let organization = database.create_organization().finish();
@@ -66,7 +70,9 @@ pub fn scan_counts(role: Roles, should_succeed: bool) {
     let auth_user = support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/reports?report=scan_count&event_id={}", event.id));
-    let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
+    let query = Query::<ReportQueryParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     let response: HttpResponse = reports::scan_counts((database.connection.clone().into(), query, auth_user)).into();
 
     if !should_succeed {
@@ -88,7 +94,7 @@ pub fn scan_counts(role: Roles, should_succeed: bool) {
     );
 }
 
-pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
+pub async fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let box_office_user = database.create_user().with_first_name("BoxOfficeUser1").finish();
     let box_office_user2 = database.create_user().with_first_name("BoxOfficeUser2").finish();
@@ -165,9 +171,11 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     let auth_user = support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri("/reports?report=box_office_sales_summary");
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = organization.id;
-    let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
+    let query = Query::<ReportQueryParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     let response: HttpResponse =
         reports::box_office_sales_summary((database.connection.clone().into(), query, path, auth_user)).into();
 
@@ -237,7 +245,7 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     assert_eq!(expected_report_data, report_data);
 }
 
-pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event: bool) {
+pub async fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let organization = database.create_organization().with_event_fee().with_fees().finish();
@@ -338,9 +346,11 @@ pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event
     } else {
         TestRequest::create_with_uri("/reports?report=transaction_detail_report")
     };
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = organization.id;
-    let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
+    let query = Query::<ReportQueryParameters>::extract(&test_request.request)
+        .await
+        .unwrap();
     let response: Result<WebPayload<TransactionReportRow>, BigNeonError> =
         reports::transaction_detail_report((database.connection.clone().into(), query, path, auth_user));
 

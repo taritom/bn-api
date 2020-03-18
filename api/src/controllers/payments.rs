@@ -3,10 +3,8 @@ use crate::errors::*;
 use crate::extractors::OptionalUser;
 use crate::helpers::application;
 use crate::server::AppState;
+use actix_web::web::{Data, Path, Query};
 use actix_web::HttpResponse;
-use actix_web::Path;
-use actix_web::Query;
-use actix_web::State;
 use bigneon_db::prelude::*;
 use log::Level::Debug;
 use uuid::Uuid;
@@ -23,12 +21,12 @@ pub struct PathParams {
     pub id: Uuid,
 }
 
-pub fn callback(
+pub async fn callback(
     (query, path, connection, state, user): (
         Query<QueryParams>,
         Path<PathParams>,
         Connection,
-        State<AppState>,
+        Data<AppState>,
         OptionalUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -68,8 +66,12 @@ pub fn callback(
             // If expired attempt to refresh cart
             if order.is_expired() {
                 match order.try_refresh_expired_cart(user.id(), conn) {
-                    Ok(_) => jlog!(Debug, "Payments: refreshed expired cart", {"payment_id": payment.id, "order_id": order.id}),
-                    Err(_) => jlog!(Debug, "Payments: Attempted to refresh expired cart but failed", {"payment_id": payment.id, "order_id": order.id}),
+                    Ok(_) => {
+                        jlog!(Debug, "Payments: refreshed expired cart", {"payment_id": payment.id, "order_id": order.id})
+                    }
+                    Err(_) => {
+                        jlog!(Debug, "Payments: Attempted to refresh expired cart but failed", {"payment_id": payment.id, "order_id": order.id})
+                    }
                 }
             }
             payment.mark_pending_ipn(user.id(), conn)?;
