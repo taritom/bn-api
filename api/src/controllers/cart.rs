@@ -11,6 +11,7 @@ use crate::payments::PaymentProcessorBehavior;
 use crate::payments::RedirectToPaymentPageBehavior;
 use crate::server::AppState;
 use crate::utils::ServiceLocator;
+use crate::SITE_NAME;
 use actix_web::{
     web::{Data, Path},
     HttpResponse,
@@ -531,7 +532,7 @@ fn checkout_payment_processor(
                                     )
                                 };
                             let client_response =
-                                behavior.update_repeat_token(&payment_method.provider, token, "Big Neon something")?;
+                                behavior.update_repeat_token(&payment_method.provider, token, SITE_NAME)?;
                             let payment_method_parameters = PaymentMethodEditableAttributes {
                                 provider_data: Some(client_response.to_json()?),
                             };
@@ -546,7 +547,7 @@ fn checkout_payment_processor(
                                         "Could not complete this cart using saved payment methods is not supported for this payment processor",
                                     )
                                 };
-                            let repeat_token = behavior.create_token_for_repeat_charges(token, "Big Neon")?;
+                            let repeat_token = behavior.create_token_for_repeat_charges(token, SITE_NAME)?;
                             let _payment_method = PaymentMethod::create(
                                 auth_user.id(),
                                 provider,
@@ -594,7 +595,7 @@ fn auth_then_complete(
         &token,
         amount,
         currency,
-        "Big Neon Tickets",
+        SITE_NAME,
         order.purchase_metadata(connection)?,
     )?;
 
