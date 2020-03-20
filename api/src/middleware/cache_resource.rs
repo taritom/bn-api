@@ -2,6 +2,7 @@ use crate::database::Connection;
 use crate::extractors::*;
 use crate::helpers::*;
 use crate::server::GetAppState;
+use crate::utils::logging::log_request;
 use actix_service::Service;
 use actix_web::error;
 use actix_web::http::header::*;
@@ -12,7 +13,6 @@ use futures::future::{ok, Ready};
 use http::caching::*;
 use itertools::Itertools;
 use log::Level;
-use logging::jlog;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use url::form_urlencoded;
@@ -331,12 +331,24 @@ where
 
         match cache {
             Cache::Hit(response, status) => {
-                jlog!(Level::Debug, "bigneon_api::cache_resource", "Cache hit", {"cache_user_key": status.user_key, "cache_response": status.cache_response});
+                log_request(
+                    Level::Debug,
+                    "api::cache_resource",
+                    "Cache hit",
+                    &http_req,
+                    json!({"cache_user_key": status.user_key, "cache_response": status.cache_response, "cache_hit": true}),
+                );
                 let response = dev::ServiceResponse::new(http_req, response);
                 Box::pin(async move { Ok(CacheResource::update(status, response)) })
             }
             Cache::Miss(status) => {
-                jlog!(Level::Debug, "bigneon_api::cache_resource", "Cache miss", {"cache_user_key": status.user_key, "cache_response": status.cache_response});
+                log_request(
+                    Level::Debug,
+                    "api::cache_resource",
+                    "Cache miss",
+                    &http_req,
+                    json!({"cache_user_key": status.user_key, "cache_response": status.cache_response, "cache_hit": false}),
+                );
                 let request = dev::ServiceRequest::from_parts(http_req, payload)
                     .unwrap_or_else(|_| unreachable!("Failed to recompose request in CacheResourceService::call"));
                 let fut = service.borrow_mut().call(request);
