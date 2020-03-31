@@ -10,11 +10,13 @@ env: &env
     CUSTOMER_IO_API_KEY: ""
     CUSTOMER_IO_SITE_ID: ""
     CUBE_JS_SECRET: ""
+    EMAIL_ONLY_REGISTRATION_ALLOWED: true
     EMAIL_TEMPLATES_TICKET_COUNT_REPORT: "CustomerIo:not-a-real-value"
     EMAIL_TEMPLATES_CUSTOM_BROADCAST: "CustomerIo:not-a-real-value"
     EMAIL_TEMPLATES_ORG_INVITE: "Sendgrid:d-19ea07c6169e4fe887b6527ef16cb1ea"
     EMAIL_TEMPLATES_PASSWORD_RESET: "Sendgrid:d-193ea5665fc54c8ca19c6325c8e46703"
     EMAIL_TEMPLATES_RESEND_DOWNLOAD_LINK: "CustomerIo:TEMPLATE_ID"
+    EMAIL_TEMPLATES_USER_REGISTERED_MAGIC_LINK: "CustomerIo:TEMPLATE_ID"
     # Globee will not allow a localhost url
     FRONT_END_URL: "https://ci-test.notreal.bigneon.com"
     BUILD_DIR: "api"
@@ -320,6 +322,6 @@ services:
 
 ---
 kind: signature
-hmac: 998d82447947d589db2933a5270af5244b8874be3fdfa19a475dd89465ba47be
+hmac: 9eae24dcf725312f2fd9b43b08a2c7128ff783f0bc60af0f0daaab508ab796e6
 
 ...
