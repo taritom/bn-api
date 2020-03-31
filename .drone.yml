@@ -55,6 +55,7 @@ env: &env
     CONNECTION_POOL_MIN: 1
     BRANCH_IO_BRANCH_KEY:
         from_secret: BRANCH_IO_BRANCH_KEY
+    PRODUCT_CONTEXT: BigNeon
 
 kind: pipeline
 name: Build
@@ -322,6 +323,6 @@ services:
 
 ---
 kind: signature
-hmac: 9eae24dcf725312f2fd9b43b08a2c7128ff783f0bc60af0f0daaab508ab796e6
+hmac: f2113b7a565a42fc1a6a967b7568b36419422ddb1bfd2e3b882cdce1d6d60c0c
 
 ...

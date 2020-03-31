@@ -75,6 +75,7 @@ pub struct Config {
     pub ssr_trigger_value: String,
     pub customer_io: CustomerIoSettings,
     pub sharetribe: SharetribeConfig,
+    pub product_context: ProductContext,
 }
 
 #[derive(Clone)]
@@ -147,6 +148,12 @@ pub struct CustomerIoSettings {
     pub base_url: String,
     pub api_key: String,
     pub site_id: String,
+}
+
+#[derive(Clone)]
+pub enum ProductContext {
+    Collectibles,
+    BigNeon,
 }
 
 const CUSTOMER_IO_API_KEY: &str = "CUSTOMER_IO_API_KEY";
@@ -241,6 +248,8 @@ const SSR_TRIGGER_VALUE: &str = "SSR_TRIGGER_VALUE";
 
 const SHARETRIBE_CLIENT_ID: &str = "SHARETRIBE_CLIENT_ID";
 const SHARETRIBE_CLIENT_SECRET: &str = "SHARETRIBE_CLIENT_SECRET";
+
+const PRODUCT_CONTEXT: &str = "PRODUCT_CONTEXT";
 
 fn get_env_var(var: &str) -> String {
     env::var(var).unwrap_or_else(|_| panic!("{} must be defined", var))
@@ -472,6 +481,16 @@ impl Config {
             client_secret: get_env_var(SHARETRIBE_CLIENT_SECRET),
         };
 
+        let product_context = match env::var(&PRODUCT_CONTEXT)
+            .unwrap_or("bigneon".to_owned())
+            .to_lowercase()
+            .as_str()
+        {
+            "collectibles" => ProductContext::Collectibles,
+            "bigneon" => ProductContext::BigNeon,
+            _ => panic!("Invalid value for PRODUCT_CONTEXT"),
+        };
+
         Config {
             actix: Actix {
                 workers,
@@ -538,6 +557,7 @@ impl Config {
             ssr_trigger_header,
             ssr_trigger_value,
             sharetribe,
+            product_context,
         }
     }
 }
