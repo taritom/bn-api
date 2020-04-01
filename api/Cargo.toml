@@ -1,7 +1,7 @@
 [package]
 name = "api"
 version = "1.9.66"
-authors = ["CjS77"]
+authors = ["CjS77","mikethetike","Timo614","Krakaw"]
 license = "BSD-3"
 repository = "https://github.com/big-neon/bn-api/"
 description = "Big Neon unified API server"
@@ -26,7 +26,7 @@ chrono = {version = "0.4", features = ["serde"]}
 clap = "2.32"
 customer_io= {path="../customer_io"}
 cache= {path="../cache"}
-diesel="1.4.2"
+diesel="=1.4.2"
 dotenv = "0.13"
 
 # Pulling from github as dependency fix merged into master has yet to be released
@@ -42,7 +42,7 @@ logging = {path="../logging"}
 macros = {path="../macros"}
 phonenumber = "0.2.3"
 rand = "0.7.3"
-r2d2 = "0.8"
+r2d2 = "=0.8.3"
 redis = "0.13"
 regex = "1"
 reqwest = { version = "0.10.4", features = ["blocking", "json"] }
@@ -54,9 +54,7 @@ sharetribe_flex={path="../sharetribe_flex"}
 stripe = { version = "0.2.0", path = "../stripe" }
 tari-client= {path="../tari-client"}
 tokio = { version = "0.2", features = ["rt-core", "rt-threaded", "time"] }
-# TODO move this to the bigneon org? Currently just testing this lib, so if we
-# are still using it in a few months, fork it into /bigneon
-twilio= { git = "https://github.com/mikethetike/twilio-rs", rev="8a746caed756c3cfe57e082084fda8be3170721a"}
+twilio= { git = "https://github.com/big-neon/twilio-rs", rev="8a746caed756c3cfe57e082084fda8be3170721a"}
 uuid = { version = "0.6", features = ["serde", "v4"] }
 url="1.7.2"
 validator = "0.8"

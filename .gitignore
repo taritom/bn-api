@@ -25,3 +25,4 @@ report/
 db/report/
 
 integration-tests/mocha/node_modules/.bin/_mocha
+Cargo.lock
