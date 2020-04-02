@@ -1,4 +1,5 @@
 use crate::auth::user::User as AuthUser;
+use crate::config::Config;
 use crate::controllers::organizations::DisplayOrganizationUser;
 use crate::controllers::ticket_types;
 use crate::database::Connection;
@@ -838,7 +839,7 @@ pub struct AddArtistRequest {
 }
 
 pub async fn create(
-    (connection, new_event, user): (Connection, Json<NewEvent>, AuthUser),
+    (connection, new_event, user, state): (Connection, Json<NewEvent>, AuthUser, Data<AppState>),
 ) -> Result<HttpResponse, ApiError> {
     let connection = connection.get();
     let organization = Organization::find(new_event.organization_id, connection)?;
@@ -848,16 +849,17 @@ pub async fn create(
 
     let event = new_event.commit(Some(user.id()), connection)?;
 
-    create_domain_action_event(event.id, connection);
+    create_sitemap_domain_action_event(event.id, &state.config, connection)?;
     Ok(HttpResponse::Created().json(event))
 }
 
 pub async fn update(
-    (connection, parameters, event_parameters, user): (
+    (connection, parameters, event_parameters, user, state): (
         Connection,
         Path<PathParameters>,
         Json<EventEditableAttributes>,
         AuthUser,
+        Data<AppState>,
     ),
 ) -> Result<HttpResponse, ApiError> {
     let connection = connection.get();
@@ -872,22 +874,31 @@ pub async fn update(
     //    }
 
     let updated_event = event.update(Some(user.id()), event_parameters, connection)?;
-
-    create_domain_action_event(updated_event.id, connection);
+    create_sitemap_domain_action_event(updated_event.id, &state.config, connection)?;
 
     Ok(HttpResponse::Ok().json(&updated_event))
 }
 
-fn create_domain_action_event(event_id: Uuid, conn: &PgConnection) {
-    let domain_action = DomainAction::create(
-        None,
-        DomainActionTypes::SubmitSitemapToSearchEngines,
-        None,
-        json!({}),
-        Some(Tables::Events),
-        Some(event_id),
-    );
-    domain_action.commit(conn).unwrap();
+fn create_sitemap_domain_action_event(
+    event_id: Uuid,
+    config: &Config,
+    conn: &PgConnection,
+) -> Result<Option<DomainAction>, DatabaseError> {
+    match config.environment {
+        Environment::Production => {
+            let domain_action = DomainAction::create(
+                None,
+                DomainActionTypes::SubmitSitemapToSearchEngines,
+                None,
+                json!({}),
+                Some(Tables::Events),
+                Some(event_id),
+            );
+            let result = domain_action.commit(conn)?;
+            return Ok(Some(result));
+        }
+        _ => return Ok(None),
+    }
 }
 
 pub async fn delete(

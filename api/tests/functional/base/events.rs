@@ -214,8 +214,9 @@ pub async fn create(role: Roles, should_test_succeed: bool) {
     // Emulate serialization for default serde behavior
     let new_event: NewEvent = serde_json::from_str(&serde_json::to_string(&new_event).unwrap()).unwrap();
     let json = Json(new_event);
-
-    let response: HttpResponse = events::create((database.connection.into(), json, auth_user.clone()))
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec![]);
+    let state = test_request.extract_state().await;
+    let response: HttpResponse = events::create((database.connection.into(), json, auth_user.clone(), state))
         .await
         .into();
     if should_test_succeed {
@@ -310,8 +311,8 @@ pub async fn update(role: Roles, should_test_succeed: bool) {
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
-
-    let response: HttpResponse = events::update((database.connection.into(), path, json, auth_user.clone()))
+    let state = test_request.extract_state().await;
+    let response: HttpResponse = events::update((database.connection.into(), path, json, auth_user.clone(), state))
         .await
         .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
