@@ -2237,6 +2237,7 @@ async fn update_promoter_fails_lacks_event_id() {
 
     let new_name = "New Event Name";
     let test_request = TestRequest::create();
+    let state = test_request.extract_state().await;
 
     let json = Json(EventEditableAttributes {
         name: Some(new_name.to_string()),
@@ -2245,9 +2246,10 @@ async fn update_promoter_fails_lacks_event_id() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).await.unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::update((database.connection.clone().into(), path, json, auth_user.clone()))
-        .await
-        .into();
+    let response: HttpResponse =
+        events::update((database.connection.clone().into(), path, json, auth_user.clone(), state))
+            .await
+            .into();
     support::expects_unauthorized(&response);
 }
 

@@ -1,3 +1,4 @@
+use crate::utils::boxed_query::IntoBoxed;
 use chrono::prelude::*;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
