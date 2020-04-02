@@ -11,3 +11,4 @@ pub mod rand;
 pub mod regexes;
 pub mod text;
 pub use self::math::*;
+pub mod boxed_query;

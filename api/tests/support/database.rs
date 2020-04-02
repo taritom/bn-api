@@ -3,9 +3,12 @@ use api::database::Connection as DbConnection;
 use db::dev::*;
 use db::prelude::*;
 
+use diesel::r2d2::{self, ConnectionManager};
 use diesel::Connection;
 use diesel::PgConnection;
 use uuid::Uuid;
+
+type R2D2Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
 pub struct TestDatabase {
@@ -15,15 +18,7 @@ pub struct TestDatabase {
 #[allow(dead_code)]
 impl TestDatabase {
     pub fn new() -> TestDatabase {
-        let config = Config::new(Environment::Test);
-
-        let connection = PgConnection::establish(&config.database_url).unwrap_or_else(|e| {
-            panic!(
-                "Connection to {} could not be established:{}",
-                config.database_url,
-                e.to_string()
-            )
-        });
+        let connection = connection();
 
         connection.begin_test_transaction().unwrap();
 
@@ -179,4 +174,28 @@ impl TestDatabase {
         .unwrap();
         TicketInstance::find_for_user(user.id, self.connection.get()).unwrap()
     }
+}
+
+pub fn connection() -> PgConnection {
+    let config = Config::new(Environment::Test);
+
+    PgConnection::establish(&config.database_url).unwrap_or_else(|e| {
+        panic!(
+            "Connection to {} could not be established:{}",
+            config.database_url,
+            e.to_string()
+        )
+    })
+}
+
+pub fn create_connection_pool(config: &Config) -> R2D2Pool {
+    let r2d2_config = r2d2::Pool::builder()
+        .min_idle(Some(config.connection_pool.min))
+        .max_size(config.connection_pool.max);
+
+    let connection_manager = ConnectionManager::new(config.database_url.clone());
+
+    r2d2_config
+        .build(connection_manager)
+        .expect("Failed to create connection pool.")
 }
