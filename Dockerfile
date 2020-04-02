@@ -20,7 +20,6 @@ ENV LD_LIBRARY_PATH /usr/local/lib
 RUN USER=root cargo new --bin bn-api
 WORKDIR /bn-api
 # Copy the dependency lists
-ADD Cargo.lock ./
 ADD Cargo.docker.toml ./Cargo.toml
 
 # this build step will cache our dependencies
@@ -42,7 +41,7 @@ ADD macros ./macros/
 ADD customer_io ./customer_io/
 ADD cache ./cache/
 ADD sharetribe_flex ./sharetribe_flex/
-ADD Cargo.lock Cargo.toml ./
+ADD Cargo.toml ./
 
 RUN cargo build --release
 
