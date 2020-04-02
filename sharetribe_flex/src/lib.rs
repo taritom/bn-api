@@ -6,7 +6,6 @@
 #![cfg_attr(not(debug_assertions), deny(unused_extern_crates))]
 
 pub const BASE_URI: &str = "https://flex-api.sharetribe.com/v1/";
-// pub const BASE_URI: &str = "https://cc56e343.ngrok.io/";
 
 mod auth;
 mod error;
